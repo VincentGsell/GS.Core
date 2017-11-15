@@ -23,7 +23,9 @@
   Demo for GS.Bus and GS.Task are currently provided for Delphi 10.2 VCL
   
   GS.Bus : 
+  
   ![Alt text](/../master/Ressources/GSBusBenchVisual.png?raw=true "GS.Bus Bench demo")
   
   GS.Task : 
+  
   ![Alt text](/../master/Ressources/GTaskBenchVisu.png?raw=true "GS.Bus Bench demo")
