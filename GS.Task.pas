@@ -9,17 +9,18 @@
 ///              - Easely Kill or Terminate task an remain it in memory. (See demo)
 ///-------------------------------------------------------------------------------
 unit GS.Task;
+interface
+
 {$IFDEF FPC}
 {$mode delphi}
+{$H+}
 {$ENDIF}
-
-interface
 
 Uses
 {$IFDEF FPC}
+  Generics.Collections,
   Classes,
   SysUtils,
-  Generics.Collections,
   SyncObjs,
 {$ELSE}
   System.Types,
@@ -403,7 +404,7 @@ type
 //    Function Lock : TList<TopTask>;
 //    Procedure Unlock;
 //    {$ENDIF}
-    Function TaskListLock : TList;
+    Function TaskListLock : {$IFNDEF FPC}System.{$ENDIF}Classes.TList;
     Procedure TaskListUnLock;
 
     //Send message to all task.
@@ -1085,7 +1086,7 @@ begin
   end;
 end;
 
-function TTaskManager.TaskListLock: TList;
+function TTaskManager.TaskListLock: {$IFNDEF FPC}System.{$ENDIF}Classes.TList;
 begin
   Result := FTaskList.LockList;
   FTaskMessageSubList.LockList;

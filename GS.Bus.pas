@@ -23,7 +23,7 @@ Uses
 {$IFDEF FPC}
   Classes,
   SysUtils,
-  Generics.Collections,  //https://github.com/dathox/generics.collections.git
+  Generics.Collections,
   SyncObjs,
 {$ELSE}
   System.Classes,
@@ -123,7 +123,7 @@ End;
 
 TBusChannelBehaviour = (bcbTopic, bcbQueue);
 
-//WARINING : All TBUSChannel Event (included event) is processed within a thread.
+//WARNING : All TBUSChannel Event (included event) is processed within a thread.
 TOnBusChannelBeforeDeliverMessage = Procedure(Var aMessage : TBusEnvelop) of Object;
 TBusChannel = Class
 private
@@ -286,8 +286,10 @@ Private
   Procedure DoSubscribterWork;
   Procedure DoNotifyClients;
   function GetStats: String;            //Distibute a message to a subscribter.
+Protected
+  Procedure BusExecute; Virtual;
 Public
-  constructor Create; Overload;
+  constructor Create; overload; Virtual;
   Destructor Destroy; Override;
 
   Procedure Execute; Override;
@@ -554,14 +556,21 @@ begin
 end;
 
 procedure TBus.Execute;
-var i,j : Integer;
-    aMes : PTBusEnvelop;
-    lMasterMessageList,lTempML : TList<PTBusEnvelop>;
-    CL : TObjectList<TBusChannel>;
 begin
   while not(Terminated) do
   begin
-    if FDoWork.WaitFor(CST_BUSTIMER) = wrSignaled then
+    BusExecute;
+  end;
+end;
+
+procedure TBus.BusExecute;
+var
+    aMes : PTBusEnvelop;
+    lMasterMessageList,lTempML : TList<PTBusEnvelop>;
+    CL : TObjectList<TBusChannel>;
+
+    Procedure LocalInternalTransfertMessage;
+    var i : Integer;
     begin
       //STEP ONE : ALL message in the pending list are transfered for processing (= liberate pending list for new reception)
       lMasterMessageList := FWaitMessageList.Lock;
@@ -578,64 +587,72 @@ begin
         FWaitMessageList.Unlock;
         FMessageList.Unlock;
       end;
+    end;
 
+    Procedure LocalInternalDispatchToSubscribterAndNotify;
+    var i,j : Integer;
+    begin
       //STEP TWO : All message in processing list are now dispached to the subscibter.
       CL := FChannels.Lock;
       try
 
         lMasterMessageList := FMessageList.Lock;
         try
-        //Optimizing. MasterMessageList only change in this thread. :--<
+          //Optimizing. MasterMessageList only change in this thread. :--<
         finally
           FMessageList.Unlock;
         end;
 
-          For i := 0 to lMasterMessageList.Count-1 do
+        For i := 0 to lMasterMessageList.Count-1 do
+        begin
+
+          FpChannel := Nil;
+          for j := 0 to CL.Count-1 do
           begin
-
-            FpChannel := Nil;
-            for j := 0 to CL.Count-1 do
+            if lMasterMessageList[i].TargetChannel = CL[j].ChannelName then
             begin
-              if lMasterMessageList[i].TargetChannel = CL[j].ChannelName then
-              begin
-                FpChannel := CL[j];
-                break;
-              end;
-            end;
-
-            if Not(Assigned(FpChannel)) then //Channel not exists : Create it. Todo : Parameter for Send without channel open ?
-            begin
-              FpChannel := TBusChannel.Create(lMasterMessageList[i].TargetChannel);
-              CL.Add(FpChannel);
-            end;
-
-            If (lMasterMessageList[i].TargetChannel = FpChannel.ChannelName) then
-            begin
-              FpChannel.IncReceivedMessageCount;
-              FMes := lMasterMessageList[i];
-
-              if Assigned(FpChannel.OnBeforeDeliverMessage) then
-              begin
-                try
-                  fpChannel.OnBeforeDeliverMessage(FMes^);
-                Except
-//                  raise Exception.Create('Error Message'); TODO
-                end;
-              end;
-
-              DoSubscribterWork;
-              DoNotifyClients;
+              FpChannel := CL[j];
+              break;
             end;
           end;
 
-          //finally
-          //  FMessageList.Unlock;
-          //end;
+          if Not(Assigned(FpChannel)) then //Channel not exists : Create it. Todo : Parameter for Send without channel open ?
+          begin
+            FpChannel := TBusChannel.Create(lMasterMessageList[i].TargetChannel);
+            CL.Add(FpChannel);
+          end;
+
+          If (lMasterMessageList[i].TargetChannel = FpChannel.ChannelName) then
+          begin
+            FpChannel.IncReceivedMessageCount;
+            FMes := lMasterMessageList[i];
+
+            if Assigned(FpChannel.OnBeforeDeliverMessage) then
+            begin
+              try
+                fpChannel.OnBeforeDeliverMessage(FMes^);
+              Except
+                //ToDo : Send Exception Message ?
+                //raise Exception.Create('Error Message'); TODO Exception on processing...
+              end;
+            end;
+
+            DoSubscribterWork;
+            DoNotifyClients;
+          end;
+        end;
+
+        //finally
+        //  FMessageList.Unlock;
+        //end;
       finally
         FChannels.Unlock;
       End;
+    end;
 
-
+    Procedure LocalInternalCleaning;
+    var i : integer;
+    begin
       //Cleaning.
       lMasterMessageList := FMessageList.Lock;
       try
@@ -650,8 +667,26 @@ begin
         FMessageList.Unlock;
       end;
     end;
+
+begin
+  case FDoWork.WaitFor(CST_BUSTIMER) of
+    wrSignaled :
+    begin
+      LocalInternalTransfertMessage;
+      LocalInternalDispatchToSubscribterAndNotify;
+      LocalInternalCleaning;
+    end;
+    wrTimeout :
+    begin
+      //Todo : Generate Idle message;
+    end;
+    wrAbandoned, wrError {$IFNDEF FPC}, wrIOCompletion {$ENDIF} :
+    begin
+      //Todo : Exception message. Stop ?
+    end;
   end;
 end;
+
 
 procedure TBus.GetChannelsConfigurationAsCSV(var aStr: TStringList);
 var i : Integer;
@@ -716,7 +751,8 @@ end;
 
 function TBus.GetStats: String;
 begin
-  result := 'Messages - Send : ' +IntTostr(FTotalMessageSend.Value) +
+  //TODO : Jsonify ?
+  Result := 'Messages - Send : ' +IntTostr(FTotalMessageSend.Value) +
             ' Pending : ' +IntTostr(FTotalMessagePending.Value) +
             ' Processed : ' +IntTostr(FTotalMessageProcessed.Value);
 end;
@@ -800,7 +836,7 @@ var CL : TList<TBusClientReader>;
     i,k,q : integer;
     aReader : TBusClientReader;
 begin
-  //VGS : Above assert : Removed once more... Let this comment to not turn back.
+  //VGS : Above assert : Removed once more... Let this comment to ***not turn it back !!!***.
   //      Bus.processMessages is attended to be called by everywhere, in all thread we want.
   //  Assert(aClientReader.CreatorThreadId = GetThreadID);
 
@@ -849,7 +885,14 @@ begin
           Dispose(mcl2[i]);
         end;
       Except
-        raise Exception.Create('Bus.Process : CallBack : Error in event for target channel "'+aReader.ChannelListening+'" Message '+IntToStr(q)+' of '+IntToStr(mcl2.Count));
+        On E : Exception do
+        begin
+          //TODO : Remove Reader when exception (Avoid Exception stack) ?
+          //for instance  --> Exception.
+          raise Exception.Create( 'Client CallBack from Bus : Exception in Callback for channel "'+
+                                  aReader.ChannelListening+'" Message '+IntToStr(q)+' of '+IntToStr(mcl2.Count)+
+                                  ' : ['+E.Message+']');
+        end;
       end;
     finally
       FreeAndNil(mcl2);

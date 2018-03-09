@@ -2,7 +2,8 @@
 /// Title      : GS.Threads
 /// Short Desc : Introduce protected value.
 /// Source     : https://github.com/VincentGsell
-/// Aim        : - Access to value within a thread.
+/// Aim        : - Access to value within a thread or from another thread,
+//                 pointing directly to the value, with no more care.
 ///              - GetThreadID FPC/Delphi Win and Linux.
 ///-------------------------------------------------------------------------------
 unit GS.Threads;
@@ -17,7 +18,6 @@ Uses
 {$IFDEF FPC}
   Classes,
   SysUtils,
-  Generics.Collections,
   SyncObjs;
 {$ELSE}
   System.Classes,

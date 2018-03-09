@@ -64,11 +64,11 @@ private
   function GetFileName: String;
   procedure SetFileName(const Value: String);
   function GetInMemory: Boolean;
-  procedure SetInMemory(const Value: Boolean);
 Protected
  //This event will be trig when channel will receive a message. (See constructor)
  Procedure InternalEventOnChannelBeforeDeliverMessage(Var aMessage : TBusEnvelop); Virtual;
  Procedure InternalEventLoadData(Var aMessage : TBusEnvelop); Virtual;
+ Procedure InternalEventUnLoad(Var aMessage : TBusEnvelop); Virtual;
 
  Procedure InternalOnWarmLoad(Sender : TObject; PercentProgress : Double);
  Procedure InternalOnReady;
@@ -81,6 +81,7 @@ Public
   Function GetCVSSnapShotAsString(aFrom, aTo : Int64) : String;
 
   Procedure Open;
+  Procedure Close;
 
   Property ItemCount : Int64 read GetItemCount;
   Property FileName : String read GetFileName Write SetFileName;
@@ -89,8 +90,8 @@ Public
   Property OnWarm : TOnWarmEvent read FOnWarm Write FonWarm;
   Property OnReady : TNotifyEvent read FOnReady Write FOnReady;
 
-  //To make memcached Memory only (no write on disk) pleaser set file name to empty string BEFORE open ;)
-  //Property InMemory : Boolean read GetInMemory Write SetInMemory;
+  //memcached Memory only indcator (no write on disk)
+  Property InMemory : Boolean read GetInMemory;
 End;
 
 TLocalMemcachedClient = Class
@@ -127,6 +128,11 @@ End;
 implementation
 
 { TLocalMemcached }
+
+procedure TLocalMemcached.Close;
+begin
+  Open; // ;) -> Open and close is, behind the scene, just a swith. Open twice is like open/Close
+end;
 
 constructor TLocalMemcached.create;
 begin
@@ -232,7 +238,7 @@ end;
 
 procedure TLocalMemcached.InternalEventLoadData(var aMessage: TBusEnvelop);
 begin
-  ChannelSetOnBeforeDeliverMessageEvent(CST_HOLY_CHANNELOAD,nil);
+  ChannelSetOnBeforeDeliverMessageEvent(CST_HOLY_CHANNELOAD,InternalEventUnLoad); //Switch the event to Unlod for next message (It is a "Switch").
   FInternalDataCS.Acquire;
   try
     FInternalData := TofReference.Create(FFileName.Value, InternalOnWarmLoad);
@@ -435,6 +441,18 @@ begin
   end;
 end;
 
+procedure TLocalMemcached.InternalEventUnLoad(var aMessage: TBusEnvelop);
+begin
+  ChannelSetOnBeforeDeliverMessageEvent(CST_HOLY_CHANNELOAD,InternalEventLoadData); //Switch the event to Unlod for next message (It is a "Switch").
+  FInternalDataCS.Acquire;
+  try
+    FreeAndNil(FInternalData);
+  Finally
+    FInternalDataCS.Release;
+  end;
+  InternalOnReady;
+end;
+
 procedure TLocalMemcached.InternalOnReady;
 begin
   if Assigned(FOnReady) then
@@ -464,7 +482,12 @@ begin
   try
     if not(Assigned(FInternalData)) then
     begin
-      Start;
+      {$IFNDEF FPC}
+      if Not(Started) then
+      {$ENDIF}
+      begin
+        Start;
+      end;
       Send(am,CST_HOLY_CHANNELOAD);
     end;
   finally
@@ -480,13 +503,10 @@ begin
   end
   else
   begin
-    raise Exception.Create(ClassName + ' FileName cannot be set once "Open" has been called.');
+    raise Exception.Create(ClassName + ' FileName cannot be set on active data');
   end;
 end;
 
-procedure TLocalMemcached.SetInMemory(const Value: Boolean);
-begin
-end;
 
 function TLocalMemcached.GetCVSSnapShotAsString(aFrom, aTo: Int64): String;
 var i : integer;

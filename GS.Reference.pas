@@ -104,7 +104,6 @@ public
   Procedure WriteEntryStream(key : String; aStream : TMemoryStream);
   Function GetEntryAsStream(key : String) : TMemoryStream;
 
-
   Property Allocation : TofBusinessObjectListRec<String,TofAllocationTableStruc> read FInMemoryAllocation;
   Property TypeConversionAllowedWriteTime : Boolean read FTypeConversionAllowed Write FTypeConversionAllowed;
   Property InMemoryOnly : Boolean read FInMemoryOnly;
