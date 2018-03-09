@@ -16,7 +16,7 @@
   
 - GS.JSON
   Another JSON lib. this one permit JsonToObject and ObjectToJson
-  Based upon [this work](https://github.com/rilyu/json4delphi) : 
+  Based upon [this work](https://github.com/rilyu/json4delphi) 
 
 # Demo
 
