@@ -1,5 +1,5 @@
 # GS.Core
-  Core functions shared by several projects (Bus, theading, Reference (Key<>Value pair) storage.)
+  Core functions shared by several projects 
 
 - GS.Bus : 
   Implements threaded based minibus : Able to make inter thread communication easely. (See demo)
@@ -13,10 +13,10 @@
   
 - GS.Task
   Task management with communication system between task.
-
-# Dependancy
-
-  For FPC : github.com/dathox/generics.collections
+  
+- GS.JSON
+  Another JSON lib. this one permit JsonToObject and ObjectToJson
+  Based upon [this work](https://github.com/rilyu/json4delphi) : 
 
 # Demo
 
@@ -29,3 +29,5 @@
   GS.Task : 
   
   ![Alt text](/../master/Ressources/GTaskBenchVisu.png?raw=true "GS.Bus Bench demo")
+
+  GS.JSON : Work in progress. Soon.
