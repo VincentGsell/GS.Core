@@ -259,7 +259,7 @@ procedure TLocalMemcached.InternalEventOnChannelBeforeDeliverMessage(
       ltemp : TofAllocationTableStruc;
 begin
   lmsg := aMessage.ContentMessage.AsStream;
-  SEtLength(aMessage.ContentMessage.Buffer,0);
+  SetLength(aMessage.ContentMessage.Buffer,0);
   lmsg.Position := 0;
   lcmd := TLocalMCOrder(ReadByte(lmsg));
   ltype := TLocalMCtype(ReadByte(lMsg));

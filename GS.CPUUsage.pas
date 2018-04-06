@@ -12,12 +12,13 @@ interface
   {$mode Delphi}
 Uses SysUtils, Classes, SyncObjs
  {$IFDEF WINDOWS}
-  ,Windows,
+  System,
+  Windows,
   Messages
   {$ENDIF}
   ;
 {$ELSE}
-Uses System.SysUtils, System.Classes, System.SyncObjs;
+Uses System.SysUtils, System.Classes, System.SyncObjs, Windows;
 {$ENDIF}
 Type
 
@@ -30,7 +31,7 @@ Private
 {$IFDEF FPC}
   {$IFDEF LINUX}
   //For decoding /prog/cpuinfo
-  Lines, LineSegments: TStringList;
+  Lines, LineChunks: TStringList;
   {$ENDIF}
 {$ENDIF}
 
@@ -67,7 +68,43 @@ End;
 function GetSystemTimes(var lpIdleTime, lpKernelTime, lpUserTime: TFileTime): BOOL; stdcall; external 'Kernel32.dll' name 'GetSystemTimes';
   {$ENDIF}
 {$ENDIF}
+
+function gsGetTickCount : UInt64;
+
 implementation
+
+
+function gsGetTickCount : UInt64;
+{$IFDEF FPC}
+  {$IFDEF LINUX}
+var tv : timeval;
+  {$ENDIF}
+begin
+  Result := 0;
+  {$IFDEF WINDOWS}
+  Result := GetTickCount;
+  {$ELSE}
+    {$IFDEF LINUX}
+  if GetTimeOfday(tv,nil) <>0) then
+    result := 0
+  else
+    Result := (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
+    {$ELSE}
+      {$MESSAGE Fatal 'Method not implemented for FPC on current platform'}
+    {$ENDIF}
+  {$ENDIF}
+end;
+{$ELSE} //Delphi
+begin
+  {$IF Defined(MSWINDOWS)}
+  begin
+    Result := getTickCount;
+  end;
+  {$ELSE OTHERPLATFORM}
+    {$MESSAGE Fatal 'Method not implemented for DELPHI on current Platform'}
+  {$ENDIF OTHERPLATFORM}
+end;
+{$ENDIF}
 
 
 { TopCPUUsage }
@@ -81,7 +118,7 @@ begin
   {$IFDEF LINUX}
   //For decoding /prog/cpuinfo
   Lines := TStringList.Create;
-  LineSegments := TStringList.Create;
+  LineChunks := TStringList.Create;
   {$ENDIF}
 {$ENDIF}
 end;
@@ -92,7 +129,7 @@ begin
   {$IFDEF LINUX}
   //For decoding /prog/cpuinfo
   FreeAndNil(Lines);
-  FreeAndNil(LineSegments);
+  FreeAndNil(LineChunks);
   {$ENDIF}
 {$ENDIF}
  Inherited;
@@ -122,6 +159,8 @@ Function TopCPUUsage.InternalGetSystemTime(
   var aSystemTimes: TThread.TSystemTimes) : Boolean;
 
 {$IFDEF FPC}
+Const L_CST_CPU = 'cpu ';
+      L_CST_PROCSTAT = '/proc/stat';
   {$IFDEF WINDOWS}
 var
   Idle, User, Kernel: TFileTime;
@@ -140,8 +179,8 @@ end;
 var Line: string;
 begin
   Result := False;
-  Lines.loadfromFile('/proc/stat');
-  LineSegments.Delimiter := ' ';
+  Lines.loadfromFile(CST_L_PROCSTAT);
+  LineChunks.Delimiter := ' ';
   aSystemTimes.UserTime := 0;
   aSystemTimes.NiceTime := 0;
   aSystemTimes.KernelTime := 0;
@@ -149,14 +188,14 @@ begin
 
   for Line in Lines do
   begin
-    if copy(Line,1,4) = 'cpu ' then
+    if copy(Line,1,4) = L_CST_CPU then
     begin
-      LineSegments.DelimitedText := line;
-      Inc(aSystemTimes.UserTime, StrToInt64(LineSegments[1]));
-      Inc(aSystemTimes.NiceTime, StrToInt64(LineSegments[2]));
-      // include idle time in kernel time in order to be consistent with Windows.
-      Inc(aSystemTimes.KernelTime, StrToInt64(LineSegments[3]) + StrToInt64(LineSegments[4]));
-      Inc(aSystemTimes.IdleTime, StrToInt64(LineSegments[4]));
+      LineChunks.DelimitedText := line;
+      Inc(aSystemTimes.UserTime, StrToInt64(LineChunks[1]));
+      Inc(aSystemTimes.NiceTime, StrToInt64(LineChunks[2]));
+      //Kernel time usually Kernel+Idle.
+      Inc(aSystemTimes.KernelTime, StrToInt64(LineChunks[3]) + StrToInt64(LineChunks[4]));
+      Inc(aSystemTimes.IdleTime, StrToInt64(LineChunks[4]));
       Result := True
     end
     else
@@ -164,11 +203,11 @@ begin
   end;
 end;
   {$ELSE}
-    {$MESSAGE Fatal 'Method not implemented for FPC on platform'}
+    {$MESSAGE Fatal 'Method not implemented for FPC on current platform'}
   {$ENDIF}
 {$ENDIF}
 {$ELSE} //DELPHI
-  {$IF Defined(MSWINDOWS) or Defined(MACOS) or Defined(ANDROID)}
+  {$IF Defined(MSWINDOWS) or Defined(MACOS) or Defined(ANDROID) or Defined(POSIX)}
   begin
     Result := TThread.GetSystemTimes(aSystemTimes);
   end;

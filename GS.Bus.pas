@@ -334,14 +334,20 @@ implementation
 { TBus }
 Procedure StartStandartBus;
 begin
-  Bus := TBus.Create;
-  Bus.Start;
+  if Not(assigned(Bus)) then
+  begin
+    Bus := TBus.Create;
+    Bus.Start;
+  end;
 end;
 Procedure ReleaseStandartBus;
 begin
-  Bus.Terminate;
-  Bus.WaitFor;
-  FreeAndNil(Bus);
+  if Assigned(bus) then
+  begin
+    Bus.Terminate;
+    Bus.WaitFor;
+    FreeAndNil(Bus);
+  end;
 end;
 
 procedure TBus.ChannelSet(aChannelName: String;
@@ -382,9 +388,14 @@ end;
 
 destructor TBus.Destroy;
 begin
-  Terminate;
+  if not(Terminated) then
+  begin
+    Terminate;
+    FDoWork.ResetEvent;
+    FDoWork.SetEvent;
+    Waitfor; //Terminate main bus loop.
+  end;
   FDoWork.SetEvent;
-  Waitfor; //Terminate main bus loop.
   FreeAndNil(FDoWork);
   FreeAndNil(FMessageList);
   FreeAndNil(FWaitMessageList);
@@ -672,16 +683,19 @@ begin
   case FDoWork.WaitFor(CST_BUSTIMER) of
     wrSignaled :
     begin
+      if Terminated then Exit;
       LocalInternalTransfertMessage;
       LocalInternalDispatchToSubscribterAndNotify;
       LocalInternalCleaning;
     end;
     wrTimeout :
     begin
+      if Terminated then Exit;
       //Todo : Generate Idle message;
     end;
     wrAbandoned, wrError {$IFNDEF FPC}, wrIOCompletion {$ENDIF} :
     begin
+      if Terminated then Exit;
       //Todo : Exception message. Stop ?
     end;
   end;
@@ -1468,5 +1482,13 @@ begin
   inherited;
   FLastClientIndexServed := 0;
 end;
+
+Initialization
+
+Bus := Nil;
+
+Finalization
+
+//ReleaseStandartBus;
 
 end.
