@@ -30,6 +30,9 @@ Uses
 
 Type
   //TProtectecValue : Basic type CS protected : To not use TMonitor.
+  //USE IT CAREFULLY, because of ressource taken by CriticalSection.
+  //Use it for your convenience only if you need
+  //To access "easely" to an alien thread property.
   TProtectedValue<T> = Class
     FT : T;
     FPrivateCS : TCriticalSection;

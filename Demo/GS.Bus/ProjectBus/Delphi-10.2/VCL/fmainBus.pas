@@ -110,6 +110,8 @@ begin
      if Bus.UnSubscribe(la, edt1.Text) then
      begin
        //"la" has been freed by the bus. TBusClientReaded created by "Subscribe" call is owned by the bus.
+
+       la.Free;
        lst2.DeleteSelected;
      end;
   end

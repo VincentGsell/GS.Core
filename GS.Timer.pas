@@ -34,6 +34,7 @@ TGSTimerExecMode = (Thread, Synchro, Queued);
 
 TGSTimerThread = class(TThread)
 private
+protected
   FTrigger : TEvent;
   FTimerExecMode :TGSTimerExecMode;
   FLastError: String;
@@ -43,21 +44,28 @@ private
   function GetInterval: Cardinal;
   procedure SetInterval(const Value: Cardinal);
   function GetLoopCounter: Cardinal;
-protected
-  procedure DoTimer;
+
+  Procedure DoTimerProcess; Virtual;
+  procedure DoTimerEvent; Virtual;
 public
-  constructor Create(Const aTimerExecMode : TGSTimerExecMode = Thread); Reintroduce;
+  constructor Create(Const aTimerExecMode : TGSTimerExecMode = Thread); Reintroduce; Virtual;
   destructor Destroy; Override;
 
   procedure Execute; Override;
+
   Property LastError : String read FLastError;
   property OnTimer : TNotifyEvent read FOnTimer write FOnTimer;
   Property Interval : Cardinal read GetInterval Write SetInterval;
   Property LoopCounter : Cardinal read GetLoopCounter;
 end;
 
+//Why a container : It is good to destroy and recreate thread when changing deep
+//parameter : this container do this job.
+
 TGSTimerThreadContainer = class
 private
+protected
+  FTimerThread : TGSTimerThread;
   FEnabled: Boolean;
   FInterval: Cardinal;
   FOnTimer: TNotifyEvent;
@@ -68,12 +76,9 @@ private
   procedure SetOnTimerExecMode(const Value: TGSTimerExecMode);
   function GetLoopCounter: Cardinal;
   function GetTimerThreadID: NativeInt;
-
-protected
-  FTimerThread : TGSTimerThread;
   procedure UpdateTimer; Virtual;
 public
-  constructor Create; Reintroduce;
+  constructor Create; Virtual;
   destructor Destroy; Override;
 
 published
@@ -120,7 +125,7 @@ begin
   inherited;
 end;
 
-procedure TGSTimerThread.DoTimer;
+procedure TGSTimerThread.DoTimerEvent;
 begin
   if Terminated then
     Exit;
@@ -129,25 +134,32 @@ begin
     FOnTimer(Self);
 end;
 
+procedure TGSTimerThread.DoTimerProcess;
+begin
+  if FTrigger.WaitFor(Finterval.Value) = TWaitResult.wrTimeout then
+  begin
+    if Terminated then
+      Exit;
+    try
+      case FTimerExecMode of
+        Thread: DoTimerEvent;
+        Synchro: Synchronize(DoTimerEvent);
+        Queued: Queue(DoTimerEvent);
+      end;
+    Except
+      On E : Exception do
+      begin
+        FLastError := '['+ClassName+'] - '+E.Message;
+      end;
+    end;
+  end;
+end;
+
 procedure TGSTimerThread.Execute;
 begin
   while (not Terminated) do
   begin
-    if FTrigger.WaitFor(Finterval.Value) = TWaitResult.wrTimeout then
-    begin
-      try
-        case FTimerExecMode of
-          Thread: DoTimer;
-          Synchro: Synchronize(DoTimer);
-          Queued: Queue(DoTimer);
-        end;
-      Except
-        On E : Exception do
-        begin
-          FLastError := '['+ClassName+'] - '+E.Message;
-        end;
-      end;
-    end;
+    DoTimerProcess;
   end;
 end;
 

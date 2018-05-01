@@ -10,9 +10,8 @@ interface
 
 {$IFDEF FPC}
   {$mode Delphi}
-Uses SysUtils, Classes, SyncObjs
+Uses SysUtils, Classes, SyncObjs,
  {$IFDEF WINDOWS}
-  System,
   Windows,
   Messages
   {$ENDIF}

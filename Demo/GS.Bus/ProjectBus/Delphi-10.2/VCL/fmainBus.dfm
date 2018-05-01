@@ -3,7 +3,7 @@ object Form2: TForm2
   Top = 0
   Caption = 'Embeded Bus'
   ClientHeight = 576
-  ClientWidth = 993
+  ClientWidth = 1071
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -14,19 +14,20 @@ object Form2: TForm2
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   DesignSize = (
-    993
+    1071
     576)
   PixelsPerInch = 96
   TextHeight = 13
   object pnl2: TPanel
     Left = 8
     Top = 47
-    Width = 977
+    Width = 1055
     Height = 521
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
+    ExplicitWidth = 977
     DesignSize = (
-      977
+      1055
       521)
     object Label3: TLabel
       Left = 151
@@ -120,7 +121,7 @@ object Form2: TForm2
     object ListView1: TListView
       Left = 431
       Top = 288
-      Width = 538
+      Width = 616
       Height = 222
       Anchors = [akLeft, akTop, akRight, akBottom]
       Columns = <
@@ -145,11 +146,12 @@ object Form2: TForm2
       ParentDoubleBuffered = False
       TabOrder = 6
       ViewStyle = vsReport
+      ExplicitWidth = 538
     end
     object ListView2: TListView
       Left = 431
       Top = 99
-      Width = 538
+      Width = 616
       Height = 164
       Anchors = [akLeft, akTop, akRight]
       Columns = <
@@ -183,14 +185,17 @@ object Form2: TForm2
       ParentDoubleBuffered = False
       TabOrder = 7
       ViewStyle = vsReport
+      ExplicitWidth = 538
     end
     object GroupBox1: TGroupBox
       Left = 436
       Top = 5
-      Width = 533
+      Width = 609
       Height = 35
+      Anchors = [akLeft, akTop, akRight]
       Caption = ' Bus Stats'
       TabOrder = 8
+      ExplicitWidth = 533
       object Label4: TLabel
         Left = 15
         Top = 17
@@ -209,10 +214,12 @@ object Form2: TForm2
   object Panel1: TPanel
     Left = 8
     Top = 3
-    Width = 977
+    Width = 1055
     Height = 41
+    Anchors = [akLeft, akTop, akRight]
     Caption = 'Panel1'
     TabOrder = 1
+    ExplicitWidth = 977
   end
   object TimerGui: TTimer
     Interval = 250

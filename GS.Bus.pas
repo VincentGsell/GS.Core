@@ -368,6 +368,9 @@ end;
 constructor TBus.Create;
 begin
   inherited Create(true);
+  {$IFDEF DELPHI}
+  NameThreadForDebugging(ClassName);
+  {$ENDIF}
   FWaitMessageList := TBusEnvelopList.Create;
   FMessageList := TBusEnvelopList.Create;
   FChannels := TBusChannelList.Create;
@@ -393,9 +396,9 @@ begin
     Terminate;
     FDoWork.ResetEvent;
     FDoWork.SetEvent;
-    Waitfor; //Terminate main bus loop.
+    if not(Terminated) then
+      Waitfor; //Terminate main bus loop.
   end;
-  FDoWork.SetEvent;
   FreeAndNil(FDoWork);
   FreeAndNil(FMessageList);
   FreeAndNil(FWaitMessageList);
@@ -896,7 +899,6 @@ begin
           q := i; //For Exception.
           aReader.IncProcessMessageCount;
           aReader.CallBack(Self,mcl2[i]^);
-          Dispose(mcl2[i]);
         end;
       Except
         On E : Exception do
