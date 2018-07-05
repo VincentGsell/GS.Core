@@ -39,7 +39,7 @@ Uses
 
 
 const
-  CST_CUSTOMSERVICEAWAITINGTIMEOUT = 2000;
+  CST_CUSTOMSERVICEAWAITINGTIMEOUT = 250; //ms
   CST_THREAD_SERVICE_NOT_RIGHT = 'Service has not a TThreadService class Thread or Thread not assigned.';
   cst_ThreadServiceStatus_string : Array[0..4] of String = ('None', 'Exception', 'Waiting for data', 'Processing', 'Finished');
 
@@ -137,7 +137,7 @@ end;
 TCustomServiceThread = Class;
 TServiceTask = Class
   MasterThread : TCustomServiceThread;
-  Procedure Initialize; Virtual;
+  Procedure Initialize; Virtual; //Use this as a constructor, in this method, you had acces to MasterThread. Not in the constructor.
   Procedure Execute; Virtual; Abstract;
   Procedure Finalize; Virtual;
 End;
@@ -223,11 +223,12 @@ End;
 TService = Class(TCustomService)
 End;
 
-
+TServiceList = TObjectList<TCustomService>;
 TCustomServiceManager = Class(GS.Bus.TBus)
 private
+  function GetServiceCount: Uint32;
 protected
-  FServices : TObjectList<TCustomService>;
+  FServices : TProtectedObject<TObjectList<TCustomService>>;
 
   function GetServices(Index: UInt32): TCustomService; Virtual;
   Procedure EnsureAllThreadStoped; Virtual;
@@ -246,7 +247,6 @@ Public
   Constructor Create; Override;
   Destructor Destroy; Override;
 
-
   Procedure StartAllServices; Virtual;
   Procedure StopAllServices; Virtual;
   Procedure StopService(aService : TCustomService); Virtual;
@@ -260,7 +260,11 @@ Public
   Function StatsTask : String;
   Function StatsServices : String;
 
+  Function ServicesLock : TServiceList; //Call with try..
+  Procedure ServicesUnlock;             //...finally.
+
   Property Services[Index : UInt32] : TCustomService read getServices;
+  Property ServiceCount : Uint32 read GetServiceCount;
 End;
 
 TServiceManager = Class(TCustomServiceManager)
@@ -448,7 +452,7 @@ end;
 constructor TCustomServiceManager.Create;
 begin
   inherited Create;
-  FServices := TObjectList<TCustomService>.Create;
+  FServices := TProtectedObject<TObjectList<TCustomService>>.Create(TObjectList<TCustomService>.Create);
   ChannelSetOnBeforeDeliverMessageEvent(cThreadChangeStatus,OnServiceChangeStatus);
   ChannelSetOnBeforeDeliverMessageEvent(cThreadResultChannel,OnServiceResult);
   ChannelSetOnBeforeDeliverMessageEvent(cThreadProgressChannel,OnServiceProgress);
@@ -459,6 +463,7 @@ end;
 
 destructor TCustomServiceManager.Destroy;
 begin
+  BusShutDown;
   EnsureAllThreadStoped;
   UnregisterAllServices;
   FreeAndNil(FServices);
@@ -467,16 +472,39 @@ end;
 
 procedure TCustomServiceManager.EnsureAllThreadStoped;
 var a : TCustomService;
+    lServices : TServiceList;
 begin
-  for a in  FServices do
-  begin
-    a.StopService;
+  lServices := FServices.Lock;
+  try
+    for a in lServices do
+    begin
+      a.StopService;
+    end;
+  finally
+    FServices.Unlock;
+  end;
+end;
+
+function TCustomServiceManager.GetServiceCount: Uint32;
+var lServices : TServiceList;
+begin
+  lServices := FServices.Lock;
+  try
+    result := lServices.Count;
+  finally
+    FServices.Unlock;
   end;
 end;
 
 function TCustomServiceManager.getServices(Index: UInt32): TCustomService;
+var lServices : TServiceList;
 begin
-  result := FServices[Index];
+  lServices := FServices.Lock;
+  try
+    result := lServices[Index];
+  finally
+    FServices.Unlock;
+  end;
 end;
 
 procedure TCustomServiceManager.OnServiceChangeStatus(
@@ -624,94 +652,140 @@ begin
 end;
 
 procedure TCustomServiceManager.RegisterService(aService: TCustomService);
+var lServices : TServiceList;
 begin
   Assert(Assigned(aService));
-  if FServices.IndexOf(aService) = -1 then
+  lServices := FServices.Lock;
+  try
+  if lServices.IndexOf(aService) = -1 then
   begin
-    FServices.Add(aService);
+    lServices.Add(aService);
     aService.FBus := TBus(Self); //Only bus part is visible. But it is a TCustomServiceManager.
+  end;
+  finally
+    FServices.Unlock;
   end;
 end;
 
 function TCustomServiceManager.ServiceFromContext(
   aContext: UInt64): TCustomService;
 var lc :  TCustomService;
+    lServices : TServiceList;
+
 begin
   Result := nil;
-  for lc in FServices do
-  begin
-    if Uint64(lc) = aContext  then
+  lServices := FServices.Lock;
+  try
+    for lc in lServices do
     begin
-      Result := lc;
-      break;
+      if Uint64(lc) = aContext  then
+      begin
+        Result := lc;
+        Exit;
+      end;
     end;
-  end;
 
-  if Not(Assigned(Result)) then
-  begin
-    //Thread could respond after service removing.
-    //raise Exception.Create(ClassName+'.ServiceFromContext : Not found');
+    if Not(Assigned(Result)) then
+    begin
+      //Thread could respond after service removing.
+      //raise Exception.Create(ClassName+'.ServiceFromContext : Not found');
+    end;
+  finally
+    Fservices.Unlock;
   end;
 end;
 
 function TCustomServiceManager.ServiceIndex(aService: TCustomService): Integer;
+var lServices : TServiceList;
 begin
-  Result := FServices.IndexOf(aService);
+  lServices := FServices.Lock;
+  try
+    Result := lServices.IndexOf(aService);
+  finally
+    FServices.Lock;
+  end;
 end;
 
+function TCustomServiceManager.ServicesLock: TServiceList;
+begin
+  Result := FServices.Lock;
+end;
+
+procedure TCustomServiceManager.ServicesUnlock;
+begin
+  FServices.Unlock;
+end;
 
 procedure TCustomServiceManager.StartAllServices;
 var a : TCustomService;
+    lServices : TServiceList;
 begin
-  for a in  FServices do
-  begin
-    a.StartService;
+  lServices := FServices.Lock;
+  try
+    for a in lServices do
+    begin
+      a.StartService;
+    end;
+  finally
+    FServices.Unlock;
   end;
 end;
 
 function TCustomServiceManager.StatsServices: String;
 var ls : TStringList;
     lService : TCustomService;
+    lServices : TServiceList;
 begin
-  ls := TStringList.Create;
+  lServices := FServices.Lock;
   try
-    if FServices.Count>0 then
-    begin
-      ls.Add(FServices[0].ServiceStats.Header);
-      for lService in FServices do
+    ls := TStringList.Create;
+    try
+      if lServices.Count>0 then
       begin
-        ls.Add(lService.ServiceStats.AsString);
+        ls.Add('ServiceName,'+lServices[0].ServiceStats.Header);
+        for lService in lServices do
+        begin
+          ls.Add(lService.ServiceName+','+lService.ServiceStats.AsString);
+        end;
       end;
+      Result := ls.Text;
+    finally
+      FreeAndNil(ls);
     end;
-    Result := ls.Text;
   finally
-    FreeAndNil(ls);
+    FServices.UnLock;
   end;
 end;
 
 function TCustomServiceManager.StatsTask: String;
 var ls : TStringList;
     lService : TCustomService;
+    lServices : TServiceList;
 begin
-  ls := TStringList.Create;
+  lservices := FServices.Lock;
   try
-    if FServices.Count>0 then
-    begin
-      for lService in FServices do
+    ls := TStringList.Create;
+    try
+      if lServices.Count>0 then
       begin
-        if Assigned(lService.Task) then
+        for lService in lServices do
         begin
-          ls.Add(lService.ServiceName+' - '+lService.Task.ClassName);
-        end
-        else
-        begin
-          ls.Add(lService.ServiceName+' - No task.' );
+          if Assigned(lService.Task) then
+          begin
+            ls.Add(lService.ServiceName+' - '+lService.Task.ClassName);
+          end
+          else
+          begin
+            ls.Add(lService.ServiceName+' - No task.' );
+          end;
         end;
       end;
+      Result := ls.Text;
+    finally
+      FreeAndNil(ls);
     end;
-    Result := ls.Text;
   finally
-    FreeAndNil(ls);
+    FServices.Unlock;
   end;
 end;
 
@@ -730,22 +804,34 @@ end;
 
 procedure TCustomServiceManager.UnregisterAllServices(Const aFreeTask : Boolean = False);
 var la : TCustomService;
+    lServices : TServiceList;
 begin
-  for la in  FServices do
-  begin
-    if Assigned(la.Task) And aFreeTask then
+  lServices := FServices.Lock;
+  try
+    for la in lServices do
     begin
-      la.Task.Free;
+      if Assigned(la.Task) And aFreeTask then
+      begin
+        la.Task.Free;
+      end;
     end;
+  finally
+    FServices.Unlock;
   end;
 end;
 
 procedure TCustomServiceManager.UnregisterService(aService: TCustomService);
+var lServices : TServiceList;
 begin
   if Assigned(aService) then
   begin
     StopService(aService);
-    FServices.Remove(aService); //Service freed.
+    lServices := FServices.Lock;
+    try
+      lServices.Remove(aService); //Service freed.
+    Finally
+      FServices.Unlock;
+    end;
   end;
 end;
 
@@ -776,6 +862,11 @@ end;
 
 function TCustomService.GetServiceName: String;
 begin
+  if Assigned(FTask) then
+  begin
+    Result :=  FTask.ClassName;
+  end
+  else
   if Assigned(FThread) then
   begin
     Result := '"'+FThread.ClassName+'" based Service';
@@ -838,8 +929,13 @@ end;
 
 procedure TCustomService.StopService;
 begin
-  FThread.Terminate;
-  FThread.WaitFor;
+  if Not FThread.Terminated then
+  begin
+    if Not(FThread.Started) then
+      FThread.Go;
+    FThread.Terminate;
+    FThread.WaitFor;
+  end;
 end;
 
 procedure TCustomService.WaitFor;
@@ -1035,7 +1131,7 @@ begin
           lt := gsGetTickCount - lt;
           DoReportDuration(lt);
           DoChangeStatus(TThreadServiceStatus.Terminated);
-          FService.SetTaskFinished;;
+          FService.SetTaskFinished;
         Except
           On E : Exception do
           begin
@@ -1047,9 +1143,9 @@ begin
       begin
         if Terminated then
           Exit;
-        DoHeartBeat;
+        DoHeartBeat; //TODO : Heard beath only on a givent HeatBeat frequency time (Usualy, 1 sec.)
       end;
-      wrAbandoned, wrError, wrIOCompletion :
+      wrAbandoned, wrError{$IFDEF DELPHI}, wrIOCompletion {$ENDIF} :
       begin
         if Terminated then
           Break;

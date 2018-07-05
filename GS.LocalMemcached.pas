@@ -39,13 +39,15 @@ Uses
   GS.Bus,
   GS.Threads,
   GS.Stream,
-  GS.Reference;
+  GS.Reference,
+  GS.Reference.Persister,
+  GS.Reference.Persister.SingleFile;
 
 
 Const
   CST_HOLY_CHANNEL = 'MemcachedProcess';
   CST_HOLY_CHANNELOAD = 'MemcachedProcessLoad';
-
+  CST_DEFAULT_PAGEITEMCOUNTER = 9999;
 Type
 
 TLocalMCOrder = (lmoUnknown, lmoGET, lmoSET);
@@ -60,10 +62,13 @@ private
   FOnWarm: TOnWarmEvent;
   FOnWarmTrigEvery : Integer;
   FOnReady: TNotifyEvent;
+  FReferenceClass: TofReferenceClass;
   function GetItemCount: Int64;
   function GetFileName: String;
   procedure SetFileName(const Value: String);
   function GetInMemory: Boolean;
+  function GetIsOpen: Boolean;
+  procedure SetReferenceClass(const Value: TofReferenceClass);
 Protected
  //This event will be trig when channel will receive a message. (See constructor)
  Procedure InternalEventOnChannelBeforeDeliverMessage(Var aMessage : TBusEnvelop); Virtual;
@@ -90,9 +95,12 @@ Public
   Property OnWarm : TOnWarmEvent read FOnWarm Write FonWarm;
   Property OnReady : TNotifyEvent read FOnReady Write FOnReady;
 
-  //memcached Memory only indcator (no write on disk)
+  //Memcached Memory only (no write on disk) - Put FileName to empty string ("") to achieve.
   Property InMemory : Boolean read GetInMemory;
+  Property IsOpen : Boolean read GetIsOpen;
+  Property PersisterClass : TofReferenceClass read FReferenceClass Write SetReferenceClass;
 End;
+
 
 TLocalMemcachedClient = Class
 Private
@@ -137,6 +145,7 @@ end;
 constructor TLocalMemcached.create;
 begin
   Inherited Create;
+  FReferenceClass := TofReferenceSingleFile;
   FOnWarm := nil;
   FOnWarmTrigEvery := 0;
   FFileName := TProtectedString.Create('LocalMemCached.data');
@@ -166,11 +175,11 @@ begin
     begin
       Exit;
     end;
-    for I := 0 to FInternalData.Allocation.Count-1 do
+    for I := 0 to FInternalData.EntryCount-1 do
     begin
       result := result +
                 sLineBreak + IntToStr(i) +
-                ';' + FInternalData.Allocation.ByIndex[i].Key+';'+Cst_ContentTypeStr[Ord(FInternalData.Allocation.ByIndex[i].BufferContentType)];
+                ';' + FInternalData.KeyByIndex[i]+';'+Cst_ContentTypeStr[Ord(FInternalData.DataTypeByIndex[i])];
     end;
   finally
     FInternalDataCS.Release;
@@ -189,11 +198,11 @@ begin
     end;
     for I := aFrom to aTo do
     begin
-      if (i < FInternalData.Allocation.Count-1) then
+      if (i < FInternalData.EntryCount-1) then
       begin
         result := result +
                   sLineBreak + IntToStr(i) +
-                  ';' + FInternalData.Allocation.ByIndex[i].Key+';'+Cst_ContentTypeStr[Ord(FInternalData.Allocation.ByIndex[i].BufferContentType)];
+                  ';' + FInternalData.KeyByIndex[i]+';'+Cst_ContentTypeStr[Ord(FInternalData.DataTypeByIndex[i])];
       end;
     end;
   finally
@@ -208,17 +217,25 @@ end;
 
 function TLocalMemcached.GetInMemory: Boolean;
 begin
+  Result := False;
   FInternalDataCS.Acquire;
   try
     if Not(Assigned(FInternalData)) then
     begin
-      Result := False;
       Exit;
     end;
-    Result := FInternalData.InMemoryOnly;
+    if FInternalData is TofReferenceSingleFile then
+    begin
+      Result := TofReferenceSingleFile(FInternalData).InMemory;
+    end;
   finally
     FInternalDataCS.Release;
   end;
+end;
+
+function TLocalMemcached.GetIsOpen: Boolean;
+begin
+  result:= Not(Assigned(FInternalData));
 end;
 
 function TLocalMemcached.GetItemCount: Int64;
@@ -230,7 +247,7 @@ begin
       Result := 0;
       Exit;
     end;
-    Result := FInternalData.Allocation.Count;
+    Result := FInternalData.EntryCount;
   finally
     FInternalDataCS.Release;
   end;
@@ -241,8 +258,20 @@ begin
   ChannelSetOnBeforeDeliverMessageEvent(CST_HOLY_CHANNELOAD,InternalEventUnLoad); //Switch the event to Unlod for next message (It is a "Switch").
   FInternalDataCS.Acquire;
   try
-    FInternalData := TofReference.Create(FFileName.Value, InternalOnWarmLoad);
-    FInternalData.TypeConversionAllowedWriteTime := True; //Case by default, but specified in order to be explicit.
+    if FReferenceClass = TofReferenceSingleFile then
+      FInternalData := TofReferenceSingleFile.Create
+    else
+      raise Exception.Create('Error Message');
+
+    if FInternalData is TofReferenceSingleFile then
+    begin
+      TofReferenceSingleFile(FInternalData).FileName := FFileName.Value;
+      TofReferenceSingleFile(FInternalData).TypeConversionAllowedWriteTime := True; //Case by default, but specified in order to be explicit.
+      TofReferenceSingleFile(FInternalData).OnInitialLoading := InternalOnWarmLoad;
+    end;
+
+    FInternalData.Open;
+
   Finally
     FInternalDataCS.Release;
   end;
@@ -256,7 +285,7 @@ procedure TLocalMemcached.InternalEventOnChannelBeforeDeliverMessage(
       lkey : string;
       ltype : TLocalMCtype;
       lstream : TMemoryStream;
-      ltemp : TofAllocationTableStruc;
+      ltemp : tofContentType;
 begin
   lmsg := aMessage.ContentMessage.AsStream;
   SetLength(aMessage.ContentMessage.Buffer,0);
@@ -271,12 +300,12 @@ begin
       lmoUnknown: ;
       lmoGET:
       begin
-        if FInternalData.Allocation.ContainsKey(lkey) then
+        if FInternalData.IsKeyExists(lkey) then
         begin
           //Value exists.
-          ltemp := FInternalData.Allocation.ByValue[lkey];
+          ltemp := FInternalData.DataType[lkey];
 
-          case ltemp.BufferContentType of
+          case ltemp of
             ctUnknow: ;
             ctString:
             begin
@@ -354,11 +383,11 @@ begin
       end;
       lmoSET:
       begin;
-        if FInternalData.Allocation.ContainsKey(lkey) then
+        if FInternalData.IsKeyExists(lkey) then
         begin
           //Value exists.
-          ltemp := FInternalData.Allocation.ByValue[lkey];
-          case ltemp.BufferContentType of
+          ltemp := FInternalData.DataType[lkey];
+          case ltemp of
             ctUnknow: ;
             ctString:
             begin
@@ -508,6 +537,15 @@ begin
 end;
 
 
+procedure TLocalMemcached.SetReferenceClass(const Value: TofReferenceClass);
+begin
+  if (IsOpen) then
+  begin
+    raise Exception.Create('To change persistence class, component must be close.');
+  end;
+  FReferenceClass := Value
+end;
+
 function TLocalMemcached.GetCVSSnapShotAsString(aFrom, aTo: Int64): String;
 var i : integer;
     m : TMemoryStream;
@@ -521,18 +559,18 @@ begin
     end;
     for I := aFrom to aTo do
     begin
-      if (i < FInternalData.Allocation.Count-1) then
+      if (i < FInternalData.EntryCount) then
       begin
 
-        case FInternalData.Allocation.ByIndex[i].BufferContentType of
+        case FInternalData.DataTypeByIndex[i] of
           ctStream :
           begin
-            m := FInternalData.GetEntryAsStream(FInternalData.Allocation.ByIndex[i].Key);
+            m := FInternalData.GetEntryAsStream(FInternalData.KeyByIndex[i]);
             try
               result := result +
                         sLineBreak + IntToStr(i) +
-                        ';' + FInternalData.Allocation.ByIndex[i].Key+
-                        ';'+Cst_ContentTypeStr[Ord(FInternalData.Allocation.ByIndex[i].BufferContentType)]+
+                        ';' + FInternalData.KeyByIndex[i]+
+                        ';'+Cst_ContentTypeStr[Ord(FInternalData.DataTypeByIndex[i])]+
                         ';Stream size : '+IntTostr(m.Size);
             finally
               FreeAndNil(m);
@@ -542,9 +580,9 @@ begin
           begin
             result := result +
                       sLineBreak + IntToStr(i) +
-                      ';' + FInternalData.Allocation.ByIndex[i].Key+
-                      ';'+Cst_ContentTypeStr[Ord(FInternalData.Allocation.ByIndex[i].BufferContentType)]+
-                      ';'+FInternalData.GetEntryAsString(FInternalData.Allocation.ByIndex[i].Key);
+                        ';' + FInternalData.KeyByIndex[i]+
+                        ';'+Cst_ContentTypeStr[Ord(FInternalData.DataTypeByIndex[i])]+
+                      ';'+FInternalData.GetEntryAsString(FInternalData.KeyByIndex[i]);
           end;
           else
           begin
@@ -623,6 +661,7 @@ destructor TLocalMemcachedClient.Destroy;
 begin
   FreeAndNil(FResponseStringProtection);
   FreeAndNil(FResponseStream);
+  FreeAndNil(FClient);
   inherited;
 end;
 

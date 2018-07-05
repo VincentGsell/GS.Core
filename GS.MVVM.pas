@@ -8,8 +8,9 @@ interface
 
 Uses Classes,
      SysUtils,
+     SyncObjs,
      Generics.Collections,
-     GS.Bus, GS.Stream,
+     GS.Bus, GS.Stream, GS.BOList, GS.JSON,
      rtti,
      Typinfo;
 Type
@@ -23,11 +24,92 @@ Public
   PropertyName : String;
 End;
 
-
 TGSMVVMItemList = Class(TDictionary<String,TGSMVVMItem>)
 Public
   Destructor Destroy; Override;
 End;
+
+///
+///
+///  METRICS (TProc call, mectrics, logs, trace, and perf.)
+///
+///
+///
+
+TGSMVVMMetricExceptionWrap = class
+private
+  FExClass: String;
+  FExMes: String;
+  FRessourceID: string;
+public
+published
+  property ExceptionClass : String read FExClass Write FExClass;
+  Property ExceptionMessage : String read FExMes Write FExMes;
+  property RessourceId : string read FRessourceID Write FRessourceID;
+end;
+
+TGSMVVMMetricLogItem = class
+private
+  FDateTimeLog: TDateTime;
+  FLogText: String;
+public
+published
+  property DateTimeLog : TDateTime read FDateTimeLog Write FDateTimeLog;
+  Property LogText : String read FLogText Write FLogText;
+end;
+TGSMVVMMetricLogs = Array of TGSMVVMMetricLogItem;
+
+TGSMVVMMetricPerf = Class
+private
+  FEndOn: TDateTime;
+  FBeginOn: TDateTime;
+  FDMS: Int64;
+public
+published
+  property BeginOn : TDateTime read FBeginOn Write FBeginOn;
+  property EndOn : TDateTime read FEndOn Write FEndOn;
+  property DurationInMilliSec : Int64 read FDMS write FDMS;
+End;
+
+TGSMVVMMetric = class
+private
+  FUnsuccessDesc: String;
+  FSuccess: boolean;
+  FExW: TGSMVVMMetricExceptionWrap;
+  FLogs: TGSMVVMMetricLogs;
+  FPerf: TGSMVVMMetricPerf;
+Public
+  constructor Create; Virtual;
+  destructor Destroy; Override;
+published
+  property Success : boolean read fSuccess write FSuccess;
+  property UnsuccessDesc : String read FUnsuccessDesc write FUnsuccessDesc;
+  property ExceptionWrap : TGSMVVMMetricExceptionWrap read FExW write FExW;
+  property Logs : TGSMVVMMetricLogs read FLogs Write FLogs;
+  property Performance : TGSMVVMMetricPerf read FPerf Write FPerf;
+end;
+
+
+TGSMVVMForeignCallProc = Reference to Procedure(Const aClient : TBusClientReader;
+                               Const aRessourceName : String;
+                               Const aInput : TObject;
+                               Var aOutPut : TObject;
+                               Out aMetrics : TGSMVVMMetric);
+
+
+TGSMVVMForeignItem = class
+public
+  RessourceID : String;
+  RessourcePOP : String;
+  InputClassName : string;
+  OutPutClassName : string;
+  ExecProc : TGSMVVMForeignCallProc;
+end;
+
+TGSMVVMForeignItemList = Class(TObjectDictionary<String,TGSMVVMForeignItem>)
+Public
+End;
+
 
 TGSMVVMLinkMode = (None, fullDuplex, AtoB, BtoA);
 TGSMVVMLink = class
@@ -50,11 +132,33 @@ End;
 
 TGSMVVMEngine = Class(TBus)
 Private
+  ///
+  ///
+  //LOCAL API (RTTI) var.
+  ///
+  ///
   FList : TGSMVVMItemList;
   FLink : TGSMVVMLinkedList;
   FDeclaration, Fdeclarationb, Factivity : TBusClientReader;
   FCurrentVal : TGSMVVMLink;
-  //message vackend process.
+
+
+  ///
+  ///
+  ///  FOREIGN API var
+  ///
+  ///
+  FForeignList : TGSMVVMForeignItemList;
+  FForeignDeclaration : TBusClientReader;
+
+
+  ///
+  ///
+  //LOCAL API (RTTI) methods.
+  ///
+  ///
+
+  //message process.
   Procedure InternalDeclarationChannel(Sender : TBus;Var Packet : TBusEnvelop);
   procedure InternalDeclarationLink(Sender : TBus;Var Packet : TBusEnvelop);
 
@@ -66,6 +170,17 @@ Private
 
   //Utility
   procedure InternalRttiProcess(aLink: TGSMVVMLink; Const aMode : TGSMVVMLinkMode = AtoB); //To run in a synchronized part.
+
+
+  ///
+  ///
+  ///  FOREIGN API Methods
+  ///
+  ///
+  //message process.
+  Procedure InternalForeignDeclarationChannel(Sender : TBus;Var Packet : TBusEnvelop);
+
+
 Public
   Constructor Create; Override;
   Destructor Destroy; Override;
@@ -73,13 +188,73 @@ Public
   Procedure Execute; Override;
 End;
 
+
+
+/// TGSMVVMNest is just a simple thread which monitor foreign ask to local ressource, and redrive the call as specified.
+/// The RPC call could be then executed inside the nest, in anonymous thread, or Synchonized nor queued.
+///
+
+TGSMVVMNest = class(TThread)
+protected
+  FClientList : TBusClientReaderList;
+  FRessources : TofBusinessObjectList<Integer>;         //Synchro one-to-one with Client.
+  FInputClassRegistration : TList<TClass>;              //Idem
+  FOutputClassRegistration : TList<TClass>;             //Idem
+
+  procedure InternalIncomingCall(Sender : TBus;Var Packet : TBusEnvelop); Virtual;
+public
+  Procedure RegisterRessource(aRessourceName, aRessourcePOP : String; aInputClassName, aOutPutClassName : TClass; aExecProc : TGSMVVMForeignCallProc);
+  //Procedure UnregsiterClient
+  constructor Create; Reintroduce;
+  Destructor Destroy; Override;
+
+  Procedure Execute; Override;
+end;
+
+
+//Wrapper for local bus synchrone response. (for TGSMVVM.ForeignCall)
+TGSMVVMResponse = Object
+  Response : TObject;
+  Metric : TGSMVVMMetric;
+  Procedure CallBack(Sender : TBus;Var Packet : TBusEnvelop);
+end;
+
 TGSMVVM = Class
 Private
 Public
+  //RTTI based : Use Synchronize to work automaticaly with FSMVVMEngine.
   Procedure Activity(aObject : TObject);
   Function Declare(aViewName : String; aObjectInstance : TObject; PropertyName : String; Const aNewRessourceID : String = '') : Boolean;
   Function Link(aRessourceId_A : String; aRessourceId_B: String; Const aLinkMode : TGSMVVMLinkMode = fullDuplex) : Boolean;
+
+
+  ///Bottom methods are not based upon rtti, and make your app backend compatible to be network powered (so, physicaly split from your app.)
+  ///But it could be work in a simple way, such as a backend (dataModule, object, program) isolated into a thread : Then, ForeignXXXX api
+  ///is a solution to exchange object (by JSON/Binary serialization).
+
+  // Declare a local ressource, available as ressource for an external "client" (i.e. a program, foreign thread an so on)
+  //This ressource will run ExecPoint in the local ressource thread. (thread which call bus.Process api)
+  Function ForeignDeclare( aRessourceName : String;
+                           aRessourcePOP : string;
+                           aInPutClassName : TClass;
+                           aOutputClassName : TClass;
+                           ExecPoint : TGSMVVMForeignCallProc;
+                           const aNest : TGSMVVMNest = Nil) : Boolean;
+
+  //Direct RPC call to a foreign ressource.
+  Function ForeignCall ( const aPOP : String;
+                         aInputObject : TObject;
+                         var aOutputObject : TObject;
+                         var aMetric : TGSMVVMMetric) : Boolean;
+
+  //Up to date CSV : List all foreign ressources availables.
+  Function ForeignRessources : String;
+
+  //Ge new nest (thread) to monitoring foreign declaration query.
+  Function GetNewNest : TGSMVVMNest;
+
 End;
+
 
 Var GSMVVMEngine : TGSMVVMEngine;
 implementation
@@ -94,6 +269,11 @@ begin
   FDeclaration := Subscribe('MVVMDeclare', InternalDeclarationChannel);
   FDeclarationb := Subscribe('MVVMDeclareLink', InternalDeclarationLink);
   Factivity := Subscribe('MVVMActivity', InternalDeclareActivity);
+
+  //Foreign
+  FForeignList := TGSMVVMForeignItemList.Create;
+  FForeignDeclaration := Subscribe('MVVMForeignDeclare', InternalDeclarationChannel);
+
 end;
 
 { TGSMVVM }
@@ -101,11 +281,19 @@ end;
 destructor TGSMVVMEngine.Destroy;
 var i : integer;
 begin
+  UnSubscribe(Factivity);
+  UnSubscribe(FDeclaration);
+  UnSubscribe(Fdeclarationb);
+  UnSubscribe(FForeignDeclaration);
+
   FreeAndNil(Factivity);
   FreeAndNil(FDeclaration);
   FreeAndNil(FDeclarationb);
   FreeAndNil(FList);
   FreeAndNil(FLink);
+
+  FreeAndNil(FForeignList);
+  FreeAndNil(FForeignDeclaration);
   inherited;
 end;
 
@@ -238,8 +426,6 @@ begin
     raise Exception.Create('Error Message');
   end;
 
-
-
   ///
   ///
   ///  ...
@@ -283,6 +469,45 @@ begin
     MVVMProcess(ls);
   finally
     FreeAndNil(lm);
+  end;
+end;
+
+procedure TGSMVVMEngine.InternalForeignDeclarationChannel(Sender: TBus;
+  var Packet: TBusEnvelop);
+var lRessourceID : String;
+    lRessurcePOP : String;
+    lInputClassName : String;
+    lOutputClassName : String;
+    lExecProc : String;
+
+    lStream : TMemoryStream;
+    lValue : TGSMVVMForeignItem;
+begin
+  //Arriving here all declaration from everywhere.
+  lStream := Packet.ContentMessage.AsStream;
+  try
+    lRessourceID     := ReadString(lStream);
+    lRessurcePOP     := ReadString(lStream);
+    lInputClassName  := ReadString(lStream);
+    lOutputClassName := ReadString(lStream);
+    lExecProc        := ReadString(lStream);
+  finally
+    FreeAndNil(lStream);
+  end;
+
+  if Not FForeignList.TryGetValue(lRessourceID,lValue) then
+  begin
+    lValue := TGSMVVMForeignItem.Create;
+    lValue.RessourceID := lRessourceID;
+    lValue.RessourcePOP := lRessurcePOP;
+    lValue.InputClassName := lInputClassName;
+    lValue.OutPutClassName := lOutputClassName;
+    lValue.ExecProc := TGSMVVMForeignCallProc(Pointer(NativeInt(StrToInt(lRessourceId)))^);
+    FForeignList.Add(lRessourceID,lValue);
+  end
+  else
+  begin
+    raise Exception.Create('Error Message');
   end;
 end;
 
@@ -333,6 +558,37 @@ begin
   end;
 end;
 
+Function BuildDeclareForeignMessage(aRessourceID, aRessourcePOP, aInpuClassName, aOutputClassName : String; aExecProc : TGSMVVMForeignCallProc) : TBusMessage;
+var lStream : TMemoryStream;
+begin
+  Assert(Length(ARessourceID)>0);
+  lStream := TMemoryStream.Create;
+  try
+    WriteString(lStream,aRessourceID);
+    WriteString(lStream,aRessourcePOP);
+    WriteString(lStream,aInpuClassName);
+    WriteString(lStream,aOutputClassName);
+    WriteString(lStream,IntToStr(NativeInt(Pointer(@aExecProc))));
+    Result.FromStream(lStream);
+  finally
+    FreeAndNil(lStream);
+  end;
+end;
+
+Function BuildCallForeignMessage(aRessourcePOP, aInpuClassNameJsonized : String) : TBusMessage;
+var lStream : TMemoryStream;
+begin
+  Assert(Length(aRessourcePOP)>0);
+  lStream := TMemoryStream.Create;
+  try
+    WriteString(lStream,aInpuClassNameJsonized);
+    Result.FromStream(lStream);
+  finally
+    FreeAndNil(lStream);
+  end;
+end;
+
+
 Function BuildDeclareMessageLink(aResA, aResB : String; aLinkMode : TGSMVVMLinkMode) : TBusMessage;
 var lStream : TMemoryStream;
 begin
@@ -379,6 +635,106 @@ begin
   Result := True;
 end;
 
+{ TGSMVVMResponse }
+
+procedure TGSMVVMResponse.CallBack(Sender: TBus; var Packet: TBusEnvelop);
+var lStream : TMemoryStream;
+    lOutObj : String;
+    lMetric : String;
+begin
+  lStream :=  Packet.ContentMessage.AsStream;
+  try
+    lOutObj := ReadString(lStream);
+    lMetric := ReadString(lStream);
+    TGSJson.JsonToObject(lOutObj,Response);
+    TGSJson.JsonToObject(lMetric,TObject(Metric));
+  finally
+    FreeAndNil(lStream);
+  end;
+end;
+
+function TGSMVVM.ForeignCall(const aPOP: String;
+                              aInputObject: TObject;
+                              var aOutputObject : TObject;
+                              var aMetric : TGSMVVMMetric): Boolean;
+
+var aMes : TBusMessage;
+    lJsoncontent : String;
+    lc : TBusClientReader;
+    lResponse : TGSMVVMResponse;
+begin
+  Assert(Assigned(aInputObject));
+  Assert(Assigned(aOutputObject));
+  Assert(Assigned(aMetric));
+
+  //TODO Verify if aPop is konwn by GSMVVMEngine !!! (else, locked.  )
+
+  Result := False;
+  lc := GSMVVMEngine.Subscribe(aPOP+'_Answer',lResponse.CallBack);
+  try
+    lJsoncontent := TGSJson.ObjectToJson(aInputObject);
+    aMes.FromString(lJsoncontent);                         //Input object as json.
+    lResponse.Response := aOutputObject;                   //lResponse in a local object which receive a resposne from bus.
+    lResponse.Metric := aMetric;
+    GSMVVMEngine.Send(aMes,aPOP,EmptyStr,aPOP+'_Answer');  //Send data to anothre thread, which have the aPop ressorce. Waiting response on aPop+'_Answer' channel.
+
+    //Snchro call : Writing part.
+    lc.Event := GSMVVMEngine.GetNewEvent;
+    lc.Event.ResetEvent;
+    while True do
+    begin
+      case lc.Event.WaitFor(INFINITE) of
+        wrSignaled :
+        begin
+         GSMVVMEngine.ProcessMessages([lc]); //Trig lResponse.CallBack (TGSMVVMResponse.CallBack)
+         Result := True;
+         break;
+        end
+        else
+        begin
+          raise Exception.Create(ClassName+'.ForeignCall : Time out.');
+        end;
+      end;
+    end;
+
+  finally
+    GSMVVMEngine.UnSubscribe(lc);
+    lc.Event.Free;
+    FreeAndNil(lc);
+  end;
+end;
+
+function TGSMVVM.ForeignDeclare( aRessourceName,
+                                 aRessourcePOP : String;
+                                 aInPutClassName,
+                                 aOutputClassName: TClass;
+                                 ExecPoint: TGSMVVMForeignCallProc;
+                                 const aNest : TGSMVVMNest = Nil): Boolean;
+var la : TBusMessage;
+begin
+  la := BuildDeclareForeignMessage(aRessourceName, aRessourcePOP, aInPutClassName.ClassName, aOutputClassName.ClassName,ExecPoint);
+
+  //Declare to our local Nest, to be ready to receive call properly.
+  if Assigned(aNest) then
+  begin
+    aNest.RegisterRessource(aRessourceName,aRessourcePOP,aInPutClassName,aOutputClassName,ExecPoint);
+  end;
+
+  //Declare to the engine the entry point.
+  GSMVVMEngine.Send(la,'MVVMForeignDeclare');
+  Result := True;
+end;
+
+function TGSMVVM.ForeignRessources: String;
+begin
+  result := 'TODO : CSV.';
+end;
+
+function TGSMVVM.GetNewNest: TGSMVVMNest;
+begin
+  Result := TGSMVVMNest.Create;
+end;
+
 Function TGSMVVM.Link(aRessourceId_A, aRessourceId_B: String;
   const aLinkMode: TGSMVVMLinkMode) : Boolean;
 var la : TBusMessage;
@@ -422,6 +778,207 @@ begin
   for val in Self do
   begin
     val.Free;
+  end;
+  inherited;
+end;
+
+{ TGSMVVMNest }
+
+constructor TGSMVVMNest.Create;
+begin
+  Inherited Create(False);
+  FClientList := TBusClientReaderList.Create;
+  FRessources := TofBusinessObjectList<Integer>.Create;
+  FInputClassRegistration := TList<TClass>.Create;
+  FOutputClassRegistration := TList<TClass>.Create;
+end;
+
+destructor TGSMVVMNest.Destroy;
+var i : Integer;
+    Ll : Tlist<TBusClientReader>;
+begin
+  Ll := FClientList.Lock;
+  try
+    for I := 0 to Ll.Count-1 do
+    begin
+      GSMVVMEngine.UnSubscribe(Ll[i]);
+      ll[i].Free;
+    end;
+    for I := 0 to FRessources.Count-1 do
+      FRessources.ByIndex[i].Free;
+  finally
+    FCLientList.Unlock;
+  end;
+  Terminate;
+  WaitFor;
+  FClientList.Free;
+  FRessources.Free;
+  FInputClassRegistration.Free;
+  FOutputClassRegistration.Free;
+  inherited;
+end;
+
+procedure TGSMVVMNest.Execute;
+begin
+  while Not(Terminated) do
+  begin
+    GSMVVMEngine.ProcessMessages(FClientList.ToArray);
+    Sleep(1) //TODO : Temprorary for energy eco. to be Replace when time by TEvent.
+    //See perhaps : http://seanbdurkin.id.au/pascaliburnus2/archives/230
+  end;
+end;
+
+
+procedure TGSMVVMNest.RegisterRessource( aRessourceName, aRessourcePOP : String;
+                                         aInputClassName, aOutPutClassName : TClass; aExecProc : TGSMVVMForeignCallProc);
+var Ll : Tlist<TBusClientReader>;
+    lItem : TGSMVVMForeignItem;
+begin
+  Ll := FClientList.Lock;
+  try
+    lItem := TGSMVVMForeignItem.Create;
+    lItem.RessourceID := aRessourceName;
+    lItem.RessourcePOP := aRessourcePOP;
+    lItem.InputClassName := aInputClassName.ClassName;
+    lItem.OutPutClassName := aOutPutClassName.ClassName;
+    lItem.ExecProc := aExecProc;
+
+    FRessources.Add(FRessources.Count,lItem);
+
+    Ll.Add(GSMVVMEngine.Subscribe(aRessourcePOP,InternalIncomingCall));
+    FInputClassRegistration.Add(aInputClassName);
+    FOutPutClassRegistration.Add(aOutputClassName);
+  finally
+    FClientList.Unlock;
+  end;
+end;
+
+procedure TGSMVVMNest.InternalIncomingCall(Sender: TBus;
+  var Packet: TBusEnvelop);
+var lJsonContent : String;
+    lInObject, lOutObject : TObject;
+    lr :TGSMVVMForeignItem;
+    lt : TGSMVVMForeignCallProc;
+
+    lclient : TBusClientReader;
+    lInputClass, lOutputClass : TClass;
+    lMetric : TGSMVVMMetric;
+    lGetTickCount : UInt64;
+
+    lResponse : TBusMessage;
+    lResStream : TMemoryStream;
+    lList : TList<TBusClientReader>;
+
+function GetRessourceFromPOP( aRessourcePOP : String;
+                                Out aClient : TBusClientReader;
+                                Out aInputClass : TClass;
+                                Out aOutPutclass : TClass) : TGSMVVMForeignItem;
+var i : integer;
+begin
+  //This function must be call inside FClientList.Lock.
+  Result := Nil;
+  for i := 0 to FRessources.Count-1 do
+    if LowerCase(TGSMVVMForeignItem(FRessources.ByIndex[i]).RessourcePop) = lowercase(aRessourcePOP) then
+    begin
+      Result := TGSMVVMForeignItem(FRessources.ByIndex[i]);
+      aClient := lList[i];
+      aInputClass := FInputClassRegistration[i];
+      aOutPutclass := FOutputClassRegistration[i];
+      Break;
+    end;
+end;
+
+begin
+  //Real client call !
+  lList := FClientList.Lock;
+  try
+    lr := GetRessourceFromPOP(Packet.TargetChannel,lClient,lInputClass,lOutputclass);
+    if Assigned(lr) then
+    begin
+      lJsonContent := Packet.ContentMessage.AsString;
+
+      lResStream := TMemoryStream.Create;
+      lInObject := lInputClass.Create;
+      lOutObject := lOutputClass.Create;
+      lMetric := TGSMVVMMetric.Create;
+      lMetric.Performance := TGSMVVMMetricPerf.Create;
+      try
+        lMetric.Performance.BeginOn := Now;
+        lGetTickCount :=  GetTickCount;
+
+        TGSJson.JsonToObject(lJsonContent,lInObject);
+        lt := lr.ExecProc;
+
+        //TODO : Here implement Queued/Synchro, Alien thread exec or local exec (as it is actually)
+        try
+          //Here is exec of service.
+          lt(lClient,lr.RessourceID,lInObject,lOutObject,lMetric); //Local exec.
+          lMetric.Success := true;
+        Except
+          On E : Exception do
+          begin
+            lMetric.Success := False;
+            lMetric.ExceptionWrap := TGSMVVMMetricExceptionWrap.Create;
+            lMetric.ExceptionWrap.ExceptionClass := E.ClassName;
+            lMetric.ExceptionWrap.ExceptionMessage := E.Message;
+            lMetric.ExceptionWrap.RessourceId := lr.RessourceID;
+            //TODO : Get info stack ? E.GetStackInfoStringProc
+          end;
+        end;
+
+        lJsonContent := TGSJson.ObjectToJson(lOutObject);
+        WriteString(lResStream,lJsonContent); //Outobject in stream.
+        lJsonContent := TGSJson.ObjectToJson(lMetric);
+        WriteString(lResStream,lJsonContent); //Metrics in stream.
+        lMetric.Performance.DurationInMilliSec := GetTickCount - lGetTickCount;
+        lMetric.Performance.EndOn := Now;
+        lResStream.Position := 0;
+        lResponse.FromStream(lResStream);
+      finally
+        FreeAndNil(lInObject);
+        FreeAndNil(lOutObject);
+        FreeAndNil(lMetric);
+        FreeAndNil(lResStream);
+      end;
+
+      GSMVVMEngine.Send(lResponse,Packet.ResponseChannel);
+    end
+    else
+    begin
+      raise Exception.Create('Ressource for '+Packet.TargetChannel+' not found');
+    end;
+  finally
+    FClientList.Unlock;
+  end;
+
+end;
+
+
+
+{ TGSMVVMMetric }
+
+constructor TGSMVVMMetric.Create;
+begin
+  Inherited;
+  FExW := Nil;
+  FLogs := Nil;
+  FPerf := Nil;
+end;
+
+destructor TGSMVVMMetric.Destroy;
+var i : Integer;
+begin
+  if Assigned(FExW) then
+    FreeAndNil(FExW);
+  if Assigned(FPerf) then
+    FreeAndNil(FPerf);
+  if Length(FLogs)>0 then
+  begin
+    for I := Low(FLogs) to High(FLogs) do
+    begin
+      FLogs[i].Free;
+    end;
+    FLogs := Nil;
   end;
   inherited;
 end;

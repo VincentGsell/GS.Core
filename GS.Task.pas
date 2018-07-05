@@ -4,9 +4,9 @@
 /// Source     : https://github.com/VincentGsell
 /// Aim        : - Task manager (a "task" = a thread)
 ///              - Easy communication mnethod between task.
-///              - Advanced "breath" method, to let idling switching contexte
+///              - Advanced "breath" method, to let idling switching context
 ///              --> threaded is not essentialy "speed up", but "paralelized"
-///              - Easely Kill or Terminate task an remain it in memory. (See demo)
+///              - Easely Kill or Terminate task and remain it in memory. (See demo)
 ///-------------------------------------------------------------------------------
 unit GS.Task;
 interface

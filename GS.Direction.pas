@@ -46,12 +46,7 @@ case integer of
 end;
 
 TRect = Record
-case integer of
-0: (Left, Top, Right, Bottom : TPoint);
-1: ( X1, Y1, Z1,
-     X2, Y2, Z2,
-     X3, Y3, Z3,
-     X4, Y4, Z4 : Single)
+ Left, Top, Right, Bottom : Single;
 end;
 
 TVectorArray = array [0..2] of Single;
@@ -107,24 +102,25 @@ Public
   Property Y : Double read GetPositionY Write SetPositionY;
 end;
 
-function Line(var P1, P2: TPoint): TLine; Overload;
-function Line(X, Y, Z, X1, Y1, Z1: Single): TLine; Overload;
-function Point(X, Y, Z: Single): TPoint; Overload;
-function Point(X,Y : Single) : TPoint; Overload;
+function Line(var P1, P2: TPoint): TLine; Overload; inline;
+function Line(X, Y, Z, X1, Y1, Z1: Single): TLine; Overload; inline;
+function Point(X, Y, Z: Single): TPoint; Overload;inline;
+function Point(X,Y : Single) : TPoint; Overload;inline;
+function Rect(Left,Top, Right, Bottom : Single) : TRect;inline;
 
-Procedure vInit(var vector : TVector);
-Function vNorm(var Vector : TVector) : Double; OVerload;
-Function vAngle(var Vector : TVector) : Double; Overload; {$IFDEF D2009UP} Inline {$ENDIF}
-procedure vReset(var Point: TPoint);Overload;
-procedure vReset(var Point: TVector);Overload;
+Procedure vInit(var vector : TVector);inline;
+Function vNorm(var Vector : TVector) : Double; OVerload;inline;
+Function vAngle(var Vector : TVector) : Double; Overload; inline;
+procedure vReset(var Point: TPoint);Overload;inline;
+procedure vReset(var Point: TVector);Overload;inline;
 
 
 Procedure vNormalyze(var Vector : TVector);
 
-Procedure vNorm(var Vector : TVector; NewNorm : Double); Overload;
+Procedure vNorm(var Vector : TVector; NewNorm : Double); Overload;inline;
 Procedure vNormOn2(var Vector : TVector); Overload;
 Procedure vNormDec(var Vector : TVector; PercentAmount : Integer);
-Procedure vAngle(var Vector : TVector; Const NewAngle : Extended); Overload; //inline;
+Procedure vAngle(var Vector : TVector; Const NewAngle : Extended); Overload; inline;
 
 Procedure vStepPoint(Var aP : TPoint; Vector : TVector); Overload;
 Procedure vStepPoint(Var X,Y,Z : Double; Vector : TVector); Overload;
@@ -162,14 +158,22 @@ Function vEqualNorm(Tolerance : Double; v1,v2 : TVector) : Boolean;
 //Procedure ovStep(var ov : TPointVector);
 //Procedure ovTurnBy(var ov : TPointVector; amount : Double);
 
-Procedure PolarToCartesian(const R, Phi: Double; var X, Y: Single);   {$IFDEF D2009UP} Inline {$ENDIF}
+Procedure PolarToCartesian(const R, Phi: Double; var X, Y: Single);   Inline
 Procedure CartesianToPolar(const X, Y: Double; var R, Phi: Single); {$IFDEF D2009UP} Inline {$ENDIF}
 function Sgn(const X: Double): Integer; {$IFDEF D2009UP} Inline {$ENDIF}
 
 
 // math
-function vIntersect(const x1,y1,x2,y2,x3,y3,x4,y4:Double; out ix,iy:Double):Boolean;
-procedure vMirror(const Px,Py,x1,y1,x2,y2:Double;out Nx,Ny:Double);
+//line intersection : x1,y1,x2,y2 : First line.
+function vIntersect(const x1,y1,x2,y2,x3,y3,x4,y4:Double; out ix,iy:Double):Boolean; inline;
+procedure vMirror(const Px,Py,x1,y1,x2,y2:Double;out Nx,Ny:Double); inline;
+function vNotEqual(const Val1,Val2:double):Boolean; inline;
+function InternalNotEqual(const Val1,Val2,aPrecisionTolerance:double):Boolean; inline;
+function InternalIsEqual(const Val1,Val2,aPrecisionTolerance:double):Boolean; inline;
+function vIsEqual(const Val1,Val2:double):Boolean; inline;
+
+
+function PtInRect(aPoint : TPoint; aRect : TRect; Var aLocalResult : TPoint) : Boolean;inline;
 
 implementation
 
@@ -346,6 +350,14 @@ begin
   Result.X:=X;
   Result.Y:=Y;
   Result.Z:=0;
+end;
+
+function Rect(Left,Top, Right, Bottom : Single) : TRect;
+begin
+  Result.Left := Left;
+  Result.Top := Top;
+  Result.Right := Right;
+  Result.Bottom := Bottom;
 end;
 
 
@@ -860,6 +872,13 @@ begin
 
   Nx := Px + 2 * (Nx - Px);
   Ny := Py + 2 * (Ny - Py);
+end;
+
+function PtInRect(aPoint : TPoint; aRect : TRect; Var aLocalResult : TPoint) : Boolean;
+begin
+  Result := (aPoint.X>=aRect.Left) and (aPoint.X<=aRect.Right) And (aPoint.Y<=aRect.Bottom) and (aPoint.Y>=aRect.top);
+  if Result then
+    aLocalResult := Point(aPoint.x-aRect.Left,aPoint.Y-aRect.Top,0);
 end;
 
 { TVectorObject }

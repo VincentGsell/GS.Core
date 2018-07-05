@@ -43,6 +43,10 @@ Type
     constructor Create(aValue : T); Reintroduce;
     Destructor Destroy; Override;
 
+    //Manual lock/Unlock. To protect as  "Lock; try [code] finally Unlock; end;.
+    procedure Lock;
+    procedure UnLock;
+
     Property Value : T read GetValue Write SetValue;
   End;
 
@@ -64,6 +68,20 @@ Type
   TProtectedSingle = Class(TProtectedValue<Single>);
   TProtectedDouble = Class(TProtectedValue<Double>);
 
+  ///
+  /// Threaded proof for object (and thus, Tlist, TObjectList...)
+  ///
+  TProtectedObject<T:class> = class
+  protected
+    FInstance : T;
+    FLock : TCriticalSection;
+  public
+    constructor Create(aObject : T); Reintroduce;
+    destructor Destroy; Override;
+
+    Function Lock : T;
+    Procedure Unlock;
+  end;
 
   {$IF Defined(MSWINDOWS)}
     TOTThreadID = LongWord;
@@ -115,6 +133,11 @@ begin
 end;
 
 
+procedure TProtectedValue<T>.Lock;
+begin
+  FPrivateCS.Enter;
+end;
+
 procedure TProtectedValue<T>.SetValue(const Value: T);
 begin
   FPrivateCS.Enter;
@@ -123,6 +146,11 @@ begin
   finally
     FPrivateCS.Leave;
   end;
+end;
+
+procedure TProtectedValue<T>.UnLock;
+begin
+  FPrivateCS.Leave;
 end;
 
 { TProtectedNativeUInt }
@@ -186,4 +214,33 @@ begin
 end;
 
 
+{ TProtectedObject<T> }
+
+constructor TProtectedObject<T>.Create(aObject : T);
+begin
+  Inherited Create;
+  Assert(Assigned(aObject));
+  FLock :=  TCriticalSection.Create;
+  FInstance := aObject;
+end;
+
+destructor TProtectedObject<T>.Destroy;
+begin
+  FreeAndNil(FLock);
+  FreeAndNil(FInstance);
+  inherited;
+end;
+
+function TProtectedObject<T>.Lock: T;
+begin
+  FLock.Acquire;
+  Result := FInstance;
+end;
+
+procedure TProtectedObject<T>.Unlock;
+begin
+  FLock.Release;
+end;
+
 end.
+
