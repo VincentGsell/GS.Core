@@ -56,7 +56,14 @@
   
   ![Alt text](/../master/Ressources/GSBusBenchVisual.png?raw=true "GS.Bus Bench demo")
   
+  GS.Bus.Service : 
+  
+  Implement a effcient thread pool : 
+  ![Alt text](/../master/Ressources/GSServiceBenchRayTracer.png?raw=true "GS.Bus.Service Bench demo")
+  
   GS.Task : 
+  
+  For history : Must be replaced by GS.Bus.Service
   
   ![Alt text](/../master/Ressources/GTaskBenchVisu.png?raw=true "GS.Bus Bench demo")
 
@@ -64,4 +71,5 @@
   
   Periodic element read and write demo.
   -> you can too compare native JSON for delphi (witch is good) and GS.JSON system (which is cool to ;)
+  
   
