@@ -1,6 +1,7 @@
 program ProjectBus;
 
 uses
+  FastMM4,
   Vcl.Forms,
   fmainBus in 'fmainBus.pas' {Form2};
 

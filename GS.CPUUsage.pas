@@ -1,6 +1,6 @@
 ///-------------------------------------------------------------------------------
 /// Title      : GS.CPUUsage
-/// Short Desc : Got CPU Usage cros platform
+/// Short Desc : Got CPU Usage cross platform
 /// Source     : https://github.com/VincentGsell
 /// Aim        : - Win and Linux Delphi/FPC harmonized CPU access.
 ///-------------------------------------------------------------------------------

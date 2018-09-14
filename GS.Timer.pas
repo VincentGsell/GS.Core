@@ -59,7 +59,7 @@ public
   Property LoopCounter : Cardinal read GetLoopCounter;
 end;
 
-//Why a container : It is good to destroy and recreate thread when changing deep
+//Why a container : Better to destroy and recreate thread when changing deep
 //parameter : this container do this job.
 
 TGSTimerThreadContainer = class

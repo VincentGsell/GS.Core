@@ -35,14 +35,14 @@ type
     procedure btn2Click(Sender: TObject);
     procedure btn3Click(Sender: TObject);
     procedure btn4Click(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure TimerBusQueryTimer(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
   public
     { Public declarations }
-    procedure OnReceived(Sender : TBus;Var Packet : TBusEnvelop);
+    procedure OnReceived(Sender : TObject;Var Packet : TBusEnvelop);
   end;
 
 var
@@ -55,7 +55,7 @@ implementation
 
 procedure TForm2.FormCreate(Sender: TObject);
 begin
-  GS.Bus.StartStandartBus;
+  StartStandartBus;
 end;
 
 procedure TForm2.FormDestroy(Sender: TObject);
@@ -66,12 +66,12 @@ begin
   begin
     lb := TBusClientReader(lst2.Items.Objects[i]);
     try
-      Bus.UnSubscribe(lb,lb.ChannelListening);
+      Bus.UnSubscribe(lb);
     finally
       freeAndNil(lb);
     end;
   end;
-  GS.Bus.ReleaseStandartBus;
+  ReleaseStandartBus;
 end;
 
 procedure TForm2.btn1Click(Sender: TObject);
@@ -97,6 +97,7 @@ begin
   begin
     lb.FromString('['+IntToStr(i)+'] This a test at '+DateToStr(Now));
     Bus.Send(lb, edt1.Text);
+    Application.ProcessMessages;
   end;
 end;
 
@@ -107,10 +108,8 @@ begin
   if lst2.ItemIndex>-1 then
   begin
      la := TBusClientReader(lst2.Items.Objects[lst2.ItemIndex]);
-     if Bus.UnSubscribe(la, edt1.Text) then
+     if Bus.UnSubscribe(la) then
      begin
-       //"la" has been freed by the bus. TBusClientReaded created by "Subscribe" call is owned by the bus.
-
        la.Free;
        lst2.DeleteSelected;
      end;
@@ -216,7 +215,7 @@ begin
   end;
 end;
 
-procedure TForm2.OnReceived(Sender: TBus; var Packet: TBusEnvelop);
+procedure TForm2.OnReceived(Sender: TObject; var Packet: TBusEnvelop);
 begin
   label1.Caption := IntToStr(StrToIntDef(label1.Caption,0)+1);
 end;

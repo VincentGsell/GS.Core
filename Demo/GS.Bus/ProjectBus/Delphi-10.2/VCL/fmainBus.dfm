@@ -2,8 +2,8 @@ object Form2: TForm2
   Left = 0
   Top = 0
   Caption = 'Embeded Bus'
-  ClientHeight = 576
-  ClientWidth = 1071
+  ClientHeight = 573
+  ClientWidth = 1070
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -14,21 +14,22 @@ object Form2: TForm2
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   DesignSize = (
-    1071
-    576)
+    1070
+    573)
   PixelsPerInch = 96
   TextHeight = 13
   object pnl2: TPanel
     Left = 8
     Top = 47
-    Width = 1055
-    Height = 521
+    Width = 1054
+    Height = 518
     Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
-    ExplicitWidth = 977
+    ExplicitWidth = 1055
+    ExplicitHeight = 521
     DesignSize = (
-      1055
-      521)
+      1054
+      518)
     object Label3: TLabel
       Left = 151
       Top = 18
@@ -85,10 +86,11 @@ object Form2: TForm2
       Left = 16
       Top = 80
       Width = 393
-      Height = 430
+      Height = 427
       Anchors = [akLeft, akTop, akBottom]
       ItemHeight = 13
       TabOrder = 2
+      ExplicitHeight = 430
     end
     object btn4: TButton
       Left = 16
@@ -121,8 +123,8 @@ object Form2: TForm2
     object ListView1: TListView
       Left = 431
       Top = 288
-      Width = 616
-      Height = 222
+      Width = 615
+      Height = 219
       Anchors = [akLeft, akTop, akRight, akBottom]
       Columns = <
         item
@@ -146,12 +148,13 @@ object Form2: TForm2
       ParentDoubleBuffered = False
       TabOrder = 6
       ViewStyle = vsReport
-      ExplicitWidth = 538
+      ExplicitWidth = 616
+      ExplicitHeight = 222
     end
     object ListView2: TListView
       Left = 431
       Top = 99
-      Width = 616
+      Width = 615
       Height = 164
       Anchors = [akLeft, akTop, akRight]
       Columns = <
@@ -185,17 +188,17 @@ object Form2: TForm2
       ParentDoubleBuffered = False
       TabOrder = 7
       ViewStyle = vsReport
-      ExplicitWidth = 538
+      ExplicitWidth = 616
     end
     object GroupBox1: TGroupBox
       Left = 436
       Top = 5
-      Width = 609
+      Width = 608
       Height = 35
       Anchors = [akLeft, akTop, akRight]
       Caption = ' Bus Stats'
       TabOrder = 8
-      ExplicitWidth = 533
+      ExplicitWidth = 609
       object Label4: TLabel
         Left = 15
         Top = 17
@@ -214,12 +217,12 @@ object Form2: TForm2
   object Panel1: TPanel
     Left = 8
     Top = 3
-    Width = 1055
+    Width = 1054
     Height = 41
     Anchors = [akLeft, akTop, akRight]
     Caption = 'Panel1'
     TabOrder = 1
-    ExplicitWidth = 977
+    ExplicitWidth = 1055
   end
   object TimerGui: TTimer
     Interval = 250

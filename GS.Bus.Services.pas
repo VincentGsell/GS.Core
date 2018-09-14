@@ -224,11 +224,12 @@ TService = Class(TCustomService)
 End;
 
 TServiceList = TObjectList<TCustomService>;
+
 TCustomServiceManager = Class(GS.Bus.TBus)
 private
   function GetServiceCount: Uint32;
 protected
-  FServices : TProtectedObject<TObjectList<TCustomService>>;
+  FServices : TProtectedObject<TServiceList>;
 
   function GetServices(Index: UInt32): TCustomService; Virtual;
   Procedure EnsureAllThreadStoped; Virtual;
@@ -452,7 +453,7 @@ end;
 constructor TCustomServiceManager.Create;
 begin
   inherited Create;
-  FServices := TProtectedObject<TObjectList<TCustomService>>.Create(TObjectList<TCustomService>.Create);
+  FServices := TProtectedObject<TServiceList>.Create(TServiceList.Create);
   ChannelSetOnBeforeDeliverMessageEvent(cThreadChangeStatus,OnServiceChangeStatus);
   ChannelSetOnBeforeDeliverMessageEvent(cThreadResultChannel,OnServiceResult);
   ChannelSetOnBeforeDeliverMessageEvent(cThreadProgressChannel,OnServiceProgress);
@@ -931,7 +932,7 @@ procedure TCustomService.StopService;
 begin
   if Not FThread.Terminated then
   begin
-    if Not(FThread.Started) then
+    if Not(FThread.Suspended) and Not(FThread.Suspended) then //Was Not(FThread.Started)
       FThread.Go;
     FThread.Terminate;
     FThread.WaitFor;

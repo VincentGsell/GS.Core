@@ -42,7 +42,7 @@ public
                                       DataType : tofContentType;
                                       StreamData : TMemoryStream); Virtual; Abstract;
 
-  Procedure DeleteGenericeData(Key : String); Virtual; Abstract;
+  Procedure DeleteGenericData(Key : String); Virtual; Abstract;
 
   Procedure ReadInfoDataByIndex(aIndex : UInt32; var aDataType : TofcontentType; var aKey : String); Virtual; Abstract;
   Procedure ReadInfoDataByKey(aKey : string; var aDataType : TofcontentType; var Index : UInt64); Virtual; abstract;

@@ -1,0 +1,224 @@
+object Form1: TForm1
+  Left = 507
+  Height = 602
+  Top = 249
+  Width = 1132
+  Caption = 'Embeded Bus'
+  ClientHeight = 602
+  ClientWidth = 1132
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  LCLVersion = '1.9.0.0'
+  object pnl2: TPanel
+    Left = 16
+    Height = 626
+    Top = 40
+    Width = 1311
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    ClientHeight = 626
+    ClientWidth = 1311
+    TabOrder = 0
+    object Label3: TLabel
+      Left = 151
+      Height = 15
+      Top = 18
+      Width = 56
+      Caption = 'to channel'
+      ParentColor = False
+    end
+    object Label2: TLabel
+      Left = 736
+      Height = 15
+      Top = 80
+      Width = 169
+      Caption = 'GUI Received event''s hit count : '
+      ParentColor = False
+    end
+    object Label1: TLabel
+      Left = 906
+      Height = 15
+      Top = 80
+      Width = 6
+      Caption = '0'
+      ParentColor = False
+    end
+    object lblChannels: TLabel
+      Left = 436
+      Height = 15
+      Top = 80
+      Width = 135
+      Caption = 'Channels (Data from Bus)'
+      ParentColor = False
+    end
+    object lbl2: TLabel
+      Left = 431
+      Height = 15
+      Top = 269
+      Width = 150
+      Caption = 'Subscribters (Data from Bus)'
+      ParentColor = False
+    end
+    object edt1: TEdit
+      Left = 207
+      Height = 23
+      Top = 15
+      Width = 202
+      TabOrder = 0
+      Text = 'My New Channel...'
+    end
+    object btn2: TButton
+      Left = 16
+      Height = 34
+      Top = 9
+      Width = 129
+      Caption = 'Add subscribters'
+      OnClick = btn2Click
+      TabOrder = 1
+    end
+    object lst2: TListBox
+      Left = 16
+      Height = 535
+      Top = 80
+      Width = 393
+      Anchors = [akTop, akLeft, akBottom]
+      ItemHeight = 0
+      TabOrder = 2
+    end
+    object btn4: TButton
+      Left = 16
+      Height = 32
+      Top = 46
+      Width = 129
+      Caption = 'Remove subscribters'
+      OnClick = btn4Click
+      TabOrder = 3
+    end
+    object btn3: TButton
+      Tag = 1000
+      Left = 566
+      Height = 31
+      Top = 46
+      Width = 129
+      Caption = 'Send 1000 Messages'
+      OnClick = btn3Click
+      TabOrder = 4
+    end
+    object btn1: TButton
+      Left = 431
+      Height = 32
+      Top = 46
+      Width = 129
+      Caption = 'Send Message'
+      OnClick = btn1Click
+      TabOrder = 5
+    end
+    object ListView1: TListView
+      Left = 431
+      Height = 327
+      Top = 288
+      Width = 872
+      Anchors = [akTop, akLeft, akRight, akBottom]
+      Columns = <      
+        item
+          Caption = 'ID'
+        end      
+        item
+          Caption = 'Channel'
+          Width = 200
+        end      
+        item
+          Caption = 'Pending'
+          Width = 70
+        end      
+        item
+          Caption = 'Processed'
+          Width = 70
+        end>
+      ReadOnly = True
+      RowSelect = True
+      TabOrder = 6
+      ViewStyle = vsReport
+    end
+    object ListView2: TListView
+      Left = 431
+      Height = 164
+      Top = 99
+      Width = 872
+      Anchors = [akTop, akLeft, akRight]
+      Columns = <      
+        item
+          Caption = 'ChannelID'
+          Width = 200
+        end      
+        item
+          Caption = 'Type'
+          Width = 100
+        end      
+        item
+          Caption = 'IsPersits'
+          Width = 70
+        end      
+        item
+          Caption = 'Received'
+        end      
+        item
+          Caption = 'Consumed'
+        end      
+        item
+          Caption = 'Persists'
+        end      
+        item
+          Caption = 'Subscribter count'
+        end>
+      ReadOnly = True
+      RowSelect = True
+      TabOrder = 7
+      ViewStyle = vsReport
+    end
+    object GroupBox1: TGroupBox
+      Left = 436
+      Height = 38
+      Top = 5
+      Width = 865
+      Anchors = [akTop, akLeft, akRight]
+      Caption = ' Bus Stats'
+      ClientHeight = 18
+      ClientWidth = 861
+      TabOrder = 8
+      object Label4: TLabel
+        Left = 15
+        Height = 13
+        Top = 0
+        Width = 95
+        Caption = 'Message Sended'
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = [fsBold]
+        ParentColor = False
+        ParentFont = False
+      end
+    end
+  end
+  object Panel1: TPanel
+    Left = 0
+    Height = 41
+    Top = 3
+    Width = 1311
+    Anchors = [akTop, akLeft, akRight]
+    Caption = 'Panel1'
+    TabOrder = 1
+  end
+  object TimerGui: TTimer
+    Interval = 250
+    OnTimer = TimerGuiTimer
+    Left = 308
+    Top = 140
+  end
+  object TimerBusQuery: TTimer
+    Interval = 100
+    OnTimer = TimerBusQueryTimer
+    Left = 308
+    Top = 204
+  end
+end

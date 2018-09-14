@@ -28,21 +28,20 @@ Uses
   Classes,
   SysUtils,
   Generics.Collections,
-  SyncObjs,
+  SyncObjs;
 {$ELSE}
   System.Classes,
   System.SysUtils,
   System.Generics.Collections,
   System.SyncObjs,
-  System.Threading,
+  System.Threading;
 {$ENDIF}
-  GS.Threads;
 
 Const
   CST_BUSTIMER = 250; //MilliSec.
   CST_DEFAULT_WILDCARD = '\';
 Type
-TBus = Class;
+TBusSystem = Class;
 
 //Write in it whatever you want.
 TBusMessage = Packed Record
@@ -80,7 +79,7 @@ Public
   Procedure Unlock;
 end;
 
-TBusMessageNotify = Procedure(Sender : TBus;Var Packet : TBusEnvelop) Of Object;
+TBusMessageNotify = Procedure(Sender : TObject;Var Packet : TBusEnvelop) Of Object;
 TBusChannel = Class;
 TBusClient = Class;
 TBusClientReader = Class;
@@ -128,6 +127,22 @@ End;
 
 TBusChannelBehaviour = (bcbTopic, bcbQueue);
 
+TBusChannelData = class
+protected
+  FLock : TCriticalSection;
+  FChannel: String;
+  FReceivedMessageCount : Int64;
+  FConsumedMessageCount : Int64;
+  FMessageInThisChannelWillBeSetAsPersistent : Boolean;
+public
+  Procedure Lock;
+  Procedure Unlock;
+
+  Constructor Create; Virtual;
+  Destructor Destroy; Override;
+
+end;
+
 //WARNING : All TBUSChannel Event (included event) is processed within a thread.
 TOnBusChannelBeforeDeliverMessage = Procedure(Var aMessage : TBusEnvelop) of Object;
 TBusChannel = Class
@@ -137,20 +152,16 @@ private
   procedure SetChannelBehaviour(const Value: TBusChannelBehaviour);
   function GetPersistentMessageCount: Int64;
   function GetMessageInThisChannelWillBeSetAsPersistent: Boolean;
-  procedure SettMessageInThisChannelWillBeSetAsPersistent(
-      const Value: Boolean);
+  procedure SettMessageInThisChannelWillBeSetAsPersistent(const Value: Boolean);
   function GetChannel: string;
 Protected
+  FBusChannelData : TBusChannelData;
   FOnBeforeDeliverMessage: TOnBusChannelBeforeDeliverMessage;
-  FChannel: TProtectedString;
-  FReceivedMessageCount: TProtectedInt64;
-  FConsumedMessageCount : TProtectedInt64;
   FSubscibters : TBusClientReaderListShortcut;
   FBehaviour: TBusChannelBehaviour;
   FBehaviourInfo: TBusChannelAdditionalInformation;
 
   FPersistentMessage : TBusEnvelopList;
-  FMessageInThisChannelWillBeSetAsPersistent: TProtectedBoolean;
 
   function GetCurrentSubscribterCount: Int64;
 Public
@@ -188,7 +199,7 @@ Protected
   function GetClientProcessMessageCount: Int64; Virtual; Abstract;
 Public
   ClientMessageStack : TBusEnvelopList;
-  Event : TEvent; //Pointer ! Use it for thread use only, NOT managed by bus.
+  Event : TEvent; //Pointer ! Use it for thread use only, *NOT* managed by bus.
 
   Constructor Create; Virtual;
   Destructor Destroy; Override;
@@ -199,7 +210,7 @@ End;
 
 TBusClientReader = Class(TBusClient)
 private
-  FProcessMessageCount : TProtectedInt64;
+  FProcessMessageCount : Int64;
   FCallBack: TBusMessageNotify;
   FChannel: String;
 Protected
@@ -209,8 +220,6 @@ Public
 
   //Not aimed to be call directly : Call Bus.Subscribt.
   Constructor Create(aChannelName : String; aCallBack : TBusMessageNotify); Reintroduce;
-
-  Destructor Destroy; Override;
 
   Property ChannelListening : String read FChannel;
   Property CallBack : TBusMessageNotify read FCallBack;
@@ -270,19 +279,21 @@ Public
   Procedure Unlock;
 end;
 
-
-TBus = Class(TThread)
+TBusSystem = Class
 Private
-  FTotalMessageSend : TProtectedInt64;
-  FTotalMessagePending : TProtectedInt64;
-  FTotalMessageProcessed : TProtectedInt64;
-  FTotalMessagePersistent : TProtectedInt64;
-  FWildcardChar : TProtectedValue<Char>;
-  FWildcardEnabled : TProtectedBoolean;
+  FLockStat : TCriticalSection;
+  FLockPropertyBasic : TCriticalSection;
 
-  FInternalMessageIdGenerator : TProtectedInt64;     //Message generator ID. Not used today (Just a incremental), certainly better system when needed.
+  FTotalMessageSend : Int64;
+  FTotalMessagePending : Int64;
+  FTotalMessageProcessed : Int64;
+  FTotalMessagePersistent : Int64;
+  FWildcardChar : Char;
+  FWildcardEnabled : Boolean;
+
+  FInternalMessageIdGenerator : Int64;               //Message generator ID. Not used today (Just a incremental), certainly better system when needed.
   FWaitMessageList : TBusEnvelopList;                //Message pending. (Where clients post)
-  FMessageList : TBusEnvelopList;                    //Message list (TBus use this list to distribute effectively).
+  FMessageList : TBusEnvelopList;                    //Message list (TBusSystem use this list to distribute effectively).
   FChannels : TBusChannelList;                       //List of all channels.
   FDoWork : TEvent;                                  //Event signaled when "Send" is called : It start message processing (Execute).
   FSubscribters : TBusClientReaderList;              //Raw Subscripter list. Reference. : WARNING : In channel object, there is shortcut to content object. Keep it synchro.
@@ -302,22 +313,27 @@ Private
   procedure SetWildCardEnabled(const Value: Boolean);
   procedure SetWildCardSeparator(const Value: Char);
 Protected
-  Procedure BusExecute; Virtual;
+  Procedure BusShutDown; Virtual;
 Public
   constructor Create; overload; Virtual;
   Destructor Destroy; Override;
-  Procedure BusShutDown; Virtual;
 
-  Procedure Execute; Override;
+  //Call this only if you have to pulse inner logic of Bus : in a timer, in OnIdle
+  //(For those 2, modify CST_TIMER Value to a very low value), or in a thread Execute (And here CST_TIMER is ok).
+  //this will : consume awaiting message, dispatch messages folowing channel rules.
+  //You have than to call ProcessMessages to consume dispatched message.
+  Procedure BusExecute; Virtual;
 
-  //TBusClientReader : WARNING : in current design, the object returned is owned by the bus.
+  //Key methods : Call that in your coin of world (in another thread or not) to check your message box ;)
+  Procedure ProcessMessages(Const aClientReaders : Array of TBusClientReader);
+
+
+  //WARNING : In current design, client is not owned by BusSystem : client responsability to free it.
   Function Subscribe(aChannelName : String; CallBack : TBusMessageNotify) : TBusClientReader;
-  //TBusClientReader : WARNING : "aclient" will NOT be freed if function success. Client responsability.
   Function UnSubscribe(aClient : TBusClientReader) : Boolean;
 
-
   Function Send( var aMessage : TBusMessage;
-                 aTargetChannel : String;
+                 const aTargetChannel : String;
                  const aSomeAdditionalData : String = '';
                  const aResponseChannel : string = '';
                  const IsPersistent : Boolean = False) : Int64;
@@ -325,7 +341,6 @@ Public
   Procedure GetChannelsConfigurationAsCSV(var aStr : TStringList);
   Procedure GetSubscribtersConfigurationAsCSV(var aStr : TStringList);
 
-  Procedure ProcessMessages(aClientReaders : Array of TBusClientReader);
 
   Function GetNewEvent : TEvent;
 
@@ -342,14 +357,89 @@ Public
   property WildcardSeparator : Char read GetWildCardSeparator Write SetWildCardSeparator;
 End;
 
+
+//Thread bus wrapper.
+TBus = class(TThread)
+  private
+    function GetStats: String;
+    function GetWildCardEnabled: Boolean;
+    function GetWildCardSeparator: Char;
+    procedure SetWildCardEnabled(const Value: Boolean);
+    procedure SetWildCardSeparator(const Value: Char);
+protected
+  Sys : TBusSystem;
+  Procedure BusShutDown; Virtual;
+Public
+  constructor Create; Reintroduce; virtual;
+  Destructor Destroy; Override;
+  Procedure Execute; Override;
+
+  ///All the bellow method is only "shortcut" method to the BusSystem.
+  ///
+  ///  TBusSystem object is fully Multi-threaded friendly.
+  ///  you can share it between many thread. It is done for that.
+  ///
+  Function Subscribe(aChannelName : String; CallBack : TBusMessageNotify) : TBusClientReader;
+  Function UnSubscribe(aClient : TBusClientReader) : Boolean;
+
+  Function Send( var aMessage : TBusMessage;
+                 aTargetChannel : String;
+                 const aSomeAdditionalData : String = '';
+                 const aResponseChannel : string = '';
+                 const IsPersistent : Boolean = False) : Int64;
+
+  Procedure GetChannelsConfigurationAsCSV(var aStr : TStringList);
+  Procedure GetSubscribtersConfigurationAsCSV(var aStr : TStringList);
+
+  Procedure ProcessMessages(Const aClientReaders : Array of TBusClientReader);
+
+  Function GetNewEvent : TEvent;
+
+  Procedure ChannelDelete(aChannelName : string);
+  Procedure ChannelSet( aChannelName : String;
+                        aChannelBehaviourType : TBusChannelBehaviour;
+                        Const aMessageWillBePersistent : Boolean = False);
+  Procedure ChannelSetOnBeforeDeliverMessageEvent( aChannelName: String;
+                                                   aChannelProc: TOnBusChannelBeforeDeliverMessage);
+
+  Property Stats : String read GetStats;
+  property WildcardEnabled : Boolean read GetWildCardEnabled Write SetWildCardEnabled;
+  property WildcardSeparator : Char read GetWildCardSeparator Write SetWildCardSeparator;
+end;
+
 var Bus : TBus;
 
 Procedure StartStandartBus;
 Procedure ReleaseStandartBus;
 
+Function AtomicIncrement64(var a : Int64) : Int64;
+Function AtomicDecrement64(var a : Int64) : Int64;
+
+
 implementation
 
-{ TBus }
+{ TBusSystem }
+Function AtomicIncrement64(var a : Int64) : Int64;
+begin
+  {$IFDEF FPC}
+  result := InterLockedIncrement64(a);
+  {$END}
+  {$ELSE}
+  result := AtomicIncrement(a);
+  {$ENDIF}
+end;
+
+Function AtomicDecrement64(var a : Int64) : Int64;
+begin
+  {$IFDEF FPC}
+  result := InterLockedDecrement64(a);
+  {$END}
+  {$ELSE}
+  result := AtomicDecrement(a);
+  {$ENDIF}
+end;
+
+
 Procedure StartStandartBus;
 begin
   if Not(assigned(Bus)) then
@@ -362,12 +452,11 @@ Procedure ReleaseStandartBus;
 begin
   if Assigned(bus) then
   begin
-    Bus.BusShutDown;
     FreeAndNil(Bus);
   end;
 end;
 
-procedure TBus.ChannelSet(aChannelName: String;
+procedure TBusSystem.ChannelSet(aChannelName: String;
   aChannelBehaviourType: TBusChannelBehaviour;
   const aMessageWillBePersistent: Boolean);
 begin
@@ -376,50 +465,43 @@ begin
                                 aMessageWillBePersistent);
 end;
 
-procedure TBus.ChannelSetOnBeforeDeliverMessageEvent(aChannelName: String;
+procedure TBusSystem.ChannelSetOnBeforeDeliverMessageEvent(aChannelName: String;
   aChannelProc: TOnBusChannelBeforeDeliverMessage);
 begin
   FChannels.SetChannelOnBeforeDeliverEvent(aChannelName,aChannelProc);
 end;
 
-constructor TBus.Create;
+constructor TBusSystem.Create;
 begin
-  inherited Create(true);
-  {$IFDEF DELPHI}
-  NameThreadForDebugging(ClassName);
-  {$ENDIF}
+  Inherited Create;
+  FLockStat := TCriticalSection.Create;
+  FLockPropertyBasic := TCriticalSection.Create;
   FWaitMessageList := TBusEnvelopList.Create;
   FMessageList := TBusEnvelopList.Create;
   FChannels := TBusChannelList.Create;
   FSubscribters := TBusClientReaderList.Create;
   FDoWork := TEvent.Create(nil,False,False,EmptyStr);
-  FInternalMessageIdGenerator := TProtectedInt64.Create(0);
-  FTotalMessageSend := TProtectedInt64.Create(0);
-  FTotalMessagePending := TProtectedInt64.Create(0);
-  FTotalMessageProcessed := TProtectedInt64.Create(0);
-  FTotalMessagePersistent := TProtectedInt64.Create(0);
-  FWildcardChar := TProtectedValue<Char>.Create(CST_DEFAULT_WILDCARD);
-  FWildcardEnabled := TProtectedBoolean.Create(True);
+  FInternalMessageIdGenerator := 0;
+  FTotalMessageSend := 0;
+  FTotalMessagePending := 0;
+  FTotalMessageProcessed := 0;
+  FTotalMessagePersistent := 0;
+  FWildcardChar := CST_DEFAULT_WILDCARD;
+  FWildcardEnabled := False;
 end;
 
-procedure TBus.BusShutDown;
+procedure TBusSystem.BusShutDown;
 begin
-  if not(Terminated) then
-  begin
-    Terminate;
-    FDoWork.ResetEvent;
-    FDoWork.SetEvent;
-    if not(Terminated) then
-      Waitfor; //Terminate main bus loop.
-  end;
+  FDoWork.ResetEvent;
+  FDoWork.SetEvent;
 end;
 
-procedure TBus.ChannelDelete(aChannelName: string);
+procedure TBusSystem.ChannelDelete(aChannelName: string);
 begin
   FChannels.DeleteChannel(aChannelName);
 end;
 
-destructor TBus.Destroy;
+destructor TBusSystem.Destroy;
 begin
   BusShutdown;
   FreeAndNil(FDoWork);
@@ -427,17 +509,12 @@ begin
   FreeAndNil(FWaitMessageList);
   FreeAndNil(FSubscribters);
   FreeAndNil(FChannels);
-  FreeAndNil(FInternalMessageIdGenerator);
-  FreeAndNil(FTotalMessageSend);
-  FreeAndNil(FTotalMessagePending);
-  FreeAndNil(FTotalMessageProcessed);
-  FreeAndNil(FTotalMessagePersistent);
-  FreeAndNil(FWildcardChar);
-  FreeAndNil(FWildcardEnabled);
+  FreeAndNil(FLockStat);
+  FreeAndNil(FLockPropertyBasic);
   inherited;
 end;
 
-procedure TBus.DoNotifyClients;
+procedure TBusSystem.DoNotifyClients;
 var ClientList : TList<TBusClientReader>;
     L : TList<PTBusEnvelop>;
     i : integer;
@@ -469,7 +546,7 @@ begin
   end;
 end;
 
-procedure TBus.DoSubscribterWork;
+procedure TBusSystem.DoSubscribterWork;
 var aPacket : PTBusEnvelop;
     ClientList : TList<TBusClientReader>;
     L : TList<PTBusEnvelop>;
@@ -490,7 +567,7 @@ var aPacket : PTBusEnvelop;
         aPacket^.ContentMessage := FMes^.ContentMessage; //Deep copy;
         aPacket^.Persistent := True;
         ll.Add(aPacket);
-        FTotalMessagePersistent.Inc;
+        AtomicIncrement64(FTotalMessagePersistent);
       finally
         FpChannel.PersistentMessageUnlock;
       end;
@@ -515,7 +592,7 @@ var aPacket : PTBusEnvelop;
 
       L.Add(aPacket);
       FpChannel.IncConsumedMessageCount;
-      FTotalMessageProcessed.Inc;
+      AtomicIncrement64(FTotalMessageProcessed);
 
       if FMes.Persistent then
       begin
@@ -593,15 +670,8 @@ begin
   end;
 end;
 
-procedure TBus.Execute;
-begin
-  while not(Terminated) do
-  begin
-    BusExecute;
-  end;
-end;
 
-procedure TBus.BusExecute;
+procedure TBusSystem.BusExecute;
 var
     aMes : PTBusEnvelop;
     lMasterMessageList,lTempML : TList<PTBusEnvelop>;
@@ -618,7 +688,7 @@ var
         for I := 0 to lMasterMessageList.Count-1 do
         begin
           lTempML.Add(lMasterMessageList[i]);
-          FTotalMessagePending.Inc;
+          AtomicIncrement64(FTotalMessagePending);
         end;
         lMasterMessageList.Clear; //do not release message, there are transferered in MessageList.
       finally
@@ -701,7 +771,7 @@ var
         begin
           aMes := lMasterMessageList[i];
           Dispose(aMes);
-          FTotalMessagePending.Dec;
+          AtomicDecrement64(FTotalMessagePending);
         end;
         lMasterMessageList.Clear;
       finally
@@ -713,26 +783,23 @@ begin
   case FDoWork.WaitFor(CST_BUSTIMER) of
     wrSignaled :
     begin
-      if Terminated then Exit;
       LocalInternalTransfertMessage;
       LocalInternalDispatchToSubscribterAndNotify;
       LocalInternalCleaning;
     end;
     wrTimeout :
     begin
-      if Terminated then Exit;
-      //Todo : Generate Idle message;
+      //Todo : Generate Idle message ?;
     end;
     wrAbandoned, wrError {$IFNDEF FPC}, wrIOCompletion {$ENDIF} :
     begin
-      if Terminated then Exit;
       //Todo : Exception message. Stop ?
     end;
   end;
 end;
 
 
-procedure TBus.GetChannelsConfigurationAsCSV(var aStr: TStringList);
+procedure TBusSystem.GetChannelsConfigurationAsCSV(var aStr: TStringList);
 var i : Integer;
     s2 : TStringList;
     c : TBusChannel;
@@ -753,8 +820,8 @@ var i : Integer;
         result := 'Yes';
     end;
 begin
-  if Terminated then
-    Exit;
+//  if Terminated then
+//    Exit;
   Assert(Assigned(aStr));
   aStr.Clear;
   s2 := TStringList.Create;
@@ -787,20 +854,21 @@ begin
   end;
 end;
 
-function TBus.GetNewEvent: TEvent;
+function TBusSystem.GetNewEvent: TEvent;
 begin
   Result := TEvent.Create(nil,False,False,EmptyStr);
 end;
 
-function TBus.GetStats: String;
+function TBusSystem.GetStats: String;
 begin
+//---CRITICAL
   //TODO : Jsonify ?
-  Result := 'Messages - Send : ' +IntTostr(FTotalMessageSend.Value) +
-            ' Pending : ' +IntTostr(FTotalMessagePending.Value) +
-            ' Processed : ' +IntTostr(FTotalMessageProcessed.Value);
+  Result := 'Messages - Send : ' +IntTostr(FTotalMessageSend) +
+            ' Pending : ' +IntTostr(FTotalMessagePending) +
+            ' Processed : ' +IntTostr(FTotalMessageProcessed);
 end;
 
-procedure TBus.GetSubscribtersConfigurationAsCSV(var aStr: TStringList);
+procedure TBusSystem.GetSubscribtersConfigurationAsCSV(var aStr: TStringList);
 var i : Integer;
     s2 : TStringList;
     sub : TList<TBusClientReader>;
@@ -813,8 +881,8 @@ var i : Integer;
     end;
 
 begin
-  if Terminated then
-    Exit;
+//  if Terminated then
+//    Exit;
   Assert(Assigned(aStr));
   aStr.Clear;
   s2 := TStringList.Create;
@@ -840,14 +908,24 @@ begin
   end;
 end;
 
-function TBus.GetWildCardEnabled: Boolean;
+function TBusSystem.GetWildCardEnabled: Boolean;
 begin
-  Result := FWildcardEnabled.Value;
+  FLockPropertyBasic.Enter;
+  try
+    Result := FWildcardEnabled;
+  finally
+    FLockPropertyBasic.Leave;
+  end;
 end;
 
-function TBus.GetWildCardSeparator: Char;
+function TBusSystem.GetWildCardSeparator: Char;
 begin
-  result := FWildcardChar.Value;
+  FLockPropertyBasic.Enter;
+  try
+    result := FWildcardChar;
+  finally
+    FLockPropertyBasic.Leave;
+  end;
 end;
 
 { TBusClientReaderListShortcut }
@@ -878,11 +956,11 @@ end;
 
 //------------------------------------------------------------------------------
 //W A R N I N G
-// TBus.Process([aobj...]) will be called by different thread :
+// TBusSystem.Process([aobj...]) will be called by different thread :
 // It build a "execution list" of the clientreaders (for speed) and execute it
 // for the caller thread context.
 //------------------------------------------------------------------------------
-Procedure TBus.ProcessMessages(aClientReaders : Array of TBusClientReader);
+Procedure TBusSystem.ProcessMessages(Const aClientReaders : Array of TBusClientReader);
 var CL : TList<TBusClientReader>;
     mCL : TList<PTBusEnvelop>;
     mCL2 : TList<PTBusEnvelop>;
@@ -954,8 +1032,8 @@ begin
 
 end;
 
-Function TBus.Send( var aMessage: TBusMessage;
-                    aTargetChannel : String;
+Function TBusSystem.Send( var aMessage: TBusMessage;
+                    const aTargetChannel : String;
                     const aSomeAdditionalData : String;
                     const aResponseChannel : String;
                     const IsPersistent : Boolean) : Int64;
@@ -964,12 +1042,19 @@ var aPacket : PTBusEnvelop;
     lTempChannel : String;
     ltempstr : TStringList;
     i : integer;
+    FWEnabled : Boolean;
+    FWchr : char;
 
     Procedure InternalSendMessage(aChannel : String);
     begin
       New(aPacket);
-      aPacket^.EnvelopId := FInternalMessageIdGenerator.Value; //For later use (ack ?)
-      FInternalMessageIdGenerator.Inc;
+      FLockStat.Enter;
+      try
+        aPacket^.EnvelopId := FInternalMessageIdGenerator; //For later use (ack ?)
+        FInternalMessageIdGenerator := FInternalMessageIdGenerator + 1;
+      finally
+        FLockStat.Leave;
+      end;
       aPacket^.TargetChannel := aChannel;
       aPacket^.AdditionalData := aSomeAdditionalData;
       aPacket^.ResponseChannel := aResponseChannel;
@@ -982,28 +1067,38 @@ var aPacket : PTBusEnvelop;
       finally
         FWaitMessageList.Unlock;
         FDoWork.SetEvent;
-        FTotalMessageSend.Inc;
+        AtomicIncrement64(FTotalMessageSend);
       end;
     end;
 begin
-  if Terminated then
-    Exit;
+//  if Terminated then
+//    Exit;
   Result := 0;
 
   //Send message with full targetname.
   InternalSendMessage(aTargetChannel);
 
+
   //Decode wildcard to dispatch to other path.
   ///(i.e a message launch on "ABC\123\456" channel, will be
   ///delivered on "ABC\123\456", "ABC\123" and "ABC".
-  if WildcardEnabled then
+  ///
+  FLockPropertyBasic.Enter;
+  try
+    FWEnabled := FWildcardEnabled;
+    FWchr := FWildcardChar;
+  finally
+    FLockPropertyBasic.Leave;
+  end;
+
+  if FWEnabled then
   begin
     if Pos(WildcardSeparator,aTargetChannel)>0 then
     begin
       ltempStr := TStringList.Create;
       try
         lTempChannel := aTargetChannel;
-        ltempstr.Delimiter := WildcardSeparator;
+        ltempstr.Delimiter := FWchr;
         ltempstr.DelimitedText := lTempChannel;
         ltempstr.Delete(ltempstr.Count-1);
         while ltempstr.Count>0 do
@@ -1025,18 +1120,28 @@ begin
 end;
 
 
-procedure TBus.SetWildCardEnabled(const Value: Boolean);
+procedure TBusSystem.SetWildCardEnabled(const Value: Boolean);
 begin
-  FWildcardEnabled.Value := Value;
+  FLockPropertyBasic.Enter;
+  try
+    FWildcardEnabled := Value;
+  finally
+    FLockPropertyBasic.Leave;
+  end;
 end;
 
-procedure TBus.SetWildCardSeparator(const Value: char);
+procedure TBusSystem.SetWildCardSeparator(const Value: char);
 begin
-  if length(value)>0 then
-    FWildcardChar.Value := Value;
+  FLockPropertyBasic.Enter;
+  try
+    if length(value)>0 then
+      FWildcardChar := Value;
+  finally
+    FLockPropertyBasic.Leave;
+  end;
 end;
 
-Function TBus.Subscribe(aChannelName : String; CallBack : TBusMessageNotify) : TBusClientReader;
+Function TBusSystem.Subscribe(aChannelName : String; CallBack : TBusMessageNotify) : TBusClientReader;
 var aNewChannel : TBusChannel;
 var i : integer;
     CL : TObjectList<TBusChannel>;
@@ -1045,6 +1150,7 @@ var i : integer;
 
     ll,llo : TList<PTBusEnvelop>;
     aPacket : PTBusEnvelop;
+    tm : Int64;
 begin
   Assert(Assigned(CallBack));
   Assert(aChannelName <> EmptyStr);
@@ -1086,7 +1192,14 @@ begin
     end;
 
     //Finally, deliver all potentiel Persistent message of the channel to the new subscribter
-    if FTotalMessagePersistent.Value>0 then
+    FLockPropertyBasic.Enter;
+    try
+      tm := FTotalMessagePersistent;
+    finally
+      FLockPropertyBasic.Leave;
+    end;
+
+    if tm>0 then
     begin
       ll := Result.ClientMessageStack.Lock;
       llo := aNewChannel.PersistentMessageLock;
@@ -1112,7 +1225,7 @@ begin
   end;
 end;
 
-function TBus.Unsubscribe(aClient: TBusClientReader): Boolean;
+function TBusSystem.Unsubscribe(aClient: TBusClientReader): Boolean;
 var i : integer;
     lChannel : TBusChannel;
     lChannelName : String;
@@ -1221,36 +1334,45 @@ constructor TBusChannel.Create(aChannelName : String);
 begin
   Inherited Create;
   Assert(aChannelName<>EmptyStr);
-  FChannel := TProtectedString.Create(aChannelName);
+  FBusChannelData := TBusChannelData.Create;
+  FBusChannelData.FChannel := aChannelName;
+  FBusChannelData.FReceivedMessageCount := 0;
+  FBusChannelData.FConsumedMessageCount := 0;
+  FBusChannelData.FMessageInThisChannelWillBeSetAsPersistent:= false;
+
   FSubscibters := TBusClientReaderListShortcut.Create;
-  FReceivedMessageCount := TProtectedInt64.Create(0);
-  FConsumedMessageCount := TProtectedInt64.Create(0);
   FBehaviour := bcbTopic;
   FBehaviourInfo := TBusChannelBehaviourTopic.Create(Self);
   FPersistentMessage := TBusEnvelopList.Create;
-  FMessageInThisChannelWillBeSetAsPersistent:= TProtectedBoolean.Create(False);
 end;
 
 destructor TBusChannel.Destroy;
 begin
-  FreeAndNil(FChannel);
+  FreeAndNil(FBusChannelData);
   FreeAndNil(FSubscibters);
-  FreeAndNil(FReceivedMessageCount);
-  FreeAndNil(FConsumedMessageCount);
   FreeAndNil(FBehaviourInfo);
   FreeAndNil(FPersistentMessage);
-  FreeAndNil(FMessageInThisChannelWillBeSetAsPersistent);
   inherited;
 end;
 
 function TBusChannel.GetChannel: string;
 begin
-  result := FChannel.Value;
+  FBusChannelData.Lock;
+  try
+    result := FBusChannelData.FChannel;
+  finally
+    FBusChannelData.Unlock;
+  end;
 end;
 
 function TBusChannel.GetConsumedMessageCount: Int64;
 begin
-  Result := FConsumedMessageCount.Value;
+  FBusChannelData.Lock;
+  try
+    Result := FBusChannelData.FConsumedMessageCount;
+  finally
+    FBusChannelData.Unlock;
+  end;
 end;
 
 function TBusChannel.GetCurrentSubscribterCount: Int64;
@@ -1266,7 +1388,12 @@ end;
 
 function TBusChannel.GetMessageInThisChannelWillBeSetAsPersistent: Boolean;
 begin
-  result := FMessageInThisChannelWillBeSetAsPersistent.Value;
+  FBusChannelData.Lock;
+  try
+    result := FBusChannelData.FMessageInThisChannelWillBeSetAsPersistent;
+  finally
+    FBusChannelData.Unlock
+  end;
 end;
 
 function TBusChannel.GetPersistentMessageCount: Int64;
@@ -1282,17 +1409,22 @@ end;
 
 function TBusChannel.GetReceivedMessageCount: Int64;
 begin
-  Result := FReceivedMessageCount.Value;
+  FBusChannelData.Lock;
+  try
+  Result := FBusChannelData.FReceivedMessageCount;
+  finally
+    FBusChannelData.Unlock;
+  end;
 end;
 
 procedure TBusChannel.IncConsumedMessageCount;
 begin
-  FConsumedMessageCount.Inc;
+  AtomicIncrement64(FBusChannelData.FConsumedMessageCount);
 end;
 
 procedure TBusChannel.IncReceivedMessageCount;
 begin
-  FReceivedMessageCount.Inc;
+  AtomicIncrement64(FBusChannelData.FReceivedMessageCount);
 end;
 
 function TBusChannel.PersistentMessageLock: Tlist<PTBusEnvelop>;
@@ -1321,7 +1453,12 @@ end;
 procedure TBusChannel.SettMessageInThisChannelWillBeSetAsPersistent(
   const Value: Boolean);
 begin
-  FMessageInThisChannelWillBeSetAsPersistent.Value := Value;
+  FBusChannelData.Lock;
+  try
+    FBusChannelData.FMessageInThisChannelWillBeSetAsPersistent := Value;
+  finally
+    FBusChannelData.Unlock;
+  end;
 end;
 
 { TBusChannelList }
@@ -1443,7 +1580,7 @@ end;
 destructor TBusClient.Destroy;
 begin
   FreeAndNil(ClientMessageStack); //ClientMessageStack freed its messages.
-  //FreeAndNil(Event)....NO ! Managed by the bus, because could be shared between client.
+  //FreeAndNil(Event)....NO ! Managed by user, because could be shared between client.
   inherited;
 end;
 
@@ -1467,23 +1604,18 @@ begin
   Inherited Create;
   FCallBack := aCallBack;
   FChannel := aChannelName;
-  FProcessMessageCount := TProtectedInt64.Create(0);
+  FProcessMessageCount := 0;
 end;
 
-destructor TBusClientReader.Destroy;
-begin
-  FreeAndNil(FProcessMessageCount);
-  inherited;
-end;
 
 function TBusClientReader.GetClientProcessMessageCount: Int64;
 begin
-  result := FProcessMessageCount.Value;
+  result := FProcessMessageCount;
 end;
 
 procedure TBusClientReader.IncProcessMessageCount;
 begin
-  FProcessMessageCount.Inc;
+  AtomicIncrement64(FProcessMessageCount);
 end;
 
 { TBusClientReaderList }
@@ -1496,7 +1628,7 @@ end;
 
 destructor TBusClientReaderList.Destroy;
 begin
-  FreeAndNil(FList); //Client resp. to clean all.
+  FreeAndNil(FList); //User *must* delete client themself, because of share object (event)
   FreeAndNil(FLock);
   inherited;
 end;
@@ -1546,7 +1678,7 @@ end;
 
 function TBusMessage.AsString: String;
 begin
-  Result := TEncoding.UTF8.GetString(Buffer);
+  Result := String(TEncoding.UTF8.GetString(Buffer));
 end;
 
 procedure TBusMessage.FromByte(aByte: Byte);
@@ -1564,7 +1696,7 @@ end;
 
 procedure TBusMessage.FromString(aText: String);
 begin
-  Buffer := TEncoding.UTF8.GetBytes(aText);
+  Buffer := TEncoding.UTF8.GetBytes(UnicodeString(aText));
 end;
 
 { TBusChannelAdditionalInformation }
@@ -1585,12 +1717,149 @@ begin
   FLastClientIndexServed := 0;
 end;
 
+{ TBus }
+
+procedure TBus.BusShutDown;
+begin
+  if not(suspended) and not(Terminated) then
+  begin
+    Terminate;
+    Sys.BusShutDown;
+    Waitfor; //Terminate main bus loop.
+  end;
+end;
+
+procedure TBus.ChannelDelete(aChannelName: string);
+begin
+  sys.ChannelDelete(aChannelName);
+end;
+
+procedure TBus.ChannelSet(aChannelName: String;
+  aChannelBehaviourType: TBusChannelBehaviour;
+  const aMessageWillBePersistent: Boolean);
+begin
+  sys.ChannelSet(aChannelName,aChannelBehaviourType,aMessageWillBePersistent);
+end;
+
+procedure TBus.ChannelSetOnBeforeDeliverMessageEvent(
+  aChannelName: String; aChannelProc: TOnBusChannelBeforeDeliverMessage);
+begin
+  sys.ChannelSetOnBeforeDeliverMessageEvent(aChannelName,aChannelProc);
+end;
+
+constructor TBus.Create;
+begin
+  inherited Create(true);
+  {$IFDEF DELPHI}
+  NameThreadForDebugging(ClassName);
+  {$ENDIF}
+  Sys := TBusSystem.Create;
+end;
+
+destructor TBus.Destroy;
+begin
+  BusShutDown;
+  FreeAndNil(Sys);
+  inherited;
+end;
+
+procedure TBus.Execute;
+begin
+  while not(Terminated) do
+    Sys.BusExecute;
+end;
+
+procedure TBus.GetChannelsConfigurationAsCSV(var aStr: TStringList);
+begin
+  sys.GetChannelsConfigurationAsCSV(aStr);
+end;
+
+function TBus.GetNewEvent: TEvent;
+begin
+  Result := sys.GetNewEvent;
+end;
+
+function TBus.GetStats: String;
+begin
+  result := sys.GetStats;
+end;
+
+procedure TBus.GetSubscribtersConfigurationAsCSV(var aStr: TStringList);
+begin
+  sys.GetSubscribtersConfigurationAsCSV(aStr);
+end;
+
+function TBus.GetWildCardEnabled: Boolean;
+begin
+  result :=  GetWildCardEnabled;
+end;
+
+function TBus.GetWildCardSeparator: Char;
+begin
+  result := GetWildCardSeparator;
+end;
+
+procedure TBus.ProcessMessages(
+  Const aClientReaders: array of TBusClientReader);
+begin
+  sys.ProcessMessages(aClientReaders);
+end;
+
+function TBus.Send(var aMessage: TBusMessage; aTargetChannel: String;
+  const aSomeAdditionalData, aResponseChannel: string;
+  const IsPersistent: Boolean): Int64;
+begin
+  result := sys.Send(aMessage, aTargetChannel,aSomeAdditionalData,aResponseChannel,IsPersistent);
+end;
+
+procedure TBus.SetWildCardEnabled(const Value: Boolean);
+begin
+  Sys.WildcardEnabled := value;
+end;
+
+procedure TBus.SetWildCardSeparator(const Value: Char);
+begin
+  sys.WildcardSeparator := value;
+end;
+
+function TBus.Subscribe(aChannelName: String;
+  CallBack: TBusMessageNotify): TBusClientReader;
+begin
+  result := sys.Subscribe(aChannelName,CallBack);
+end;
+
+function TBus.UnSubscribe(aClient: TBusClientReader): Boolean;
+begin
+  result := sys.UnSubscribe(aClient);
+end;
+
+{ TBusChannelData }
+
+constructor TBusChannelData.Create;
+begin
+  Inherited;
+  FLock := TCriticalSection.Create;
+end;
+
+destructor TBusChannelData.Destroy;
+begin
+  FreeAndNil(Flock);
+  inherited;
+end;
+
+procedure TBusChannelData.Lock;
+begin
+  FLock.Acquire;
+end;
+
+procedure TBusChannelData.Unlock;
+begin
+  FLock.Release;
+end;
+
 Initialization
 
 Bus := Nil;
 
-Finalization
-
-//ReleaseStandartBus;
 
 end.

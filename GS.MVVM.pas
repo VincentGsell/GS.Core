@@ -130,7 +130,7 @@ Public
 End;
 
 
-TGSMVVMEngine = Class(TBus)
+TGSMVVMEngine = Class(TThreadedBus)
 Private
   ///
   ///
@@ -159,10 +159,10 @@ Private
   ///
 
   //message process.
-  Procedure InternalDeclarationChannel(Sender : TBus;Var Packet : TBusEnvelop);
-  procedure InternalDeclarationLink(Sender : TBus;Var Packet : TBusEnvelop);
+  Procedure InternalDeclarationChannel(Sender : TBusSystem;Var Packet : TBusEnvelop);
+  procedure InternalDeclarationLink(Sender : TBusSystem;Var Packet : TBusEnvelop);
 
-  procedure InternalDeclareActivity(Sender : TBus;Var Packet : TBusEnvelop);
+  procedure InternalDeclareActivity(Sender : TBusSystem;Var Packet : TBusEnvelop);
 
   Procedure MVVMProcess(aInstance : string);
     Procedure DoJobAB; //synchronized.
@@ -178,7 +178,7 @@ Private
   ///
   ///
   //message process.
-  Procedure InternalForeignDeclarationChannel(Sender : TBus;Var Packet : TBusEnvelop);
+  Procedure InternalForeignDeclarationChannel(Sender : TBusSystem;Var Packet : TBusEnvelop);
 
 
 Public
@@ -201,7 +201,7 @@ protected
   FInputClassRegistration : TList<TClass>;              //Idem
   FOutputClassRegistration : TList<TClass>;             //Idem
 
-  procedure InternalIncomingCall(Sender : TBus;Var Packet : TBusEnvelop); Virtual;
+  procedure InternalIncomingCall(Sender : TBusSystem;Var Packet : TBusEnvelop); Virtual;
 public
   Procedure RegisterRessource(aRessourceName, aRessourcePOP : String; aInputClassName, aOutPutClassName : TClass; aExecProc : TGSMVVMForeignCallProc);
   //Procedure UnregsiterClient
@@ -213,10 +213,10 @@ end;
 
 
 //Wrapper for local bus synchrone response. (for TGSMVVM.ForeignCall)
-TGSMVVMResponse = Object
+TGSMVVMResponse = Record
   Response : TObject;
   Metric : TGSMVVMMetric;
-  Procedure CallBack(Sender : TBus;Var Packet : TBusEnvelop);
+  Procedure CallBack(Sender : TBusSystem;Var Packet : TBusEnvelop);
 end;
 
 TGSMVVM = Class
@@ -312,7 +312,7 @@ procedure TGSMVVMEngine.Execute;
 begin
   while Not(Terminated) do
   begin
-    Inherited BusExecute;
+    Sys.BusExecute;
     ProcessMessages([FDeclaration,Fdeclarationb,Factivity]);
   end;
 end;
@@ -388,7 +388,7 @@ begin
   end;
 end;
 
-procedure TGSMVVMEngine.InternalDeclarationChannel(Sender: TBus;
+procedure TGSMVVMEngine.InternalDeclarationChannel(Sender: TBusSystem;
   var Packet: TBusEnvelop);
 var lObjView : String;
     lObjInstanceValue : String;
@@ -432,7 +432,7 @@ begin
 
 end;
 
-procedure TGSMVVMEngine.InternalDeclarationLink(Sender: TBus;
+procedure TGSMVVMEngine.InternalDeclarationLink(Sender: TBusSystem;
   var Packet: TBusEnvelop);
 var lLink : TGSMVVMLink;
     la,lb : TGSMVVMItem;
@@ -458,7 +458,7 @@ begin
   end;
 end;
 
-procedure TGSMVVMEngine.InternalDeclareActivity(Sender: TBus;
+procedure TGSMVVMEngine.InternalDeclareActivity(Sender: TBusSystem;
   var Packet: TBusEnvelop);
 var lm : TMemoryStream;
     ls : String;
@@ -472,7 +472,7 @@ begin
   end;
 end;
 
-procedure TGSMVVMEngine.InternalForeignDeclarationChannel(Sender: TBus;
+procedure TGSMVVMEngine.InternalForeignDeclarationChannel(Sender: TBusSystem;
   var Packet: TBusEnvelop);
 var lRessourceID : String;
     lRessurcePOP : String;
@@ -637,7 +637,7 @@ end;
 
 { TGSMVVMResponse }
 
-procedure TGSMVVMResponse.CallBack(Sender: TBus; var Packet: TBusEnvelop);
+procedure TGSMVVMResponse.CallBack(Sender: TBusSystem; var Packet: TBusEnvelop);
 var lStream : TMemoryStream;
     lOutObj : String;
     lMetric : String;
@@ -853,7 +853,7 @@ begin
   end;
 end;
 
-procedure TGSMVVMNest.InternalIncomingCall(Sender: TBus;
+procedure TGSMVVMNest.InternalIncomingCall(Sender: TBusSystem;
   var Packet: TBusEnvelop);
 var lJsonContent : String;
     lInObject, lOutObject : TObject;

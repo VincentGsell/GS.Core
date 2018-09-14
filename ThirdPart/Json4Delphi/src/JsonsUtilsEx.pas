@@ -32,7 +32,7 @@ implementation
 Uses TypInfo,
      DateUtils,
      Jsons,
-     GS.Json;
+     GS.JSON;
 
 Type
   PPPTypeInfo = ^PPTypeInfo;
@@ -265,7 +265,10 @@ begin
         tkWChar  : sVal := '"'+js.Encode(WideChar(GetOrdProp(obj,pl[i])))+'"';
         tkWString: sVal := '"'+js.Encode(GetWideStrProp(obj,pl[i]))+'"';
         tkEnumeration:
-                   sVal := '"'+js.Encode(GetEnumProp(obj,pl[i]))+'"';
+        begin
+          sVal := GetEnumProp(obj,pl[i].Name);
+          sVal := '"'+js.Encode(IntToStr(GetEnumValue(pl[i]^.PropType{$IFNDEF FPC}^{$ENDIF},sVal)))+'"';  //GetEnumValue(pl[i]^.PropType^,GetEnumProp(obj,pl[i].Name))
+        end;
         tkClass:
         begin
           o := GetObjectProp(Obj,pl[i]);
@@ -330,7 +333,7 @@ begin
         tkSet,
         tkMethod,
         tkVariant,
-        tkRecord,
+        tkRecord, //Record will not be supported because of discrepeancy between delphi and FPC for record rtti processing.
         tkInterface : RT;
       end;
 
@@ -450,7 +453,7 @@ begin
         begin
           SetStrProp(aObject,lpl[i].Name,lJSON[lpl[i].Name].AsString);
         end;
-        tkEnumeration: SetOrdProp(aObject,lpl[i].Name,Integer(lJSON[lpl[i].Name].AsBoolean));
+        tkEnumeration: SetOrdProp(aObject,lpl[i].Name,Integer(lJSON[lpl[i].Name].AsInteger));
         tkClass:
         begin
           if (lJsValue.ValueType = TJsonValueType.jvObject) or (lJsValue.ValueType = TJsonValueType.jvNone) then
@@ -498,7 +501,7 @@ begin
                   if (lTypeInfo^.Kind = tkClass) then
                   begin
                     loClass := lTypeInfo^.TypeData^.ClassType;
-                    //loClass := TGSJson.Configuration.GetPropertyConfiguration(lpl[i]^.Name).ItemArrayType; //as FPC ? switch ?
+                    //loClass := TGSJson.Configuration.GetPropertyConfiguration(lpl[i]^.Name).ItemArrayType; //do as FPC ? switch ?
                   end
                   else
                   begin

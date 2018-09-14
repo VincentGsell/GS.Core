@@ -1,0 +1,64 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Camera = Camera1
+  Caption = 'Form1'
+  ClientHeight = 628
+  ClientWidth = 792
+  UsingDesignCamera = False
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = Form3DCreate
+  OnMouseWheel = Form3DMouseWheel
+  DesignerMasterStyle = 0
+  object Grid3D1: TGrid3D
+    Marks = 4.000000000000000000
+    Frequency = 1.000000000000000000
+    LineColor = x50505050
+    Width = 50.000000000000000000
+    Height = 50.000000000000000000
+    Depth = 0.001000000047497451
+    HitTest = False
+    object Layer3D1: TLayer3D
+      Height = 2.351042747497559000
+      HitTest = False
+      Position.X = -5.498156547546387000
+      Position.Y = -4.187212944030762000
+      Position.Z = -0.518121719360351600
+      Resolution = 50
+      StyleLookup = 'backgroundstyle'
+      Width = 3.137144565582275000
+      object H: TLabel
+        StyledSettings = [FontColor]
+        Position.X = 8.000000000000000000
+        Position.Y = 8.000000000000000000
+        Size.Width = 120.000000000000000000
+        Size.Height = 50.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.Font.Family = 'Arial'
+        TextSettings.Font.Size = 60.000000000000000000
+        TextSettings.Font.StyleExt = {00070000000000000004000000}
+        TextSettings.HorzAlign = Center
+        Text = 'H'
+      end
+      object Label1: TLabel
+        StyledSettings = [Family, Size, FontColor]
+        Position.X = 8.000000000000000000
+        Position.Y = 80.000000000000000000
+        Size.Width = 145.000000000000000000
+        Size.Height = 17.000000000000000000
+        Size.PlatformDefault = False
+        TextSettings.HorzAlign = Center
+        Text = 'Hydrogen'
+      end
+    end
+  end
+  object Camera1: TCamera
+    AngleOfView = 45.000000000000000000
+    Position.Z = -12.000000000000000000
+    Width = 1.000000000000000000
+    Height = 1.000000000000000000
+    Depth = 1.000000000000000000
+  end
+end

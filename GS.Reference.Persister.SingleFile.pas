@@ -1,5 +1,9 @@
 unit GS.Reference.Persister.SingleFile;
 
+{$IFDEF FPC}
+{$mode delphi}
+{$ENDIF}
+
 interface
 
 uses Classes, SysUtils,
@@ -49,7 +53,7 @@ public
                                       DataType : tofContentType;
                                       StreamData : TMemoryStream); Override;
 
-  Procedure DeleteGenericeData(Key : String); Override;
+  Procedure DeleteGenericData(Key : String); Override;
 
   Procedure ReadInfoDataByIndex(aIndex : UInt32; var aDataType : TofcontentType; var aKey : String); Override;
   Procedure ReadInfoDataByKey(aKey : string; var aDataType : TofcontentType; var Index : UInt64); Override;
@@ -121,7 +125,7 @@ begin
   FOnInitialLoading := OnInitLoadEvent;
 end;
 
-procedure TofReferencePersisterSingleFile.DeleteGenericeData(Key: String);
+procedure TofReferencePersisterSingleFile.DeleteGenericData(Key: String);
 var lEntry : TofAllocationTableStruc;
 begin
   InternalCheckFileBuffer;

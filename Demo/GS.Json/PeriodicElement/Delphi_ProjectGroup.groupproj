@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{A5FBCA6C-135C-4A89-BFE4-856DD60466F0}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="PeriodicElementGUI\FMX\ProjectPeriodic.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="PeriodicElementConsole\delphi\ProjectJSONDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\..\..\Components\Delphi\Delphi10.2\PackageGSCore.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="ProjectPeriodic">
+        <MSBuild Projects="PeriodicElementGUI\FMX\ProjectPeriodic.dproj"/>
+    </Target>
+    <Target Name="ProjectPeriodic:Clean">
+        <MSBuild Projects="PeriodicElementGUI\FMX\ProjectPeriodic.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProjectPeriodic:Make">
+        <MSBuild Projects="PeriodicElementGUI\FMX\ProjectPeriodic.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ProjectJSONDemo">
+        <MSBuild Projects="PeriodicElementConsole\delphi\ProjectJSONDemo.dproj"/>
+    </Target>
+    <Target Name="ProjectJSONDemo:Clean">
+        <MSBuild Projects="PeriodicElementConsole\delphi\ProjectJSONDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProjectJSONDemo:Make">
+        <MSBuild Projects="PeriodicElementConsole\delphi\ProjectJSONDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="PackageGSCore">
+        <MSBuild Projects="..\..\..\Components\Delphi\Delphi10.2\PackageGSCore.dproj"/>
+    </Target>
+    <Target Name="PackageGSCore:Clean">
+        <MSBuild Projects="..\..\..\Components\Delphi\Delphi10.2\PackageGSCore.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PackageGSCore:Make">
+        <MSBuild Projects="..\..\..\Components\Delphi\Delphi10.2\PackageGSCore.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="ProjectPeriodic;ProjectJSONDemo;PackageGSCore"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="ProjectPeriodic:Clean;ProjectJSONDemo:Clean;PackageGSCore:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="ProjectPeriodic:Make;ProjectJSONDemo:Make;PackageGSCore:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

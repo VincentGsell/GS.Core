@@ -20,6 +20,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+201804 - Fiy - VGS - Refactor FixedFloatToStr (best use case and optimization)
+201805 - Add - VGS - Add OBjectToJson and JsonToObject, rtti based, cross platform Delphi10+ and FPC 3+Refactor
+201807 - Fix - VGS - String unicode (\uxxx) encoding and decoding.
+
 ****************************************************************************}
 
 unit Jsons;
@@ -351,19 +356,10 @@ function TJsonBase.Decode(const S: String): String;
     end;
   end;
 
-  function HexToUnicode(Hex: String): String;
-  begin
-    try
-      Result := Char((HexValue(Hex[3]) shl 4) + HexValue(Hex[4]))
-              + Char((HexValue(Hex[1]) shl 4) + HexValue(Hex[2]));
-    except
-      raise Exception.Create('Illegal four-hex-digits "' + Hex + '"');
-    end;
-  end;
-
 var
   I: Integer;
   C: Char;
+  ubuf : integer;
 begin
   Result := '';
   I := 1;
@@ -382,10 +378,12 @@ begin
         'f': Result := Result + #12;
         'r': Result := Result + #13;
         'u':
-          begin
-            Result := Result + Trim(HexToUnicode(Copy(S, I, 4)));
-            Inc(I, 4);
-          end;
+        begin
+          if not TryStrToInt('$' + Copy(S, I, 4), ubuf) then
+            raise Exception.Create(format('Invalid unicode \u%s',[Copy(S, I, 4)]));
+          result := result + WideChar(ubuf);
+          Inc(I, 4);
+        end;
         else Result := Result + C;
       end;
     end
@@ -400,7 +398,7 @@ end;
 
 function TJsonBase.Encode(const S: String): String;
 var
-  I: Integer;
+  I, UnicodeValue : Integer;
   C: Char;
 begin
   Result := '';
@@ -408,13 +406,27 @@ begin
   begin
     C := S[I];
     case C of
-      '"', '\', '/': Result := Result + '\' + C;
+      '"':Result := Result + '\' + C;
+      '\': Result := Result + '\' + C;
+      '/': Result := Result + '\' + C;
       #8: Result := Result + '\b';
       #9: Result := Result + '\t';
       #10: Result := Result + '\n';
       #12: Result := Result + '\f';
       #13: Result := Result + '\r';
-      else Result := Result + C;
+      else
+      if (C < WideChar(32)) or (C > WideChar(127)) then
+      begin
+        Result := result + '\u';
+        UnicodeValue := Ord(C);
+        Result := result + lowercase(IntToHex((UnicodeValue and 61440) shr 12,1));
+        Result := result + lowercase(IntToHex((UnicodeValue and 3840) shr 8,1));
+        Result := result + lowercase(IntToHex((UnicodeValue and 240) shr 4,1));
+        Result := result + lowercase(IntToHex((UnicodeValue and 15),1));
+      end
+      else
+       Result := Result + C;
+
     end;
   end;
 end;
@@ -676,7 +688,7 @@ begin
   Result := 0;
   case FValueType of
     jvNone, jvNull: Result := 0;
-    jvString: Result := Trunc(FixedStrToFloat(FStringValue));
+    jvString: Result := Trunc(StrToInt(FStringValue));
     jvNumber: Result := Trunc(FNumberValue);
     jvBoolean: Result := Ord(FBooleanValue);
     jvObject, jvArray: RaiseValueTypeError(jvNumber);

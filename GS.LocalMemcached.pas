@@ -114,7 +114,7 @@ Private
   //But it can theorically. Twpycal use is to build a client for each thread, or x client in each thread.
   FResponseStringProtection : TCriticalSection;
 
- Procedure InternalBusMemCachedProcessResponse(Sender : TBus;Var Packet : TBusEnvelop);
+ Procedure InternalBusMemCachedProcessResponse(Sender : TObject;Var Packet : TBusEnvelop);
 
  Function BuildCmdSet(aKey : String; aValue : string) : TMemoryStream; Overload;
  Function BuildCmdSet(aKey : String; aValue : TmemoryStream) : TMemoryStream; Overload;
@@ -714,7 +714,7 @@ begin
   end;
 end;
 
-procedure TLocalMemcachedClient.InternalBusMemCachedProcessResponse(Sender: TBus;
+procedure TLocalMemcachedClient.InternalBusMemCachedProcessResponse(Sender: TObject;
   var Packet: TBusEnvelop);
 var lStream : TMemoryStream;
 begin
