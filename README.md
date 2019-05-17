@@ -21,6 +21,8 @@
 
 - GS.FileOp
   A work in progress attempt to work on file with advanced tools. See Glacify demo, for exemple.	 
+  Glacify is an full R&D project, witch aim to reach the fellowing features : 
+  - in one file archiving (=a "glacier"), versioning capability, archiving by provide cyphering and compression, get clear file version   on demand, capabity to scan directory and only process changed files.
 
 #Dependancy
 
@@ -42,8 +44,9 @@ For your conveniance and for easy integration, those libs are availables on this
   ![Alt text](/../master/Ressources/fmxjsonperiodicdemo.png?raw=true "FMX JSON Demo")
  
   GS.FileUtils  :   A GUI app to see how glacify process could work.
+  ![Alt text](/../master/Ressources/glacify.png?raw=true "FMX JSON Demo")
   
-  GS.ReferenceDB : A little GUI app to exepriment Reference capability.
+  GS.ReferenceDB : A little console app to experiment Reference capability.
   
   
   
