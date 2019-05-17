@@ -27,7 +27,7 @@
 As this Core fundation class is dedicated to Bus and GRID app, dependancy with a lot of features coverage is needed : 
 
 - [cool Json lib](https://github.com/rilyu/json4delphi)     
-- [the nice BasNCondingPascal] (https://github.com/Xor-el/BaseNcodingPascal)
+- [the nice BasNCondingPascal](https://github.com/Xor-el/BaseNcodingPascal)
 
 For your conveniance and for easy integration, those libs are availables on this repo as ThirdPart directory.
   
