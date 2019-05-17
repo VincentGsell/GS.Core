@@ -1,0 +1,55 @@
+package BaseNcodingPascalPackage;
+
+{$WARNINGS OFF}
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE RELEASE}
+{$ENDIF IMPLICITBUILDING}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  soaprtl;
+
+contains
+  BcpBase in '..\..\BaseUnits\BcpBase.pas',
+  BcpBase32 in '..\..\BaseUnits\BcpBase32.pas',
+  BcpBase64 in '..\..\BaseUnits\BcpBase64.pas',
+  BcpBase85 in '..\..\BaseUnits\BcpBase85.pas',
+  BcpBase91 in '..\..\BaseUnits\BcpBase91.pas',
+  BcpBase128 in '..\..\BaseUnits\BcpBase128.pas',
+  BcpBase256 in '..\..\BaseUnits\BcpBase256.pas',
+  BcpBase1024 in '..\..\BaseUnits\BcpBase1024.pas',
+  BcpBase4096 in '..\..\BaseUnits\BcpBase4096.pas',
+  BcpBaseBigN in '..\..\BaseUnits\BcpBaseBigN.pas',
+  BcpBaseN in '..\..\BaseUnits\BcpBaseN.pas',
+  BcpZBase32 in '..\..\BaseUnits\BcpZBase32.pas',
+  BcpBaseFactory in '..\..\BaseUnits\BcpBaseFactory.pas',
+  BcpIBaseInterfaces in '..\..\BaseInterfaces\BcpIBaseInterfaces.pas',
+  BcpIntegerX in '..\..\UtilityUnits\BcpIntegerX.pas',
+  BcpBaseNcodingTypes in '..\..\UtilityUnits\BcpBaseNcodingTypes.pas',
+  BcpUtils in '..\..\UtilityUnits\BcpUtils.pas';
+
+end.
