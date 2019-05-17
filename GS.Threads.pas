@@ -34,7 +34,7 @@ Type
   public
     constructor Create; virtual;
     destructor Destroy; override;
-    procedure Lock; Virtual;
+    function Lock : TObject; Virtual;
     procedure Unlock;
   end;
 
@@ -46,7 +46,7 @@ Type
   public
     Constructor Create(aObject : TObject; const OwnedObject : Boolean = True); reintroduce;
     Destructor Destroy; Override;
-    Function Lock : TObject; Overload;
+    function Lock : TObject; Override;
   end;
 
   TGSProtectedBoolean = Class(TGSProtectedItem)
@@ -176,9 +176,10 @@ begin
   inherited;
 end;
 
-procedure TGSProtectedItem.Lock;
+function TGSProtectedItem.Lock : TObject;
 begin
   FCriticalSection.Enter;
+  result := FCriticalSection;
 end;
 
 procedure TGSProtectedItem.Unlock;
@@ -206,7 +207,7 @@ end;
 
 function TGSProtectedObject.Lock: TObject;
 begin
-  inherited Lock;
+  Inherited Lock;
   Result := FObject;
 end;
 

@@ -504,7 +504,7 @@ var FInternalTask : TStackTask;
   end;
 
 begin
-  FIdleTime := 0;
+
   while Not Terminated do
   begin
     case FWorkNow.WaitFor(CST_THREAD_POOL_WAIT_DURATION) of

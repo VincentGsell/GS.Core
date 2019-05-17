@@ -238,6 +238,7 @@ end;
 
 function GetEncoding(a : TGSStringEncoding) : TEncoding;
 begin
+  result := TEncoding.UTF8;
   case a  of
     TGSStringEncoding.ASCIIEncoding: result := TEncoding.ASCII;
     TGSStringEncoding.AnsiEncoding: result := TEncoding.ANSI;
