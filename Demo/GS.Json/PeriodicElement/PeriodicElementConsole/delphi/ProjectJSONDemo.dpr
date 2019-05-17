@@ -8,17 +8,14 @@ program ProjectJSONDemo;
 
 uses
   {$IFNDEF FPC}
-  FastMM4,
   {$ENDIF }
   SysUtils,
   Classes,
   {$IFDEF DELPHINATIVEJSON}
   Rest.Json,
   {$ELSE}
-  jsons in '..\..\..\..\..\ThirdPart\Json4Delphi\src\jsons.pas',
-  JsonsUtilsEx in '..\..\..\..\..\ThirdPart\Json4Delphi\src\JsonsUtilsEx.pas',
-  Gs.Json in '..\..\..\..\..\Gs.Json.pas',
-  {$ENDIF}
+  GS.Json,
+  {$ENDIF }
   unElementobject in '..\..\data\unElementobject.pas';
 
 var lo : TPeriodicTable;
@@ -31,7 +28,7 @@ begin
   {$ENDIF}
 
 
-  lpath := ExtractFilePath(ParamStr(0)) +'..\..\..\..' +'\data\PeriodicTableJSON.json.';
+  lpath := ExtractFilePath(ParamStr(0)) +'\PeriodicTableJSON.json.';
 
   try
     s :=  TStringList.Create;

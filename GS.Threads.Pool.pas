@@ -12,9 +12,7 @@
 /// 4) Following yourTaks option, YourTak will be delivered by an event.
 unit GS.Threads.Pool;
 
-{$IFDEF FPC}
-{$mode delphi}
-{$ENDIF}
+{$I GSCore.inc}
 
 interface
 
@@ -22,15 +20,20 @@ Uses
 {$IFDEF FPC}
   Classes,
   SysUtils,
+  {$IFDEF USE_GENERIC}
   Generics.Collections,
+  {$ENDIF}
   SyncObjs,
 {$ELSE}
   System.Classes,
   System.SysUtils,
+  {$IFDEF USE_GENERIC}
   System.Generics.Collections,
+  {$ENDIF}
   System.SyncObjs,
   System.Threading,
 {$ENDIF}
+  GS.Common,
   GS.Threads;
 
 Const
@@ -43,6 +46,7 @@ Type
   //Make choice...
   //...Overide this to make your task (this one is good for task "Without loop" inside...
   TStackTask = Class
+  public
     Procedure Execute; Virtual; abstract;
   end;
 
@@ -59,6 +63,7 @@ Type
 
 
   TThreadTask = class; //real TThread descendant (Resident "reused" thread)
+                       //This may not to be intended to changed, normaly.
   TStackThreadPool = class; //Pool object.
 
   TThreadTaskStatus = (WaitForStart, Idle, Processing, Terminating);
@@ -70,7 +75,7 @@ Type
     Procedure InternalDoStackTaskEventStart;
     Procedure InternalDoStackTaskEventFinished;
   protected
-    FStatus : TProtectedValue<TThreadTaskStatus>;
+    FStatus : TGSProtectedByte;
     FThreadIndex : UInt32;
     FWorkNow : TEvent;
     FThreadPool : TStackThreadPool; //Pointer.
@@ -83,6 +88,29 @@ Type
     Property Status : TThreadTaskStatus read GetStatus;
   End;
 
+  {$IFDEF USE_GENERIC}
+  TList_TThreadTask = TList<TThreadTask>;
+  TList_TStackTask = TList<TStackTask>;
+  {$ELSE}
+  TList_TThreadTask = Class(TList_ObjectArray)
+  private
+    function GetThreadTaskItem(Index: Uint32): TThreadTask;
+    procedure SetThreadTaskItem(Index: Uint32; const Value: TThreadTask);
+  Public
+    Procedure Add(aTask : TThreadTask);
+    Property Items[Index : Uint32] : TThreadTask read GetThreadTaskItem Write SetThreadTaskItem; Default;
+  End;
+  TList_TStackTask = Class(TList_ObjectArray)
+  private
+    function GetStackTaskItem(Index: Uint32): TStackTask;
+    procedure SetStackTaskItem(Index: Uint32; const Value: TStackTask);
+  Public
+    Procedure Add(aTask : TStackTask);
+    Property Items[Index : Uint32] : TStackTask read GetStackTaskItem Write SetStackTaskItem; Default;
+  End;
+  {$ENDIF}
+
+
   TStackTaskEvent = Procedure(Const aThreadIndex : UInt32; aIStackTask : TStackTask; TaskProcessTimeValue : UInt64) of Object;
   ///Named TStackThreadPool mainly because of Delphi's TThreadPool.
   ///
@@ -93,31 +121,34 @@ Type
   ///  - Once you have called "Warm", or once your first task submited, all ressource are up and ready.
   ///  - Once ressource up and ready, it is very efficient to take task and process (because threads are up and ready)
   ///  - In delphi, it replace efficiently TTask, it is as efficient as TTask, but there are Metrics and ressource manageged.
+  ///
   TStackThreadPool = class
   private
   protected
     FFreeTaskOnceProcessed: boolean;
     FCurrentStackProtector : TCriticalSection;
-    FCurrentStack : TList<TStackTask>;
-    FSynchoEvent : TProtectedBoolean;
-    FOnStackFinished: TStackTaskEvent;
+    FCurrentStack : TList_TStackTask;
+    FSynchoEvent : TGSProtectedBoolean;
     FPoolCapacity: Uint32;
     FOnStackStart: TStackTaskEvent;
+    FOnStackFinished: TStackTaskEvent;
     function GetSynchronized: Boolean;
     procedure SetSynchronized(const Value: Boolean);
 
     function GetPoolCapacity: Uint32; virtual;
     function GetStackTaskCount: Uint32;
     function GetAllThreadAreIdling: Boolean;
-    function InternalThreadIdling(alist : TList<TThreadTask>) : Boolean;
+    function InternalThreadIdling(alist : TList_TThreadTask) : Boolean;
     function ThreadIdling : Boolean; //Pool protected.
 
     //On first submit, ressource are allocated. If there are no submit, no thread exists.
     Procedure check; virtual;
     procedure clean; virtual;
-    procedure clean_(lt : TList<TThreadTask>); virtual; //Unprotected !
+    procedure clean_(lt : TList_TThreadTask); virtual; //Unprotected !
   public
-    Pool : TProtectedObject<TList<TThreadTask>>;
+    Pool : TGSProtectedObject;
+    function LockStack : TList_TStackTask;
+    procedure UnlockStack;
 
     /// aInitialPoolCapacity : Minimal thread count allotated at start.
     ///  Warm : By defautl, thread allocation is done on first task submission.
@@ -143,8 +174,8 @@ Type
   //Idem than TStackThreadPool, but dynamic thread capacity and management.
   TStackDynamicThreadPool = Class(TStackThreadPool)
   private
-    FMaxThreadCount: TProtectedNativeUInt;
-    FMaxThreadContiniousIdlingTime: TProtectedNativeUInt;
+    FMaxThreadCount: TGSProtectedUint32;
+    FMaxThreadContiniousIdlingTime: TGSProtectedUint32;
   protected
     procedure Check; Override;
     function GetPoolCapacity: Uint32; Override;
@@ -152,8 +183,8 @@ Type
     Constructor Create(const Warm : Boolean = False); Reintroduce;
     destructor Destroy; Override;
 
-    Property MaxPoolCapacity : TProtectedNativeUInt read FMaxThreadCount write FMaxThreadCount;
-    property MaxThreadContiniousIdlingTime : TProtectedNativeUInt read FMaxThreadContiniousIdlingTime Write FMaxThreadContiniousIdlingTime;
+    Property MaxPoolCapacity : TGSProtectedUint32 read FMaxThreadCount write FMaxThreadCount;
+    property MaxThreadContiniousIdlingTime : TGSProtectedUint32 read FMaxThreadContiniousIdlingTime Write FMaxThreadContiniousIdlingTime;
   End;
 
 
@@ -163,9 +194,9 @@ implementation
 
 procedure TStackThreadPool.Check;
 var i : Integer;
-    lt : TList<TThreadTask>;
+    lt : TList_TThreadTask;
 begin
-  lt := Pool.Lock;
+  lt := TList_TThreadTask(Pool.Lock);
   try
     if lt.Count=0 then
     begin
@@ -179,7 +210,7 @@ begin
     end;
     for I := 0 to lt.Count-1 do
     begin
-      if lt[i].Started then
+      if TVisibilityThread(lt[i]).Started then
         lt[i].Run; //Pulse
     end;
   finally
@@ -188,9 +219,9 @@ begin
 end;
 
 procedure TStackThreadPool.clean;
-var lt : TList<TThreadTask>;
+var lt : TList_TThreadTask;
 begin
-  lt := Pool.Lock;
+  lt := TList_TThreadTask(Pool.Lock);
   try
     clean_(lt);
   finally
@@ -198,7 +229,7 @@ begin
   end;
 end;
 
-procedure TStackThreadPool.clean_(lt: TList<TThreadTask>);
+procedure TStackThreadPool.clean_(lt: TList_TThreadTask);
 var i : integer;
 begin
   for i := lt.Count-1 downto 0 do
@@ -213,13 +244,12 @@ begin
 end;
 
 constructor TStackThreadPool.Create(const aInitialPoolCapacity: UInt32; const Warm : Boolean);
-var v : TProtectedObject<TList>;
 begin
-  FSynchoEvent := TProtectedBoolean.Create(True);
+  FSynchoEvent := TGSProtectedBoolean.Create(True);
   FCurrentStackProtector := TCriticalSection.Create;
-  FCurrentStack := TList<TStackTask>.Create;
+  FCurrentStack := TList_TStackTask.Create;
 
-  Pool := TProtectedObject<TList<TThreadTask>>.Create(TList<TThreadTask>.Create);
+  Pool := TGSProtectedObject.Create(TList_TThreadTask.Create);
 
   FPoolCapacity := aInitialPoolCapacity;
   FFreeTaskOnceProcessed := True;
@@ -230,16 +260,16 @@ end;
 
 destructor TStackThreadPool.Destroy;
 var i : integer;
-    lt : TList<TThreadTask>;
+    lt : TList_TThreadTask;
 begin
   FOnStackFinished := Nil;
   FOnStackStart := Nil;
 
-  lt := Pool.Lock;
+  lt := TList_TThreadTask(Pool.Lock);
   try
     for I := 0 to lt.Count-1 do
     begin
-      if lt[i].Started then
+      if TVisibilityThread(lt[i]).Started then
       begin
         lt[i].Terminate;
         lt[i].Run;
@@ -269,7 +299,7 @@ end;
 
 function TStackThreadPool.GetAllThreadAreIdling: Boolean;
 var i : integer;
-    lt : TList<TThreadTask>;
+    lt : TList_TThreadTask;
 begin
   Result := ThreadIdling;
 end;
@@ -295,7 +325,7 @@ begin
 end;
 
 function TStackThreadPool.InternalThreadIdling(
-  alist: TList<TThreadTask>): Boolean;
+  alist: TList_TThreadTask): Boolean;
 var i : integer;
 begin
   Result := True;
@@ -307,6 +337,12 @@ begin
       Break;
     end;
   end;
+end;
+
+function TStackThreadPool.LockStack: TList_TStackTask;
+begin
+  FCurrentStackProtector.Enter;
+  result := FCurrentStack;
 end;
 
 procedure TStackThreadPool.SetSynchronized(const Value: Boolean);
@@ -327,10 +363,10 @@ begin
 end;
 
 procedure TStackThreadPool.Terminate;
-var lt : TList<TThreadTask>;
+var lt : TList_TThreadTask;
     i : integer;
 begin
-  lt := Pool.Lock;
+  lt := TList_TThreadTask(Pool.Lock);
   try
     for i := 0 to lt.Count-1 do
       lt[i].Terminate;
@@ -340,37 +376,41 @@ begin
 end;
 
 function TStackThreadPool.ThreadIdling: Boolean;
-var lt : TList<TThreadTask>;
+var lt : TList_TThreadTask;
     i : integer;
 begin
-//  FCurrentStackProtector.Acquire;
-//  try
-//    Result := FCurrentStack.Count = 0;
-//  finally
-//    FCurrentStackProtector.Release;
-//  end;
+  FCurrentStackProtector.Acquire;
+ try
+    Result := FCurrentStack.Count = 0;
+  finally
+    FCurrentStackProtector.Release;
+  end;
 
-  lt := Pool.Lock;
+  lt := TList_TThreadTask(Pool.Lock);
   try
-    result := InternalThreadIdling(lt);
-    //result := Result And InternalThreadIdling(lt);
+    result := Result And InternalThreadIdling(lt);
   finally
     Pool.Unlock;
   end;
 end;
 
+procedure TStackThreadPool.UnlockStack;
+begin
+  FCurrentStackProtector.Leave;
+end;
+
 { TThreadTask }
 
 constructor TThreadTask.Create(aThreadPool: TStackThreadPool);
-var lt : TList<TThreadTask>;
+var lt : TList_TThreadTask;
 begin
   Inherited Create(true);
   Assert(Assigned(aThreadPool));
-  FStatus := TProtectedValue<TThreadTaskStatus>.Create(WaitForStart);
+  FStatus := TGSProtectedByte.Create(Byte(TThreadTaskStatus.WaitForStart));
   FreeOnTerminate := False;
   FThreadPool := aThreadPool;
   FWorkNow := TEvent.Create(nil,false,false,emptystr);
-  lt := aThreadPool.Pool.Lock;
+  lt := TList_TThreadTask(aThreadPool.Pool.Lock);
   try
     FThreadIndex := lt.Count;
   finally
@@ -437,7 +477,7 @@ var FInternalTask : TStackTask;
   Procedure ExecuteTask;
   begin
     try
-      FStatus.Value := Processing;
+      FStatus.Value := Byte(TThreadTaskStatus.Processing);
       TThread.GetSystemTimes(FTiming);
       FTaskTick := FTiming.UserTime;
       FEventTask := FInternalTask;
@@ -493,7 +533,7 @@ begin
           ExecuteTask;
         end;
       Until FInternalTask = nil;
-      FStatus.Value := Idle;
+      FStatus.Value := Byte(TThreadTaskStatus.Idle);
     end;
     wrTimeout :
     begin
@@ -533,7 +573,7 @@ begin
     end;
     end;
   end;
-  FStatus.Value := Terminating;
+  FStatus.Value := Byte(TThreadTaskStatus.Terminating);
   if Assigned(FEventTask) then
   begin
     if FThreadPool.FreeTaskOnceProcessed  then
@@ -545,7 +585,7 @@ end;
 
 function TThreadTask.GetStatus: TThreadTaskStatus;
 begin
-  result := FStatus.Value;
+  result := TThreadTaskStatus(FStatus.Value);
 end;
 
 procedure TThreadTask.InternalDoStackTaskEventFinished;
@@ -560,7 +600,7 @@ end;
 
 procedure TThreadTask.Run;
 begin
-  if Not(Terminated) and Not(Started) then
+  if Not(Terminated) and Not(TVisibilityThread(Self).Started) then
     Start;
   if Not(Terminated) then
     FWorkNow.SetEvent;
@@ -583,10 +623,10 @@ end;
 
 procedure TStackDynamicThreadPool.check;
 var i : Integer;
-    lt : TList<TThreadTask>;
+    lt : TList_TThreadTask;
     lNeedNewThread : Boolean;
 begin
-  lt := Pool.Lock;
+  lt := TList_TThreadTask(Pool.Lock);
   try
     Clean_(lt);
     if lt.Count=0 then
@@ -634,8 +674,8 @@ end;
 constructor TStackDynamicThreadPool.Create(const Warm: Boolean);
 begin
   Inherited Create(1);
-  FMaxThreadCount := TProtectedNativeUInt.Create(CPUCount);
-  FMaxThreadContiniousIdlingTime := TProtectedNativeUInt.Create(CST_MAXTHREADCONTINIOUSIDLINGTIME);
+  FMaxThreadCount := TGSProtectedUint32.Create(CPUCount);
+  FMaxThreadContiniousIdlingTime := TGSProtectedUint32.Create(CST_MAXTHREADCONTINIOUSIDLINGTIME);
   if Warm then
     check;
 end;
@@ -649,10 +689,10 @@ end;
 
 
 function TStackDynamicThreadPool.GetPoolCapacity: Uint32;
-var lt : TList<TThreadTask>;
+var lt : TList_TThreadTask;
     i : integer;
 begin
-  lt := Pool.Lock;
+  lt := TList_TThreadTask(Pool.Lock);
   try
     Result := lt.Count;
   finally
@@ -660,4 +700,42 @@ begin
   end;
 end;
 
+{ TList_TThreadTask }
+{$IFNDEF USE_GENERIC}
+
+procedure TList_TThreadTask.Add(aTask: TThreadTask);
+begin
+  ManagedAdd(aTask);
+end;
+
+function TList_TThreadTask.GetThreadTaskItem(Index: Uint32): TThreadTask;
+begin
+  result := TThreadTask(FArray[Index]);
+end;
+
+procedure TList_TThreadTask.SetThreadTaskItem(Index: Uint32;
+  const Value: TThreadTask);
+begin
+  ManagedSet(Index,Value);
+end;
+
+{ TList_TStackTask }
+
+procedure TList_TStackTask.Add(aTask: TStackTask);
+begin
+  ManagedAdd(aTask);
+end;
+
+function TList_TStackTask.GetStackTaskItem(Index: Uint32): TStackTask;
+begin
+  Result := TStackTask(FArray[Index]);
+end;
+
+procedure TList_TStackTask.SetStackTaskItem(Index: Uint32;
+  const Value: TStackTask);
+begin
+  ManagedSet(Index,Value);
+end;
+
+{$ENDIF}
 end.

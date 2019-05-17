@@ -2,15 +2,13 @@
 /// Title      : GS.Timer
 /// Short Desc : Simple threaded timer.
 /// Source     : https://github.com/VincentGsell
-/// Aim        : - threaded timer (Not intended to be used in GUI as is.)
+/// Aim        : - threaded timer (If you plan to use in a gui, please see TGSTimerExecMode)
 ///              - Use inside a thread.
+///              - Not aimed to be precise, but lighter than classic TTimer
 ///-------------------------------------------------------------------------------
 unit GS.Timer;
 
-{$IFDEF FPC}
-{$mode delphi}
-{$ENDIF}
-
+{$I GSCore.inc}
 
 interface
 
@@ -39,8 +37,8 @@ protected
   FTimerExecMode :TGSTimerExecMode;
   FLastError: String;
   FOnTimer: TNotifyEvent;
-  Finterval : TProtectedNativeUInt;
-  FExecCounter : TProtectedNativeUInt;
+  Finterval : TGSProtectedUInt32;
+  FExecCounter : TGSProtectedUInt32;
   function GetInterval: Cardinal;
   procedure SetInterval(const Value: Cardinal);
   function GetLoopCounter: Cardinal;
@@ -48,7 +46,7 @@ protected
   Procedure DoTimerProcess; Virtual;
   procedure DoTimerEvent; Virtual;
 public
-  constructor Create(Const aTimerExecMode : TGSTimerExecMode = Thread); Reintroduce; Virtual;
+  constructor Create(Const aTimerExecMode : TGSTimerExecMode = TGSTimerExecMode.Thread); Reintroduce; Virtual;
   destructor Destroy; Override;
 
   procedure Execute; Override;
@@ -103,8 +101,8 @@ constructor TGSTimerThread.Create(Const aTimerExecMode : TGSTimerExecMode);
 begin
   inherited Create(True);
   FreeOnTerminate := False;
-  Finterval := TProtectedNativeUInt.Create(CST_TIMER_DEFAULT_VALUE);
-  FExecCounter := TProtectedNativeUInt.Create(0);
+  Finterval := TGSProtectedUInt32.Create(CST_TIMER_DEFAULT_VALUE);
+  FExecCounter := TGSProtectedUInt32.Create(0);
   FTrigger := TEvent.Create(Nil,False,False,EmptyStr);
   FTrigger.ResetEvent;
   FTimerExecMode := aTimerExecMode;
@@ -142,9 +140,9 @@ begin
       Exit;
     try
       case FTimerExecMode of
-        Thread: DoTimerEvent;
-        Synchro: Synchronize(DoTimerEvent);
-        Queued: Queue(DoTimerEvent);
+        TGSTimerExecMode.Thread: DoTimerEvent;
+        TGSTimerExecMode.Synchro: Synchronize(DoTimerEvent);
+        TGSTimerExecMode.Queued: Queue(DoTimerEvent);
       end;
     Except
       On E : Exception do
@@ -153,6 +151,7 @@ begin
       end;
     end;
   end;
+  //In All oher case (wrEvent, erError) we exit : It used to finish th thread.
 end;
 
 procedure TGSTimerThread.Execute;
@@ -185,7 +184,7 @@ end;
 constructor TGSTimerThreadContainer.Create;
 begin
   inherited Create;
-  FOnTimerExecMode := Thread;
+  FOnTimerExecMode := TGSTimerExecMode.Thread;
   FEnabled := False;
   Interval := 1000;
 end;

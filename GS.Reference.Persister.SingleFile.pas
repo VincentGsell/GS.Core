@@ -1,3 +1,5 @@
+//Simple Single file persister for GS.Reference.
+//It can act as a in memory file too.
 unit GS.Reference.Persister.SingleFile;
 
 {$IFDEF FPC}
@@ -43,6 +45,7 @@ protected
 
   procedure SetFileName(const Value: String);
 public
+  //If file neam is empty, file wiil be in memory only. So, you can use that for in memory database.
   Constructor Create(Const FileName: String = ''; Const OnInitLoadEvent : TOnReferenceInitialLoad = Nil); reintroduce; Virtual;
   Destructor Destroy; Override;
 
@@ -292,7 +295,7 @@ procedure TofReferencePersisterSingleFile.ReadInfoDataByKey(aKey: string;
 var lEntry : TofAllocationTableStruc;
 begin
   InternalCheckFileBuffer;
-  lEntry := FInMemoryAllocation.ByValue[aKey];
+  lEntry := FInMemoryAllocation.ByKey[aKey];
   aDataType := lEntry.BufferContentType;
   Index := FInMemoryAllocation.IndexOf(aKey);
 end;
@@ -375,7 +378,7 @@ begin
       FFileBuffer.Position := lEntry.BufferOffset;
       FFileBuffer.CopyFrom(StreamData,StreamData.Size);
     end;
-    FInMemoryAllocation.ByValue[Key] := lEntry;
+    FInMemoryAllocation.ByKey[Key] := lEntry;
     //FInMemoryAllocation.RemoveKey(Key); //No ! Not change list sequence, because of inner bilateral ref. inside struct.
     //FInMemoryAllocation.Add(Key,lEntry);
   end

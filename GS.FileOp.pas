@@ -11,7 +11,6 @@ unit GS.FileOp;
 ///
 ///
 ///
-///
 
 
 interface
@@ -20,9 +19,19 @@ Uses Classes,
      SysUtils,
      Math,
      Generics.Collections,
-     GS.CPUUsage;
+     GS.CPUUsage
+ {$IFDEF MSWINDOWS}
+     ,Windows
+ {$ENDIF}
+     ;
 
-const CST_CRC32_TABLE: Array[0..255] of UInt32 =
+Const
+  CST_64K =  8192*16;
+  CST_GLACIER_BLOCK = 1024; //*1024;
+  CST_NO_STRUCT_SPECIFIED = 'No structure specified in this protocol.';
+
+
+  CST_CRC32_TABLE: Array[0..255] of UInt32 =
      ($00000000, $77073096, $EE0E612C, $990951BA,
       $076DC419, $706AF48F, $E963A535, $9E6495A3,
       $0EDB8832, $79DCB8A4, $E0D5E91E, $97D2D988,
@@ -88,11 +97,6 @@ const CST_CRC32_TABLE: Array[0..255] of UInt32 =
       $B3667A2E, $C4614AB8, $5D681B02, $2A6F2B94,
       $B40BBE37, $C30C8EA1, $5A05DF1B, $2D02EF8D);
 
-  CST_64K =  8192*16;
-
-  CST_GLACIER_BLOCK = 1024*1024;
-
-  CST_NO_STRUCT_SPECIFIED = 'No structure specified in this protocol.';
 
 
 Type
@@ -105,6 +109,7 @@ Type
                              cfpErrorFileSourceUnavailable, //IOResult error.
                              cfpDestinationFileAlreadyExists,
                              cfpErrorFileDestinationUnabledToCreate,
+                             cfpErrorExistingFileDestinationUnableToDelete,
                              cfpInProgress,
                              cfpSuccess,
                              cfpErrorCrc32NotMatch);
@@ -146,27 +151,79 @@ Type
                      gocErrorGlacierRessourceUnreadable,
                      gocErrorEncryptionPasswordEmpty
                    );
-  TGlacifyProcessOption = (gpoEncrypt, gpoCompress, gpoVersioned);
+  TGlacifyProcessOption = (gpoEncrypt, gpoCompress);
   TGlacifyProcessOptions = Set of TGlacifyProcessOption;
 
+  TGlacifyProgress = Record
+    Filesource : UTF8String;
+    FileNameInGlacier : UTF8String;
+    GLacierName : UTF8String;
+    CurrentOperationCode : TGlacifyOpCode;
+    Info : UTF8String;
+    PercentDone : Single;
+  end;
+
+  TGlacifyProcessInfoCallBack = Procedure(var aGlacifyTask : TGlacifyProgress);
   TGlacifyProcessInfo = Record
     inFilesource,
     InGlacierName : String;
     InOptions : TGlacifyProcessOptions;
+    InEncryptPassword : String; //If encryption activate.
 
     OutOperationCode : TGlacifyOpCode;
     OutPercentDone : Single;
     OutFileSourceSize : UInt64;
     OutFileSourceCRC32 : UInt32;
     OutStats_TimeTakenForOp : UInt64;
+    OutException : Boolean;
+    OutExceptionString : String;
+    //OutExceptionObj ? Mem management ?
 
-    InternalFileSourceStreamObject : TFileStream;
     InternalProtocol : TGlacifyProtocolItem;
-
-    InEncryptPassword : String;
+    OutCallBackProc : TGlacifyProcessInfoCallBack;
   end;
 
+  ///
+  ///  FileInformation API
+  ///
+  ///
+  TBlockInformationStructure = packed record
+    blockindex : Uint32;
+    blockCRC32 : Uint32;
+    blockSize : Uint32;
+  end;
+  TFileInformationStructure = packed record
+    fileName : string;
+    fileSize : UInt64;
+    fileversion : UINT32; //Glacier only.
+    fileLastModification : TTimeStamp;
+    fileBlock : Array of TBlockInformationStructure;
+  end;
+  TFileInfo = Packed Record
+    FileId: Uint64;
+    FileSize: UInt64;
+    LastWriteAccess: TTimeStamp;
+    LastReadAccess: TTimeStamp;
+    FileCreateDateTime: TTimeStamp;
+  end;
 
+  TFileItem = packed record //Mirror record of default glacify protocol. To see it it must be shared here.
+    BlockIndex: UINT32;
+    FileName: string;
+    DateTag: TTimeStamp;
+    OriginalFileSize : UINT64;
+    DateLastUpdateTag: TTimeStamp;
+    Version: UINT32;
+    FileBlockMapCount : UInt32;
+    compressed: boolean;
+    encrypted: boolean;
+  end;
+  TFilesList = array of TFileItem;
+
+  TFileDiff = packed record
+    BinarySame : Boolean;
+    FileBlockMapDiffersIndex : Array of UInt32;
+  end;
 
   TGSBin = class
   public
@@ -177,20 +234,49 @@ Type
     //TCopyFileProcessInfo "out var, as "PercentDone" and "Operation", change on the fly and can be use for show progression.
     Class Function CopyFileProcess(var aCopyTask : TCopyFileProcessInfo) : Boolean;
 
-    //Drive "CopyFileProcess" (synchrone procedure). WARNING : It delete destination file if it exists !
-    //Result := true means copy is successfull.
-    //This mnethods is above all an exemple of use : Please see in the nethods.
+    ///  Drive "CopyFileProcess" (synchrone procedure). WARNING : It delete destination file if it exists !
+    ///  Result := true means copy is successfull.
+    ///  This mnethods is above all an exemple of use : Please see in the nethods.
     class Function CopyFile(const aSourceFile, aDestFile : String) : Boolean;
 
-    //Simple and easy to use Xor encryption/decyption : Huger password is, better it is.
-    //Perhaps one of the best encryption if we consider the simplicity of use and number of dependancy ;)
+    ///  Simple and easy to use Xor encryption/decyption : Huger password is, better it is.
+    ///  Perhaps one of the best encryption if we consider the simplicity of use and number of dependancy ;)
     Class Procedure Crypto_EncryptDecryptXor(var aSourceStream: TStream; aTargetStream : TStream; const Password : String = '');
 
-    //Make a block-versioned backup of a file.
+    ///  Make a block-versioned backup of a file.
     Class Function GlacifyFileProcess(var aGlacifyTask : TGlacifyProcessInfo) : Boolean;
-    Class Function GlacifyFile(const aSourceFile, aGlacierName, aEncryptionPassword : String) : Boolean;
+    Class Function GlacifyFile( Const aSourceFile : String;
+                                Const aGlacierName : String;
+                                Const aCompressed : Boolean = True;
+                                Const aEncrypted : Boolean = False;
+                                aEncryptionPassword : String = '') : Boolean;
+    ///
+    ///  Return Glacier structure in plain text.
     class Function GlacifyAnalytic_flush(const aGlacierName : String) : String;
+    ///
+    ///  Return file list
+    ///  Return True if a valid TfileList is returned in aFileList var.
+    ///  This structure contain files currently owned by the glacier.
+    class Function GlacifyAnalytic_FileList(const aGlacierName : String; Out aFileList : TFilesList) : Boolean;
+
+    ///
+    ///  Return True if a valid TfileInformationStruture is returned in aFileInformation var.
+    ///  This structure contain a Glacier compatible structure from a file from the file system.
+    class Function GlacifyAnalytic_FileSystem_FileInformation(const aFileName : String; Out aFileInformation : TFileInformationStructure) : Boolean;
+    ///
+    ///  Return True if a valid TfileInformationStruture is returned in aFileInformation var.
+    ///  This structure contain a Glacier compatible structure from a file from the glacier.
+    class Function GlacifyAnalytic_FileInformation(Const aGlacierName : String; const aFileName : String; Out aFileInformation : TFileInformationStructure) : Boolean;
+    ///
+    ///  Return True means if the 2 file are binary same.
+    ///  the first file is the file in the glacier, and the second the file on file system host.
+    ///  this entry use GlacifyAnalytic_[...]FileInformation API.
+    class Function GlacifyAnalytic_Compare(const aGlacierName : String; const aFileNameInGalcier, aFileNameInFileSystem : string) : Boolean;
+
+
 //    Class Function GlacierInfoAsCSV(const aglacierName : string; out aCSV : TStringList) : Boolean;
+
+    class Function FileInfo(aFileHandle: THandle; Out aFileInfo : TFileInfo) : Boolean;
   end;
 
   TGlacifyProtocolItem = Class
@@ -199,7 +285,18 @@ Type
     Procedure Process(var aGlacifyTask : TGlacifyProcessInfo); Virtual; Abstract;
     Procedure Finalize(var aGlacifyTask : TGlacifyProcessInfo); Virtual; Abstract;
 
-    Function FlushStructure : UTF8String; Virtual;
+    //Too and admin op.
+    Function Glacier_FlushStructure : UTF8String; Virtual;
+
+    //Utility
+    Function Glacier_IsFileExists(Const aFileName : String) : Boolean; Virtual; Abstract;
+    Function Glacier_FileInformations(Const aFileName : String; var aFileInformation : TFileInformationStructure) : Boolean; virtual; abstract;
+    Function Glacier_FileList(var aFlileList : TFilesList) : Boolean; virtual; abstract;
+    function Glacier_FileCompare( const FileNameFileSystem : String;
+                                  const FileNameGlacier : String;
+                                  out BlockCountDiffers : UInt32; //differs, or newer.
+                                  var FileSystemInfo : TFileInformationStructure;
+                                  var FileGlacierInfo : TFileInformationStructure) : Boolean; Virtual; Abstract;
   End;
 
   TGlacifyProtocolItemClass = Class of TGlacifyProtocolItem;
@@ -209,8 +306,9 @@ Type
   End;
 
 
-  Procedure InitCopyFileProcessInfo(const aSourceFile, aDestFile : String; var aCopyFile : TCopyFileProcessInfo);
-  Procedure InitGlacifyProcessInfo(const aSourceFile, aGlacierName, aEncryptionPassword : String; var aGlacify : TGlacifyProcessInfo);
+  procedure InitCopyFileProcessInfo(const aSourceFile, aDestFile : String; var aCopyFile : TCopyFileProcessInfo);
+  procedure InitGlacifyProcessInfo(const aSourceFile, aGlacierName, aEncryptionPassword : String; var aGlacify : TGlacifyProcessInfo);
+  procedure InitFileInformationStructure(const aSourceFile : String; var aStructure : TFileInformationStructure);
 
 
 var
@@ -243,7 +341,17 @@ begin
   aGlacify.OutFileSourceSize := 0;
   aGlacify.OutStats_TimeTakenForOp := 0;
   aGlacify.InEncryptPassword := aEncryptionPassword;
+  aGlacify.InternalProtocol := nil;
 end;
+
+procedure InitFileInformationStructure(const aSourceFile : String; var aStructure : TFileInformationStructure);
+begin
+  aStructure.fileName := aSourceFile;
+  aStructure.fileSize := 0;
+  aStructure.fileLastModification := DateTimeToTimeStamp(Now);
+  aStructure.fileBlock := [];
+end;
+
 
 
 Class function TGSBin.CalcCRC32(FileName: String; var CRC32: UInt32; Out aIOResult : integer) : boolean;
@@ -315,13 +423,22 @@ Class Function TGSBin.CopyFileProcess(Var aCopyTask : TCopyFileProcessInfo) : Bo
 var
   Numcpy: Integer;
   lIO : Integer;
+  lfd : Boolean;
 
   Procedure Initcopy;
   begin
+    lfd := FileExists(aCopyTask.InFileDest);
     if Not FileExists(aCopyTask.InFileSource) then
       aCopyTask.OutOperationCode := cfpErrorFileSourceNotFound;
-    if (cfpoFailIfDestinationFileExists in aCopyTask.InFileCopyBehaviour) and (FileExists(aCopyTask.InFileDest)) then
+    if (cfpoFailIfDestinationFileExists in aCopyTask.InFileCopyBehaviour) and (lfd) then
       aCopyTask.OutOperationCode := cfpDestinationFileAlreadyExists;
+
+    if aCopyTask.outOperationCode <> cfpInit then
+      Exit;
+
+    if lfd then
+      if not SysUtils.DeleteFile(aCopyTask.InFileDest) then
+         aCopyTask.OutOperationCode := cfpErrorExistingFileDestinationUnableToDelete;
 
     if aCopyTask.outOperationCode <> cfpInit then
       Exit;
@@ -329,8 +446,8 @@ var
     //Determine file source CRC for check at end of copy.
     if cfpoCheckCRC32 in aCopyTask.InFileCopyBehaviour then
     begin
-       If not TGSBin.CalcCRC32(aCopyTask.InFileSource,aCopyTask.OutFileSourceCRC32,lIo) then
-         aCopyTask.OutOperationCode := cfpErrorFileSourceUnavailable;
+      If not TGSBin.CalcCRC32(aCopyTask.InFileSource,aCopyTask.OutFileSourceCRC32,lIo) then
+        aCopyTask.OutOperationCode := cfpErrorFileSourceUnavailable;
     end;
 
     if aCopyTask.outOperationCode <> cfpInit then
@@ -340,7 +457,6 @@ var
       aCopyTask.InternalFileSourceStreamObject := TFileStream.Create(aCopyTask.InFileSource, fmOpenRead or fmShareDenyNone);
       aCopyTask.OutFileSourceSize := aCopyTask.InternalFileSourceStreamObject.Size;
 
-      DeleteFile(aCopyTask.InFileDest); //!!!!
       aCopyTask.InternaFileDestStreamObject := TFileStream.Create(aCopyTask.InFileDest, fmCreate or fmOpenWrite or fmExclusive);
 
       if aCopyTask.OutFileSourceSize = 0 then
@@ -449,6 +565,158 @@ end;
 
 
 
+class function TGSBin.FileInfo(aFileHandle: THandle; Out aFileInfo : TFileInfo) : boolean;
+
+Type
+  Int64Rec = packed record
+      Lo, Hi: UInt32;
+  end;
+  PInt64Rec = ^Int64Rec;
+
+var
+ ld : _SYSTEMTIME;
+ lFileSize : UInt64;
+ lFileId : Uint64;
+ {$IFDEF MSWINDOWS}
+ lp : TByHandleFileInformation;
+ {$ELSE}
+ lp : stat;
+ r : integer;
+ {$ENDIF MSWINDOWS}
+begin
+ {$IFDEF MSWINDOWS}
+ result := GetFileInformationByHandle(aFileHandle,lp);
+ if result then begin
+   FileTimeToSystemTime(lp.ftLastWriteTime, ld);
+   aFileInfo.LastWriteAccess  :=  DateTimeToTimeStamp(SystemTimeToDateTime(ld));
+   FileTimeToSystemTime(lp.ftCreationTime,ld);
+   aFileInfo.FileCreateDateTime  := DateTimeToTimeStamp(SystemTimeToDateTime(ld));
+   FileTimeToSystemTime(lp.ftLastAccessTime,ld);
+   aFileInfo.LastReadAccess :=DateTimeToTimeStamp(SystemTimeToDateTime(ld));
+   PInt64Rec(@lFileSize).lo := lp.nFileSizeLow;
+   PInt64Rec(@lFileSize).hi := lp.nFileSizeHigh;
+   PInt64Rec(@lFileId).lo := lp.nFileIndexLow;
+   PInt64Rec(@lFileId).hi := lp.nFileIndexHigh;
+   aFileInfo.FileId := lFileId;
+   aFileInfo.FileSize := lFileSize;
+ {$ELSE}
+   r := FpFStat(aFileHandle, lp);
+   result := r >= 0;
+   if result then
+   begin
+     FileId := lp.st_ino;
+     FileSize := lp.st_size;
+     lastreadaccess := lp.st_atime * MSecsPerSec;
+     LastWriteAccess := lp.st_mtime * MSecsPerSec;
+     FileCreateDateTime := lp.st_ctime * MSecsPerSec;
+ {$ENDIF MSWINDOWS}
+ end;
+end;
+
+class function TGSBin.GlacifyAnalytic_Compare(const aGlacierName,
+  aFileNameInGalcier, aFileNameInFileSystem: string): Boolean;
+var l : TGlacifyProtocolItem;
+    lfg : TGlacifyProcessInfo;
+    lblockDiff : UInt32;
+    la,lb :  TFileInformationStructure;
+begin
+  result := false;
+  l := GLB_GlacifyProtocols.DefaultProtocol.Create;
+  try
+    InitGlacifyProcessInfo(EmptyStr, aGlacierName,EmptyStr,lfg);
+    l.Init(lfg);
+    if lfg.OutOperationCode = gocInit then
+      if l.Glacier_FileCompare(aFileNameInFileSystem, aFileNameInGalcier, lblockDiff,la,lb) then
+      begin
+        result := lblockDiff = 0;
+      end;
+  finally
+    l.Finalize(lfg);
+    FreeAndNil(l);
+  end;
+end;
+
+class function TGSBin.GlacifyAnalytic_FileInformation( const aGlacierName : String;
+                                                       const aFileName: String;
+                                                       out aFileInformation: TFileInformationStructure): Boolean;
+var l : TGlacifyProtocolItem;
+    lfg : TGlacifyProcessInfo;
+begin
+  result := false;
+  l := GLB_GlacifyProtocols.DefaultProtocol.Create;
+  try
+    InitGlacifyProcessInfo(EmptyStr, aGlacierName,EmptyStr,lfg);
+    l.Init(lfg);
+    if lfg.OutOperationCode = gocInit then
+      result := l.Glacier_FileInformations(aFileName,aFileInformation);
+  finally
+    l.Finalize(lfg);
+    FreeAndNil(l);
+  end;
+end;
+
+class function TGSBin.GlacifyAnalytic_FileSystem_FileInformation(
+  const aFileName: String;
+  out aFileInformation: TFileInformationStructure): Boolean;
+
+var lfl : TFileStream;
+    lDummyUint32 : UInt32;
+    lfi : TFileInfo;
+    ls: UINT64;
+    ldelta: UINT32;
+    lbIndex : UINT32;
+    lc : UINT32;
+    l : TMemoryStream;
+    lbl : UINT32;
+begin
+  Result := false;
+  InitFileInformationStructure(aFileName, aFileInformation);
+  if not FileExists(aFileName) then
+    Exit;
+  lfl := TFileStream.Create(aFileName,fmOpenRead or fmShareDenyNone);
+  l := TMemoryStream.Create;
+  try
+    aFileInformation.fileSize := lfl.Size;
+    aFileInformation.fileLastModification := DateTimeToTimeStamp(Now);
+    aFileInformation.fileversion := 0; //No means here. (Only in glacier).
+
+    if Not TGSBin.FileInfo(lfl.Handle, lfi) then
+      Exit;
+
+    aFileInformation.fileSize := lfi.FileSize;
+    aFileInformation.fileLastModification := lfi.LastWriteAccess;
+
+    lbl := lfl.Size div CST_GLACIER_BLOCK;
+    if lfl.Size mod CST_GLACIER_BLOCK > 0 then
+      inc(lbl);
+    SetLength(aFileInformation.fileBlock, lbl);
+
+    lfl.Position := 0;
+    lbIndex := 0;
+    while Not(lfl.Position = lfl.Size) do
+    begin
+      ls := CST_GLACIER_BLOCK;
+        ldelta := lfl.Size - lfl.Position;
+        if ldelta < CST_GLACIER_BLOCK then
+          ls := ldelta;
+
+      l.Clear;
+      l.CopyFrom(lfl, ls);
+      l.Position := 0;
+      TGSBin.CalcCRC32(TStream(l), lc);
+
+      aFileInformation.fileBlock[lbIndex].blockindex := lbIndex+1;
+      aFileInformation.fileBlock[lbIndex].blockSize := ls;
+      aFileInformation.fileBlock[lbIndex].blockCRC32 := lc;
+      inc(lbIndex);
+    end;
+  finally
+    FreeAndNil(l);
+    FreeAndNil(lfl);
+  end;
+  Result := true;
+end;
+
 class function TGSBin.GlacifyAnalytic_flush(const aGlacierName: String): String;
 var l : TGlacifyProtocolItem;
     lfg : TGlacifyProcessInfo;
@@ -457,21 +725,56 @@ begin
   try
     InitGlacifyProcessInfo(EmptyStr, aGlacierName,EmptyStr,lfg);
     l.Init(lfg);
-    if lfg.OutOperationCode = gocSuccess then
-      result := l.FlushStructure
+    if lfg.OutOperationCode = gocInit then
+      result := l.Glacier_FlushStructure
     else
       result := l.ClassName + ' - Structure analyze failure.';
   finally
+    l.Finalize(lfg);
     FreeAndNil(l);
   end;
 end;
 
-class function TGSBin.GlacifyFile(const aSourceFile,
-  aGlacierName, aEncryptionPassword: String): Boolean;
+
+class function TGSBin.GlacifyAnalytic_FileList(const aGlacierName: String;
+  out aFileList: TFilesList): Boolean;
+var l : TGlacifyProtocolItem;
+    lfg : TGlacifyProcessInfo;
+begin
+  result := false;
+  l := GLB_GlacifyProtocols.DefaultProtocol.Create;
+  try
+    InitGlacifyProcessInfo(EmptyStr, aGlacierName,EmptyStr,lfg);
+    l.Init(lfg);
+    if lfg.OutOperationCode = gocInit then
+      result := l.Glacier_FileList(aFileList);
+  finally
+    l.Finalize(lfg);
+    FreeAndNil(l);
+  end;
+end;
+
+class function TGSBin.GlacifyFile( Const aSourceFile : String;
+                                Const aGlacierName : String;
+                                Const aCompressed : Boolean = True;
+                                Const aEncrypted : Boolean = False;
+                                aEncryptionPassword : String = ''): Boolean;
+
+Procedure callback(var aGlacifyTask : TGlacifyProcessInfo);
+begin
+  //Just if you need gui update. Reproduce this one into the gui.
+  //Use for that GlacifyFileProcess.
+end;
+
 var lc : TGlacifyProcessInfo;
 begin
   InitGlacifyProcessInfo(aSourceFile,aGlacierName,aEncryptionPassword ,lc); //Setup of Structure (Mandatory !)
-  lc.InOptions := [gpoCompress];
+  lc.InOptions := [];
+  lc.OutCallBackProc := @callback;
+  if aCompressed then
+    lc.InOptions := lc.InOptions + [gpoCompress];
+  if aEncrypted then
+    lc.InOptions := lc.InOptions + [gpoEncrypt];
   while Not TGSBin.GlacifyFileProcess(lc) do            //Loop unit true (true = glacification finished)
     //If you done our own, here you can update GUI or whatever. (lc.OutPercentdone is update)
   begin end;
@@ -486,28 +789,20 @@ var t : UInt64;
   begin
     if Not FileExists(aGlacifyTask.InFileSource) then
       aGlacifyTask.OutOperationCode := gocErrorFileSourceNotFound;
-
     if aGlacifyTask.outOperationCode <> gocInit then
       Exit;
-
-    aGlacifyTask.InternalFileSourceStreamObject := TFileStream.Create(aGlacifyTask.InFileSource, fmOpenRead or fmShareDenyNone);
-    aGlacifyTask.OutFileSourceSize := aGlacifyTask.InternalFileSourceStreamObject.Size;
 
     //Get Glacify protocol. Todo : Choose one by parameter ?
     aGlacifyTask.InternalProtocol := GLB_GlacifyProtocols.DefaultProtocol.Create; //For instance.
 
     if Not Assigned(aGlacifyTask.InternalProtocol) then
+    begin
       aGlacifyTask.OutOperationCode := gocErrorGlacierProtocolUnavailable;
+      raise Exception.Create('No protocol found');
+    end;
 
-    if aGlacifyTask.outOperationCode <> gocInit then
-      Exit;
-
+    //Execute protocol.
     aGlacifyTask.InternalProtocol.Init(aGlacifyTask);
-
-    if aGlacifyTask.outOperationCode <> gocInit then
-      Exit;
-
-    aGlacifyTask.OutOperationCode := gocProcess;
   end;
 
   Procedure ProgressGlacify;
@@ -524,28 +819,46 @@ var t : UInt64;
 
   Procedure TerminateGlacify;
   begin
-    aGlacifyTask.InternalProtocol.Finalize(aGlacifyTask);
-    FreeAndNil(aGlacifyTask.InternalFileSourceStreamObject);
+    if Assigned(aGlacifyTask.InternalProtocol) then
+    begin
+      aGlacifyTask.InternalProtocol.Finalize(aGlacifyTask);
+      FreeAndNil(aGlacifyTask.InternalProtocol);
+    end;
     Result := True;
   end;
 begin
   Result := false;
-  t := gsGetTickCount;
-  case aGlacifyTask.OutOperationCode of
-    gocInit :
-    begin
-      Initglacify;
+  try
+    try
+      t := gsGetTickCount;
+      case aGlacifyTask.OutOperationCode of
+        gocInit :
+        begin
+          Initglacify;
+        end;
+        gocProcess :
+        begin
+          ProgressGlacify;
+        end
+        else
+        begin
+          TerminateGlacify;
+        end;
+      end;
+    Except
+      On E : Exception do
+      begin
+        if Assigned(aGlacifyTask.InternalProtocol) then
+          TerminateGlacify;
+        aGlacifyTask.OutException := True;
+        aGlacifyTask.OutExceptionString := E.Message;
+        //Add stack ? Add E ?
+        Raise
+      end;
     end;
-    gocProcess :
-    begin
-      ProgressGlacify;
-    end
-    else
-    begin
-      TerminateGlacify;
-    end;
+  finally
+    aGlacifyTask.OutStats_TimeTakenForOp := aGlacifyTask.OutStats_TimeTakenForOp + (gsGetTickCount - t);
   end;
-  aGlacifyTask.OutStats_TimeTakenForOp := aGlacifyTask.OutStats_TimeTakenForOp + (gsGetTickCount - t);
 end;
 
 
@@ -568,7 +881,7 @@ end;
 
 { TGlacifyProtocolItem }
 
-function TGlacifyProtocolItem.FlushStructure: UTF8String;
+function TGlacifyProtocolItem.Glacier_FlushStructure: UTF8String;
 begin
   Result := CST_NO_STRUCT_SPECIFIED;
 end;
@@ -582,5 +895,4 @@ Finalization
 FreeAndNil(GLB_GlacifyProtocols);
 
 end.
-
 

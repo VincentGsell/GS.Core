@@ -9,9 +9,6 @@
         <Projects Include="PeriodicElementConsole\delphi\ProjectJSONDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\..\..\Components\Delphi\Delphi10.2\PackageGSCore.dproj">
-            <Dependencies/>
-        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -38,23 +35,14 @@
     <Target Name="ProjectJSONDemo:Make">
         <MSBuild Projects="PeriodicElementConsole\delphi\ProjectJSONDemo.dproj" Targets="Make"/>
     </Target>
-    <Target Name="PackageGSCore">
-        <MSBuild Projects="..\..\..\Components\Delphi\Delphi10.2\PackageGSCore.dproj"/>
-    </Target>
-    <Target Name="PackageGSCore:Clean">
-        <MSBuild Projects="..\..\..\Components\Delphi\Delphi10.2\PackageGSCore.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="PackageGSCore:Make">
-        <MSBuild Projects="..\..\..\Components\Delphi\Delphi10.2\PackageGSCore.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Build">
-        <CallTarget Targets="ProjectPeriodic;ProjectJSONDemo;PackageGSCore"/>
+        <CallTarget Targets="ProjectPeriodic;ProjectJSONDemo"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="ProjectPeriodic:Clean;ProjectJSONDemo:Clean;PackageGSCore:Clean"/>
+        <CallTarget Targets="ProjectPeriodic:Clean;ProjectJSONDemo:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="ProjectPeriodic:Make;ProjectJSONDemo:Make;PackageGSCore:Make"/>
+        <CallTarget Targets="ProjectPeriodic:Make;ProjectJSONDemo:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

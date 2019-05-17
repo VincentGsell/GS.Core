@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2018/09/08 08:40:41.000.916,E:\DATA\2018_GRIDSYSTEM\Code\GS\GS.Core\Demo\GS.FileUtils\Duplify\Delphi\fmain.dfm=C:\Users\Vincent\Documents\Embarcadero\Studio\Projects\Unit15.dfm</Transaction>
+    <Transaction>2018/09/08 08:40:54.000.349,E:\DATA\2018_GRIDSYSTEM\Code\GS\GS.Core\Demo\GS.FileUtils\Duplify\Delphi\ProjectDuplify.dproj=C:\Users\Vincent\Documents\Embarcadero\Studio\Projects\Project17.dproj</Transaction>
+    <Transaction>2018/09/08 18:02:26.000.941,E:\DATA\2018_GRIDSYSTEM\Code\GS\GS.Core\GS.BinaryUtils.pas=E:\DATA\2018_GRIDSYSTEM\Code\GS\GS.Core\GS.FileUtils.pas</Transaction>
+  </Transactions>
+</BorlandProject>

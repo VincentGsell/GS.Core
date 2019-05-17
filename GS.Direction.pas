@@ -35,17 +35,17 @@ Const GLB_Math_PrecisionTolerance = 1.0E-12;
       GLB_RadianCst : Double = Pi / 180;
 
 Type
-TPoint = Record
+TPt = Record
   X,Y,Z : Single;
 end;
 
-TLine = Record
+TLn = Record
 case integer of
-0: (A, B : TPoint);
+0: (A, B : TPt);
 1: (X1, Y1, Z1, X2, Y2, Z2 : Single)
 end;
 
-TRect = Record
+TRct = Record
  Left, Top, Right, Bottom : Single;
 end;
 
@@ -58,25 +58,26 @@ end;
 
 TVectorObject = class
 Public
-  Origin : TPoint;
+  Origin : TPt;
   Direction : TVector;
   Constructor Create(X,Y,Norm : Double);
 end;
 
+//In simple case, can be used instead of matrix.
 TDirectionalObject =Class(TVectorObject)
 Private
   function GetAngle: Double;
   function GetNorm: Double;
   procedure SetAngle(const Value: Double);
   procedure SetNorm(const Value: Double);
-    function GetPositionX: Double;
-    procedure SetPositionX(const Value: Double);
-    function GetPositionY: Double;
-    procedure SetPositionY(const Value: Double);
+  function GetPositionX: Double;
+  procedure SetPositionX(const Value: Double);
+  function GetPositionY: Double;
+  procedure SetPositionY(const Value: Double);
 
   Procedure ResetDirection;
-    function GetAngleInDegree: Double;
-    procedure SetAngleInDegree(const Value: Double); //20090723 - VG - For certain operation, it seems to be a "must have" to set right Direction vector initialisation. (Origin<>Direction before vpointat)
+  function GetAngleInDegree: Double;
+  procedure SetAngleInDegree(const Value: Double); //20090723 - VG - For certain operation, it seems to be a "must have" to set right Direction vector initialisation. (Origin<>Direction before vpointat)
                             //This is valid for Norm-independant operation.
 Public
   Procedure TurnLeft; Virtual;
@@ -88,11 +89,11 @@ Public
   Procedure MoveAhead; Virtual;
   Procedure MoveAheadBy(Amount : Double); Virtual;
 
-  Procedure LookAt(aPoint : TPoint); Overload; Virtual;
-  Procedure PointAt(aPoint : TPoint); Virtual;
+  Procedure LookAt(aPoint : TPt); Overload; Virtual;
+  Procedure PointAt(aPoint : TPt); Virtual;
 
-  Function GetPointedCoord : TPoint; Virtual;
-  Procedure SetPointedCoord(aPoint : TPoint); Virtual;
+  Function GetPointedCoord : TPt; Virtual;
+  Procedure SetPointedCoord(aPoint : TPt); Virtual;
   Procedure SetOrigin(x,y,z : Double); Virtual;
 
   Property Norm : Double read GetNorm Write SetNorm;
@@ -102,16 +103,16 @@ Public
   Property Y : Double read GetPositionY Write SetPositionY;
 end;
 
-function Line(var P1, P2: TPoint): TLine; Overload; inline;
-function Line(X, Y, Z, X1, Y1, Z1: Single): TLine; Overload; inline;
-function Point(X, Y, Z: Single): TPoint; Overload;inline;
-function Point(X,Y : Single) : TPoint; Overload;inline;
-function Rect(Left,Top, Right, Bottom : Single) : TRect;inline;
+function Line(var P1, P2: TPt): TLn; Overload; inline;
+function Line(X, Y, Z, X1, Y1, Z1: Single): TLn; Overload; inline;
+function Point(X, Y, Z: Single): TPt; Overload;inline;
+function Point(X,Y : Single) : TPt; Overload;inline;
+function Rect(Left,Top, Right, Bottom : Single) : TRct;inline;
 
 Procedure vInit(var vector : TVector);inline;
 Function vNorm(var Vector : TVector) : Double; OVerload;inline;
 Function vAngle(var Vector : TVector) : Double; Overload; inline;
-procedure vReset(var Point: TPoint);Overload;inline;
+procedure vReset(var Point: TPt);Overload;inline;
 procedure vReset(var Point: TVector);Overload;inline;
 
 
@@ -122,7 +123,7 @@ Procedure vNormOn2(var Vector : TVector); Overload;
 Procedure vNormDec(var Vector : TVector; PercentAmount : Integer);
 Procedure vAngle(var Vector : TVector; Const NewAngle : Extended); Overload; inline;
 
-Procedure vStepPoint(Var aP : TPoint; Vector : TVector); Overload;
+Procedure vStepPoint(Var aP : TPt; Vector : TVector); Overload;
 Procedure vStepPoint(Var X,Y,Z : Double; Vector : TVector); Overload;
 Procedure vStepPointby(Var X,Y,Z : Double; Vector : TVector; Amount : Double);
 Procedure vRotate(Var Vector : TVector; Const ByAngle : Double);
@@ -132,18 +133,12 @@ Procedure vTurnLeft(Var Vector : TVector; Amount : Double); Overload;
 Procedure vTurnRight(Var Vector : TVector; Amount : Double); Overload;
 Procedure vHalfTurn(Var Vector : TVector);
 Procedure vLookAt(var Vector : TVector; X,Y,Z : Double); Overload;
-Procedure vLookAt(var Vector : TVector; P : TPoint); Overload;
-Procedure vLookAt(Origin : TPoint; var Vector : TVector; P : TPoint); Overload;
-Procedure vPointTo(Origin : TPoint; var Vector : TVector; P : TPoint); Overload;
-function vSimulStep(var Vector: TVector): TPoint; Overload;
-function vSimulStepBy(var Vector : TVector; Amount: Double): TPoint; Overload;
+Procedure vLookAt(var Vector : TVector; P : TPt); Overload;
+Procedure vLookAt(Origin : TPt; var Vector : TVector; P : TPt); Overload;
+Procedure vPointTo(Origin : TPt; var Vector : TVector; P : TPt); Overload;
+function vSimulStep(var Vector: TVector): TPt; Overload;
+function vSimulStepBy(var Vector : TVector; Amount: Double): TPt; Overload;
 
-
-  //Compute the normal : The given normal will be turn in trigo positive way.
-Procedure vNormal(Var Line : TLine; Var ResultVector : TVector); Overload;
-Function vNormal(Var Line : TLine) : TVector; Overload;
-Procedure vNormal(Var Vector : TVector; Var ResultVector : TVector); Overload;
-Function vNormal(Var Vector : TVector) : TVector; Overload;
 
   //Standart Operation
 Procedure vMultiply(Var ResultVector, VectorA,VectorB : TVector);
@@ -158,7 +153,7 @@ Function vEqualNorm(Tolerance : Double; v1,v2 : TVector) : Boolean;
 //Procedure ovStep(var ov : TPointVector);
 //Procedure ovTurnBy(var ov : TPointVector; amount : Double);
 
-Procedure PolarToCartesian(const R, Phi: Double; var X, Y: Single);   Inline
+Procedure PolarToCartesian(const R, Phi: Double; var X, Y: Single); Inline;
 Procedure CartesianToPolar(const X, Y: Double; var R, Phi: Single); {$IFDEF D2009UP} Inline {$ENDIF}
 function Sgn(const X: Double): Integer; {$IFDEF D2009UP} Inline {$ENDIF}
 
@@ -166,6 +161,7 @@ function Sgn(const X: Double): Integer; {$IFDEF D2009UP} Inline {$ENDIF}
 // math
 //line intersection : x1,y1,x2,y2 : First line.
 function vIntersect(const x1,y1,x2,y2,x3,y3,x4,y4:Double; out ix,iy:Double):Boolean; inline;
+function vRectIntersect(const aRect : TRct; const x1,y1,x2,y2 : Double; out A, B : Boolean; out Aix,Aiy,Bix,Biy : Double) : boolean; //Inline;
 procedure vMirror(const Px,Py,x1,y1,x2,y2:Double;out Nx,Ny:Double); inline;
 function vNotEqual(const Val1,Val2:double):Boolean; inline;
 function InternalNotEqual(const Val1,Val2,aPrecisionTolerance:double):Boolean; inline;
@@ -173,7 +169,7 @@ function InternalIsEqual(const Val1,Val2,aPrecisionTolerance:double):Boolean; in
 function vIsEqual(const Val1,Val2:double):Boolean; inline;
 
 
-function PtInRect(aPoint : TPoint; aRect : TRect; Var aLocalResult : TPoint) : Boolean;inline;
+function vPtInRect(aPoint : TPt; aRect : TRct; Var aLocalResult : TPt) : Boolean;inline;
 
 implementation
 
@@ -186,21 +182,6 @@ begin
   vRotate(vector,Pi)
 end;
 
-procedure vNormal(var Vector, ResultVector: TVector);
-begin
-
-end;
-
-procedure vNormal(var Line: TLine;
-  var ResultVector: TVector);
-begin
-
-end;
-
-function vNormal(var Line: TLine): TVector;
-begin
-
-end;
 
 procedure vLookAt(var Vector: TVector; X,
   Y, Z: Double);
@@ -213,7 +194,7 @@ begin
   vNorm(Vector,n);
 end;
 
-procedure vLookAt(var Vector: TVector; P: TPoint);
+procedure vLookAt(var Vector: TVector; P: TPt);
 var n : Double;
 begin
   n:=vNorm(Vector);
@@ -249,14 +230,14 @@ end;
 
 
 
-function vSimulStep(var Vector: TVector): TPoint;
+function vSimulStep(var Vector: TVector): TPt;
 begin
   Result.X:=Vector.X+Vector.X;
   Result.Y:=Vector.Y+Vector.Y;
   Result.Z:=Vector.Z+Vector.Z;
 end;
 
-function vSimulStepBy(var Vector : TVector; Amount: Double): TPoint;
+function vSimulStepBy(var Vector : TVector; Amount: Double): TPt;
 begin
   Result.X:=Vector.X+Amount;
   Result.Y:=Vector.Y+Amount;
@@ -322,13 +303,13 @@ begin
 end;
 
 
-function Line(var P1, P2: TPoint): TLine;
+function Line(var P1, P2: TPt): TLn;
 begin
   Result.A:=P1;
   Result.B:=P2;
 end;
 
-function Line(X, Y, Z, X1, Y1, Z1: Single): TLine;
+function Line(X, Y, Z, X1, Y1, Z1: Single): TLn;
 begin
   Result.A.X:=X;
   Result.A.Y:=Y;
@@ -338,21 +319,21 @@ begin
   Result.B.Z:=Z1;
 end;
 
-function Point(X, Y, Z: Single): TPoint;
+function Point(X, Y, Z: Single): TPt;
 begin
   Result.X:=X;
   Result.Y:=Y;
   Result.Z:=Z;
 end;
 
-function Point(X,Y : Single) : TPoint;
+function Point(X,Y : Single) : TPt;
 begin
   Result.X:=X;
   Result.Y:=Y;
   Result.Z:=0;
 end;
 
-function Rect(Left,Top, Right, Bottom : Single) : TRect;
+function Rect(Left,Top, Right, Bottom : Single) : TRct;
 begin
   Result.Left := Left;
   Result.Top := Top;
@@ -371,7 +352,7 @@ begin
   //Get Vector coords with the new angle.
 end;
 
-Procedure vStepPoint(Var aP : TPoint; Vector : TVector);
+Procedure vStepPoint(Var aP : TPt; Vector : TVector);
 begin
   aP.X:=aP.X+Vector.X;
   aP.Y:=aP.Y+Vector.Y;
@@ -403,7 +384,7 @@ begin
   result:=r;
 end;
 
-procedure vReset(var Point: TPoint);
+procedure vReset(var Point: TPt);
 begin
   Point.X:=0;
   Point.Y:=0;
@@ -512,8 +493,8 @@ begin
 end;
 
 
-procedure vLookAt(Origin: TPoint;
-  var Vector: TVector; P: TPoint);
+procedure vLookAt(Origin: TPt;
+  var Vector: TVector; P: TPt);
 var n : Double;
 begin
   n:=vNorm(Vector);
@@ -523,7 +504,7 @@ begin
   vNorm(Vector,n);
 end;
 
-Procedure vPointTo(Origin : TPoint; var Vector : TVector; P : TPoint); Overload;
+Procedure vPointTo(Origin : TPt; var Vector : TVector; P : TPt); Overload;
 var a,b : double;
 begin
   vLookAt(Origin,Vector,P);
@@ -560,14 +541,14 @@ end;
 
 { TDirectionalObject }
 
-procedure TDirectionalObject.LookAt(aPoint: TPoint);
+procedure TDirectionalObject.LookAt(aPoint: TPt);
 begin
   //ResetDirection;
   vLookAt(Origin,Direction,aPoint);
 end;
 
 procedure TDirectionalObject.MoveAhead;
-//var a : TPoint;
+//var a : TPt;
 begin
   //a:=vSimulStep(Direction);
   //origin.X:=Origin.X+a.X;
@@ -621,7 +602,7 @@ begin
   result:=vNorm(Direction);
 end;
 
-function TDirectionalObject.GetPointedCoord: TPoint;
+function TDirectionalObject.GetPointedCoord: TPt;
 begin
   Result:=Point(Origin.X+Direction.X,Origin.Y+Direction.Y,Origin.Z+Direction.Z);
 end;
@@ -642,7 +623,7 @@ begin
 end;
 
 
-procedure TDirectionalObject.SetPointedCoord(aPoint: TPoint);
+procedure TDirectionalObject.SetPointedCoord(aPoint: TPt);
 var a,b : double;
 begin
   LookAt(aPoint);
@@ -660,7 +641,7 @@ begin
   Origin.Z:=Z;
 end;
 
-procedure TDirectionalObject.PointAt(aPoint: TPoint);
+procedure TDirectionalObject.PointAt(aPoint: TPt);
 begin
   ResetDirection;
   vPointTo(Origin,Direction,aPoint);
@@ -846,6 +827,71 @@ begin
   end;
 end;
 (* End of SegmentIntersect *)
+function vRectIntersect(const aRect : TRct; const x1,y1,x2,y2 : Double; out A, B : Boolean; out Aix,Aiy,Bix,Biy : Double) : boolean; Inline;
+var ta,tb : Double;
+begin
+  Aix := -1;
+  Aiy := -1;
+  Bix := -1;
+  Biy := -1;
+  A := false;
+  B := false;
+  if vIntersect(aRect.Left,aRect.Top,aRect.Right,aRect.Top,x1,y1,x2,y2,ta,tb) then
+  begin
+    A := true;
+    Aix := ta;
+    Aiy := tb;
+  end;
+
+  if vIntersect(aRect.Left,aRect.Top,aRect.Left,aRect.Bottom,x1,y1,x2,y2,ta,tb) then
+  begin
+    if A then
+    begin
+      B := true;
+      Bix := ta;
+      Biy := tb;
+    end
+    else
+    begin
+      A := true;
+      Aix := ta;
+      Aiy := tb;
+    end;
+  end;
+
+  if vIntersect(aRect.Left,aRect.Bottom,aRect.Right,aRect.Bottom,x1,y1,x2,y2,ta,tb) then
+  begin
+    if A then
+    begin
+      B := true;
+      Bix := ta;
+      Biy := tb;
+    end
+    else
+    begin
+      A := true;
+      Aix := ta;
+      Aiy := tb;
+    end;
+  end;
+
+  if vIntersect(aRect.Right,aRect.Top,aRect.Right,aRect.Bottom,x1,y1,x2,y2,ta,tb) then
+  begin
+    if A then
+    begin
+      B := true;
+      Bix := ta;
+      Biy := tb;
+    end
+    else
+    begin
+      A := true;
+      Aix := ta;
+      Aiy := tb;
+    end;
+  end;
+  result := A or B;
+end;
 
 procedure vMirror(const Px,Py,x1,y1,x2,y2:Double;out Nx,Ny:Double);
 var
@@ -874,7 +920,7 @@ begin
   Ny := Py + 2 * (Ny - Py);
 end;
 
-function PtInRect(aPoint : TPoint; aRect : TRect; Var aLocalResult : TPoint) : Boolean;
+function vPtInRect(aPoint : TPt; aRect : TRct; Var aLocalResult : TPt) : Boolean;
 begin
   Result := (aPoint.X>=aRect.Left) and (aPoint.X<=aRect.Right) And (aPoint.Y<=aRect.Bottom) and (aPoint.Y>=aRect.top);
   if Result then

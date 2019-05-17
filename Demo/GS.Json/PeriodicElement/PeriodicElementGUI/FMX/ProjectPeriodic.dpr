@@ -8,9 +8,9 @@ uses
   fmain in 'fmain.pas' {Form1},
   unFMXElementObject in 'unFMXElementObject.pas',
   unElementobject in '..\..\data\unElementobject.pas',
+  GS.Json in '..\..\..\..\..\GS.Json.pas',
   Jsons in '..\..\..\..\..\ThirdPart\Json4Delphi\src\Jsons.pas',
-  JsonsUtilsEx in '..\..\..\..\..\ThirdPart\Json4Delphi\src\JsonsUtilsEx.pas',
-  GS.JSON in '..\..\..\..\..\GS.JSON.pas';
+  JsonsUtilsEx in '..\..\..\..\..\ThirdPart\Json4Delphi\src\JsonsUtilsEx.pas';
 
 {$R *.res}
 

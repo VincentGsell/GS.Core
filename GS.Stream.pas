@@ -6,9 +6,7 @@
 ///-------------------------------------------------------------------------------
 unit GS.Stream;
 
-{$ifdef FPC}
-{$mode delphi}
-{$endif}
+{$I GSCore.inc}
 
 interface
 
@@ -18,7 +16,6 @@ uses Sysutils, Classes;
 uses System.Sysutils, System.Classes;
 {$endif}
 
-procedure WriteDateTime(Stream: TStream; const Value: TDateTime);
 procedure WriteLongInt(Stream: TStream; const Value: LongInt);
 procedure WriteInteger(Stream: TStream; const Value: Integer);
 procedure WriteInt32(Stream: TStream; const Value: Int32);
@@ -28,6 +25,8 @@ procedure WriteUInt32(Stream: TStream; const Value: UINT32);
 procedure WriteByte(Stream: TStream; const Value: Byte);
 procedure WriteBoolean(Stream: TStream; const Value: Boolean);
 procedure WriteDouble(Stream: TStream; const Value: Double);
+procedure WriteSingle(Stream: TStream; const Value: Single);
+procedure WriteDateTime(Stream: TStream; const Value: TDateTime);
 function ReadLongInt(Stream: TStream): LongInt;
 function ReadInteger(Stream: TStream): Integer;
 function ReadInt32(Stream: TStream): Int32;
@@ -37,15 +36,90 @@ function ReadUINT32(Stream: TStream): UInt32;
 function ReadByte(Stream: TStream): Byte;
 function ReadBoolean(Stream: TStream): Boolean;
 function ReadDouble(Stream: TStream): Double;
+function ReadSingle(Stream: TStream): Single;
 function ReadDateTime(Stream: TStream): TDateTime;
 
-procedure WriteString(Stream: TStream; Const Data: String);
-function ReadString(Stream: TStream): String;
+Type TGSStringEncoding = (ASCIIEncoding, AnsiEncoding, UTF7Enconding, UTF8Encoding, UnicodeEncoding);
+procedure WriteString(Stream: TStream; Const Data: String; const Encoding : TGSStringEncoding = TGSStringEncoding.UTF8Encoding);
+function ReadString(Stream: TStream; const Encoding : TGSStringEncoding = TGSStringEncoding.UTF8Encoding): String;
+
+
+function ReadBytes(Stream : TStream) : TBytes; //Bytes from stream with size signature.
+procedure WriteBytes(stream : TStream; const aBytes : TBytes);
+
+function StreamToBytes(Stream : TStream) : TBytes; //Pure conversion
+procedure BytesToStream(stream : TStream; const aBytes : TBytes);
 
 Procedure WriteStream(Stream : TStream; const SourceStream : TMemoryStream);
 Procedure ReadStream(Stream : TStream; var DestinationStream : TMemoryStream);
 
+//Write without signature.
+procedure WriteRAWStringUTF8(Stream : TStream; Const Data : String);
+function ReadRAWStringUTF8(Stream : TStream) : String;
+//Procedure Write_UTF82Bytes(var Buffer : TBytes; const Data : UTF8String); Inline;
+
+
+Type TUint32Array = Array of Uint32;
+function ReadArrayOfUINT32(Stream : TStream) :  TUint32Array;
+procedure WriteArrayOfUINT32(Stream : TStream; Const Source : Array of UINT32);
+
 implementation
+
+//Procedure Write_UTF82Bytes(var Buffer : TBytes; const Data : UTF8String);
+//begin
+//  Move(Data[1], Buffer[0], Length(Data));
+//  buffer := TEncoding.UTF8.GetBytes(Data);
+//end;
+
+function ReadArrayOfUINT32(Stream : TStream) : TUint32Array;
+var l : Uint32;
+begin
+  l := ReadUint32(Stream);
+  if l>0 then
+  begin
+    SetLength(result,l);
+    Stream.Read(result[0],l*SizeOf(UInt32));
+  end;
+end;
+
+procedure WriteArrayOfUINT32(Stream : TStream; Const Source : Array of UINT32);
+var l : Uint32;
+begin
+  l := Length(Source);
+  WriteUint32(Stream,l);
+  if l>0 then
+  begin
+    Stream.Write(source[0],l*SizeOf(Uint32));
+  end;
+end;
+
+Procedure WriteRAWStringUTF8(Stream : TStream; Const Data : String);
+var b : TStringStream;
+begin
+   b := TStringStream.Create(UTF8String(Data));
+  try
+    Stream.CopyFrom(b,b.Size);
+  finally
+    FreeAndNil(b);
+  end;
+end;
+
+function ReadRAWStringUTF8(Stream : TStream) : String;
+var b : TStringStream;
+begin
+   b := TStringStream.Create(UTF8String(' '));
+  try
+    {$ifdef FPC}
+    b.WriteString('');
+    b.CopyFrom(Stream,Stream.Size);
+    {$else}
+    b.LoadFromStream(Stream);
+    {$endif}
+    result := b.DataString;
+  finally
+    FreeAndNil(b);
+  end;
+end;
 
 
 procedure WriteDateTime(Stream: TStream; const Value: TDateTime);
@@ -101,6 +175,11 @@ begin
   Stream.Write(Value, SizeOf(Double));
 end;
 
+procedure WriteSingle(Stream: TStream; const Value: Single);
+begin
+  Stream.Write(Value, SizeOf(Single));
+end;
+
 function ReadLongInt(Stream: TStream): LongInt;
 begin
   Stream.Read(Result, SizeOf(LongInt));
@@ -147,27 +226,32 @@ begin
   Stream.Read(Result, SizeOf(Double));
 end;
 
+function ReadSingle(Stream: TStream): Single;
+begin
+  Stream.Read(Result, SizeOf(Single));
+end;
 
 function ReadDateTime(Stream: TStream): TDateTime;
 begin
   Stream.Read(Result, SizeOf(TDateTime));
 end;
 
-procedure WriteString(Stream: TStream; Const Data: String);
+function GetEncoding(a : TGSStringEncoding) : TEncoding;
+begin
+  case a  of
+    TGSStringEncoding.ASCIIEncoding: result := TEncoding.ASCII;
+    TGSStringEncoding.AnsiEncoding: result := TEncoding.ANSI;
+    TGSStringEncoding.UTF7Enconding: result := TEncoding.UTF7;
+    TGSStringEncoding.UTF8Encoding: result := TEncoding.UTF8;
+    TGSStringEncoding.UnicodeEncoding: result := TEncoding.Unicode;
+  end;
+end;
+
+procedure WriteString(Stream: TStream; Const Data: String; const Encoding : TGSStringEncoding = TGSStringEncoding.UTF8Encoding);
 var b : TStringStream;
     l : UINT32;
-{$IFDEF NEXTGEN}
-   sEnc : String;
-{$ELSE}
-   sEnc : UTF8String;
-{$ENDIF}
 begin
-  {$IFDEF NEXTGEN}
-   b := TStringStream.Create(Data,TEncoding.UTF8);
-  {$ELSE}
-   sEnc := UTF8String(Data);
-   b := TStringStream.Create(sEnc);
-  {$ENDIF}
+   b := TStringStream.Create(Data,GetEncoding(Encoding));
   try
     l := b.Size;
     Stream.Write(l,SizeOf(UINT32));
@@ -177,29 +261,16 @@ begin
   end;
 end;
 
-function ReadString(Stream: TStream): String;
+function ReadString(Stream: TStream; const Encoding : TGSStringEncoding = TGSStringEncoding.UTF8Encoding): String;
 var
   b : TStringStream;
   i : UINT32;
- {$IFDEF NEXTGEN}
- var sEnc : String;
- {$ELSE}
- var sEnc : UTF8String;
- {$ENDIF}
 begin
-  sEnc := ' '; //not empty ! : Force encoding.
+  result := '';
   Stream.read(i,sizeOf(UINT32));
-  if i= 0 then
+  if i>0 then
   begin
-    Result := EmptyStr;
-  end
-  else
-  begin
-    {$IFDEF NEXTGEN}
-    b := TStringStream.Create(sEnc,TEncoding.UTF8);
-    {$ELSE}
-    b := TStringStream.Create(sEnc);
-    {$ENDIF}
+    b := TStringStream.Create(' ',GetEncoding(Encoding));
     try
       b.CopyFrom(Stream,i);
       Result := b.DataString;
@@ -209,6 +280,45 @@ begin
   end;
 end;
 
+function ReadBytes(Stream: TStream): TBytes;
+var li : Int64;
+begin
+  if Assigned(Stream) then
+  begin
+    li := ReadInt64(Stream);
+    if li > 0 then
+    begin
+      SetLength(result, li);
+      Stream.Read(pointer(result)^, length(result));
+    end;
+  end
+  else
+    SetLength(result, 0);
+end;
+
+procedure WriteBytes(stream : TStream; const aBytes : TBytes);
+begin
+  WriteInt64(Stream, length(aBytes));
+  if length(abytes) > 0 then
+    stream.Write(pointer(aBytes)^, length(aBytes));
+end;
+
+function StreamToBytes(Stream : TStream) : TBytes; //Pure conversion
+begin
+  if Assigned(Stream) then
+  begin
+    SetLength(result, Stream.Size-Stream.Position);
+    Stream.Read(pointer(result)^, length(result));
+  end
+  else
+    SetLength(result, 0);
+end;
+
+procedure BytesToStream(stream : TStream; const aBytes : TBytes);
+begin
+ if length(abytes) > 0 then
+   stream.Write(pointer(aBytes)^, length(aBytes));
+end;
 
 Procedure WriteStream(Stream : TStream; const SourceStream : TMemoryStream);
 begin

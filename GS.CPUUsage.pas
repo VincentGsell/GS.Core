@@ -4,31 +4,64 @@
 /// Source     : https://github.com/VincentGsell
 /// Aim        : - Win and Linux Delphi/FPC harmonized CPU access.
 ///-------------------------------------------------------------------------------
+/// History
+/// 20180929 - VGS - Added perfocounter for win.
+///                  Intrdocuce simple thread safe monitoring function.
+///-------------------------------------------------------------------------------
+
 unit GS.CPUUsage;
+
+{$I GSCore.inc}
 
 interface
 
 {$IFDEF FPC}
-  {$mode Delphi}
-Uses SysUtils, Classes, SyncObjs,
+Uses SysUtils, Classes, SyncObjs
  {$IFDEF WINDOWS}
-  Windows,
-  Messages
-  {$ENDIF}
-  ;
-{$ELSE}
-Uses System.SysUtils, System.Classes, System.SyncObjs, Windows;
+ ,
+ Windows,
+ Messages
+ {$ELSE}
+ ,
+ baseunix,
+ Linux,
+ unix,
+ unixtype
+ {$ENDIF}
+ ;
+{$ENDIF}
+
+{$IFDEF DCC}
+Uses System.SysUtils, System.Classes, System.SyncObjs, System.SysConst, System.Types
+ {$IFDEF WINDOWS}
+ ,Windows,
+ Messages
+ {$ENDIF}
+ {$IFDEF POSIX}
+  ,Posix.SysTypes,
+  Posix.UniStd,
+  Posix.Signal,
+  Posix.Dlfcn,
+  Posix.Fcntl,
+  Posix.SysStat,
+  Posix.SysTime,
+  Posix.Time,
+  Posix.Locale,
+  Posix.Pthread
+ {$ENDIF}
+ ;
 {$ENDIF}
 Type
 
+
 //TODO : Dig into GetSystemTimes to separate Kernel time for Linux, android and MacOSX.
-TopCPUUsage = Class
+TgsCPUUsage = Class
 Private
   fvPreviousST : TThread.TSystemTimes;
   fPreviousST : TThread.TSystemTimes;
 
 {$IFDEF FPC}
-  {$IFDEF LINUX}
+  {$IF DEFINED(LINUX) OR DEFINED(ANDROID)}
   //For decoding /prog/cpuinfo
   Lines, LineChunks: TStringList;
   {$ENDIF}
@@ -68,47 +101,71 @@ function GetSystemTimes(var lpIdleTime, lpKernelTime, lpUserTime: TFileTime): BO
   {$ENDIF}
 {$ENDIF}
 
-function gsGetTickCount : UInt64;
+function gsGetTickCount : Int64;
+
+function gsNewMonitoring : Uint32;
+Procedure gsStartMonitoring(aMonIndex : UInt32);
+function gsStepMonitoring(aMonIndex : UInt32) : Uint64;
 
 implementation
 
 
-function gsGetTickCount : UInt64;
-{$IFDEF FPC}
+var glbMon : Array of UInt64;
+    glbIndex : UInt32;
+    glbLock : {$IFDEF FPC}SyncObjs.{$ENDIF}TCriticalSection;
+
+function gsNewMonitoring : UInt32;
+begin
+  glbLock.Enter;
+  try
+    if glbIndex >= length(glbMon)-1 then
+      SetLEngth(glbMon,(length(glbMon)+1)*2);
+    result := glbIndex;
+    Inc(glbIndex);
+  finally
+    glbLock.Leave;
+  end;
+end;
+
+Procedure gsStartMonitoring(aMonIndex : UInt32);
+begin
+  glbMon[aMonIndex] := gsGetTickCount;
+end;
+
+function gsStepMonitoring(aMonIndex : UInt32) : Uint64;
+begin
+  Result := gsGetTickCount - glbMon[aMonIndex];
+  glbMon[aMonIndex] := gsGetTickCount;
+end;
+
+
+
+function gsGetTickCount : Int64;
+{$IFDEF WINDOWS}
+var l : Int64;
+begin
+  if QueryPerformanceCounter(Result) and  QueryPerformanceFrequency(l) then
+    result := Round(1000 * Result / l)
+  else
+    Result := GetTickCount64;
+end;
+{$ELSE}
   {$IFDEF LINUX}
 var tv : timeval;
-  {$ENDIF}
-begin
-  Result := 0;
-  {$IFDEF WINDOWS}
-  Result := GetTickCount;
-  {$ELSE}
-    {$IFDEF LINUX}
-  if GetTimeOfday(tv,nil) <>0) then
+Begin
+  if {$IFDEF FPC}fpgettimeofday(@tv,nil){$ELSE}gettimeofday(tv,nil){$ENDIF} <>0 then
     result := 0
   else
-    Result := (tv.tv_sec * 1000) + (tv.tv_usec / 1000);
-    {$ELSE}
-      {$MESSAGE Fatal 'Method not implemented for FPC on current platform'}
-    {$ENDIF}
+    Result := (tv.tv_sec * 1000) + round((tv.tv_usec / 1000));
+end;
+  {$ELSE}
+    {$MESSAGE Fatal 'Method not implemented on current platform'}
   {$ENDIF}
-end;
-{$ELSE} //Delphi
-begin
-  {$IF Defined(MSWINDOWS)}
-  begin
-    Result := getTickCount;
-  end;
-  {$ELSE OTHERPLATFORM}
-    {$MESSAGE Fatal 'Method not implemented for DELPHI on current Platform'}
-  {$ENDIF OTHERPLATFORM}
-end;
 {$ENDIF}
 
+{ TgsCPUUsage }
 
-{ TopCPUUsage }
-
-constructor TopCPUUsage.Create;
+constructor TgsCPUUsage.Create;
 begin
   Inherited;
   TThread.GetSystemTimes(fvPreviousST);
@@ -122,7 +179,7 @@ begin
 {$ENDIF}
 end;
 
-Destructor TopCPUUsage.Destroy;
+Destructor TgsCPUUsage.Destroy;
 begin
 {$IFDEF FPC}
   {$IFDEF LINUX}
@@ -134,7 +191,7 @@ begin
  Inherited;
 end;
 
-Function TopCPUUsage.InternalGetCPUUsage(
+Function TgsCPUUsage.InternalGetCPUUsage(
   var PrevSystemTimes: TThread.TSystemTimes) : Integer;
 var
   CurSystemTimes: TThread.TSystemTimes;
@@ -154,7 +211,7 @@ begin
   end;
 end;
 
-Function TopCPUUsage.InternalGetSystemTime(
+Function TgsCPUUsage.InternalGetSystemTime(
   var aSystemTimes: TThread.TSystemTimes) : Boolean;
 
 {$IFDEF FPC}
@@ -174,11 +231,11 @@ begin
   end;
 end;
   {$ELSE}
-  {$IFDEF LINUX}
+    {$IF DEFINED(LINUX) OR DEFINED(ANDROID)}
 var Line: string;
 begin
   Result := False;
-  Lines.loadfromFile(CST_L_PROCSTAT);
+  Lines.loadfromFile(L_CST_PROCSTAT);
   LineChunks.Delimiter := ' ';
   aSystemTimes.UserTime := 0;
   aSystemTimes.NiceTime := 0;
@@ -201,10 +258,10 @@ begin
       Break;
   end;
 end;
-  {$ELSE}
-    {$MESSAGE Fatal 'Method not implemented for FPC on current platform'}
+    {$ELSE}
+      {$MESSAGE Fatal 'Method not implemented for FPC on current platform'}
+    {$IFEND}
   {$ENDIF}
-{$ENDIF}
 {$ELSE} //DELPHI
   {$IF Defined(MSWINDOWS) or Defined(MACOS) or Defined(ANDROID) or Defined(POSIX)}
   begin
@@ -216,7 +273,7 @@ end;
 {$ENDIF}
 
 
-procedure TopCPUUsage.Update;
+procedure TgsCPUUsage.Update;
 Begin
 
   UsageCPUPercentInt := InternalGetCPUUsage(fvPreviousST);
@@ -265,5 +322,14 @@ Begin
 
   InternalGetSystemTime(fPreviousST);
 end;
+
+Initialization
+
+glbLock := {$IFDEF FPC}SyncObjs.{$ENDIF}TCriticalSection.Create;
+
+
+Finalization
+
+FreeAndNil(glbLock);
 
 end.

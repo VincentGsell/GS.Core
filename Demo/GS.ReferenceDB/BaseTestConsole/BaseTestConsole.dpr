@@ -24,7 +24,7 @@ begin
     end;
     readln;
 
-    if a.TestWriteStressSimple(1200,lfr) then
+    if a.TestWriteStressSimple(20000,lfr) then   //At less 10000. (Hardcoded in test)
     begin
       writeln('TestWriteHuge : Ok');
     end

@@ -22,7 +22,6 @@ Uses
   System.Generics.Collections,
 {$ENDIF}
   GS.Stream,
-  GS.BOList.Rec,
   GS.Reference.Persister,
   GS.Reference.Persister.SingleFile;
 
@@ -384,6 +383,7 @@ begin
           writeln(IntToStr(i)+'  '+IntToStr((i+1)*100 div ACount)+'%');
         end;
       end;
+      writeln(IntToStr(i)+'  100%');
       Result := True;
     Except
       On E : Exception do
@@ -525,7 +525,7 @@ end;
 
 procedure TofReference.InternalDeleteGenericeData(Key: String);
 begin
-  FPersister.DeleteGenericeData(Key);
+  FPersister.DeleteGenericData(Key);
 end;
 
 procedure TofReference.InternalReadGenericDataPrepare(Key: String;

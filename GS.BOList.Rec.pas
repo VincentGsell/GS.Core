@@ -2,9 +2,24 @@
 /// Title      : GS.BOListRec
 /// Short Desc : Business Record list handler.
 /// Source     : https://github.com/VincentGsell
-/// Aim        : Get a reasonably fast list to access record by key (Generic)
+/// Aim        : Get a reasonably fast list to access record by key (With Generic)
 ///              "Record" Counterpart of BOList (For Object)
 ///-------------------------------------------------------------------------------
+/// History
+/// 20180929 - VGS - Study to optimize a bit.
+///                  Conclusion : better to let as is, becaus all optimization
+///                  stuff are based to test in which type we are, and implement
+///                  with native type.
+///                  - Good plan should to introduce "optimizer" based on the type,
+///                  and then change current system by dedicated one
+///                  (exemple TofBusinessObjectListRec<String, String>
+///                  ----> Decicated KeyValue engine. (dozen on the net.)
+///                  - Another problem is the memory problem :
+///                  current generic with optimization shadow list consume a lot
+///                  of memory. Make a data ref, based on generic introduce
+///                  new perforamce problem (Gneric comparer) :/
+///-------------------------------------------------------------------------------
+
 unit GS.BOList.Rec;
 
 {$IFDEF FPC} {$mode delphi} {$H+} {$ENDIF}
@@ -23,13 +38,14 @@ Type
 TofBusinessObjectListRec<T,T2> = Class
 Private
   FBusinessObject : TDictionary<T,T2>;    //Owned = False;
-  FBusinessObjectListShadow : TList<T2>;  //Optimization : Access by Index.
+  FBusinessObjectListShadow : TList<T2>;      //Optimization : Access by Index.
   FBusinessObjectListShadowIndex : TList<T>;  //Optimization : for IndexOf().
 
   function GetBusinessObject(Key : T): T2;
   procedure SetBusinessObject(Key : T; const Value: T2);
-  function GetBusinessObjectByIndex(Index: Int64): T2;
+  function GetBusinessObjectByIndex(Index: UInt64): T2;
   function GetBusinessObjectByObject(aObject: T2): T;
+  function GetBusinessObjectKeyByIndex(Index: UInt64): T;
 Public
   Constructor Create;
   Destructor Destroy; Override;
@@ -48,9 +64,10 @@ Public
 
   Procedure Clear;
 
-  Property ByIndex[Index : Int64] : T2 read GetBusinessObjectByIndex;
-  Property ByObject[aObject : T2] : T read GetBusinessObjectByObject;
-  Property ByValue[aValue : T] : T2 read GetBusinessObject Write SetBusinessObject; Default;
+  Property KeyByIndex[Index : UInt64] : T read GetBusinessObjectKeyByIndex;
+  Property ByIndex[Index : UInt64] : T2 read GetBusinessObjectByIndex;
+  Property ByValue[aObject : T2] : T read GetBusinessObjectByObject; //Warning, could very long uin current impl. (Index of)
+  Property ByKey[aValue : T] : T2 read GetBusinessObject Write SetBusinessObject; Default;
 End;
 
 implementation
@@ -58,6 +75,7 @@ implementation
 { TofBusinessObjectListRec<T,T2> }
 
 procedure TofBusinessObjectListRec<T,T2>.Add(aKey: T; aValue: T2);
+var i : UInt64;
 begin
   if Not(FBusinessObject.ContainsKey(aKey)) then
   begin
@@ -74,7 +92,7 @@ end;
 procedure TofBusinessObjectListRec<T,T2>.Clear;
 begin
   FBusinessObject.Clear;
-  FBusinessObjectListShadow.Clear;
+//  FBusinessObjectListShadow.Clear;
   FBusinessObjectListShadowIndex.Clear;
 end;
 
@@ -84,6 +102,7 @@ begin
 end;
 
 function TofBusinessObjectListRec<T,T2>.ContainsValue(aObject: T2): Boolean;
+var i : Integer;
 begin
   Result := FBusinessObject.ContainsValue(aObject);
 end;
@@ -125,7 +144,7 @@ begin
 end;
 
 function TofBusinessObjectListRec<T,T2>.GetBusinessObjectByIndex(
-  Index: Int64): T2;
+  Index: UInt64): T2;
 begin
   try
     Result := T2(FBusinessObjectListShadow[Index]);
@@ -146,6 +165,20 @@ begin
     Result := T(FBusinessObjectListShadowIndex[i])
   else
     raise Exception.Create(ClassName+' : Object not found');
+end;
+
+function TofBusinessObjectListRec<T, T2>.GetBusinessObjectKeyByIndex(
+  Index: UInt64): T;
+begin
+  try
+    Result := T(FBusinessObjectListShadowIndex[Index]);
+  Except
+    On E : Exception do
+    begin
+      raise Exception.Create('TofBusinessObjectListRec<T,T2>.GetBusinessObjectKeyByIndex (ByIndex[Int64]) : '+E.Message);
+    end;
+  end;
+
 end;
 
 function TofBusinessObjectListRec<T, T2>.IndexOf(Key: T): Int64;
@@ -202,3 +235,4 @@ end;
 
 
 end.
+

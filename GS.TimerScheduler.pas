@@ -1,18 +1,28 @@
 unit GS.TimerScheduler;
 
-{$IFDEF FPC}
-{$mode delphi}
-{$ENDIF}
-
+{$I GSCore.inc}
 
 interface
 
-Uses Classes,
-     SysUtils,
-     SyncObjs,
-     Generics.Collections,
-     GS.Timer,
-     GS.Bus;
+Uses
+{$IFDEF FPC}
+  Classes,
+  SysUtils,
+  {$IFDEF USE_GENERIC}
+  Generics.Collections, //Starting 3.1.1 only.
+  {$ENDIF}
+  SyncObjs,
+{$ELSE}
+  System.Classes,
+  System.SysUtils,
+  {$IFDEF USE_GENERIC}
+  System.Generics.Collections,
+  {$ENDIF}
+  System.SyncObjs,
+  System.Threading,
+{$ENDIF}
+  GS.Common,
+  GS.Timer;
 
 Type
 
@@ -62,7 +72,22 @@ Type
     Property TriggedPeriodicity : TGSEventItemPeriodicityTrigged read FTriggedPeriodicity;
   End;
 
-  TGSTimerEventList = Class(TObjectList<TGSEventItem>)
+  {$IFDEF USE_GENERIC}
+  TObjectList_TGSEventItem = TObjectList<TGSEventItem>;
+  {$ELSE}
+  TObjectList_TGSEventItem = Class(TList_ObjectArray)
+  private
+    function GetGSEventItem(Index: Uint32): TGSEventItem;
+    procedure SetGSEventItem(Index: Uint32; const Value: TGSEventItem);
+  public
+    Constructor Create; Reintroduce;
+    Procedure Add(aGSEventItem : TGSEventItem);
+    Property Items[Index : Uint32] : TGSEventItem read GetGSEventItem Write SetGSEventItem; Default;
+  End;
+
+  {$ENDIF}
+
+  TGSTimerEventList = Class(TObjectList_TGSEventItem)
   Public
   End;
 
@@ -80,7 +105,7 @@ Type
 
     Function GetReferenceDateTime : TDateTime; Virtual; //Override this to change reference time;
   public
-    constructor Create(Const aTimerExecMode : TGSTimerExecMode = Thread); Override;
+    constructor Create(Const aTimerExecMode : TGSTimerExecMode = TGSTimerExecMode.Thread); Override;
     destructor Destroy; Override;
 
 
@@ -95,7 +120,6 @@ Type
   TGSTimerSchedulerThreadClass = Class of TGSTimerSchedulerThread;
   //Why a container : It is good to destroy and recreate thread when changing deep
   //parameter : this container do this job.
-
   TGSTimerSchedulerThreadContainer = Class
   private
   protected
@@ -144,7 +168,7 @@ Uses DateUtils;
 
 function TGSEventItem.GetIsPeriodic: Boolean;
 begin
-  result := FPeriodicity > none;
+  result := FPeriodicity > TGSEventItemPeriodicity.none;
 end;
 
 procedure TGSEventItem.PeriodicProcess(out aNextEvent: TGSEventItem);
@@ -214,6 +238,7 @@ end;
 function TGSTimerSchedulerThread.AddEvent(aEvent: TGSEventItem): TGSEventItem;
 begin
   Assert(Assigned(aEvent));
+  result := aEvent;
   FEventLocker.Acquire;
   try
     FEventList.Add(aEvent);
@@ -248,6 +273,7 @@ end;
 
 destructor TGSTimerSchedulerThread.Destroy;
 begin
+  FEventLocker.Acquire;
   FreeAndNil(FEventLocker);
   FreeAndNil(FEventList);
   inherited;
@@ -255,14 +281,16 @@ end;
 
 procedure TGSTimerSchedulerThread.DoTimerEvent;
 var lEvent, lNextEvent : TGSEventItem;
+    i : integer;
 begin
   inherited DoTimerEvent; //Manage exec count and event.
 
   //Processing of schedule ...
   FEventLocker.Acquire;
   try
-    for lEvent in FEventList do
+    for i := 0 to FEventList.Count-1 do
     begin
+      lEvent := FEventList[i];
       if (lEvent.EventDateTime>GetReferenceDateTime) And
          (lEvent.EventFired) then
         Continue;
@@ -306,9 +334,9 @@ begin
 
   FCurrentEvent := aEvent;
   case FTimerExecMode of
-    Thread : DoTimerFiring;
-    Synchro : Synchronize(Self,DoTimerEvent);
-    Queued : Queue(Self,DoTimerFiring);
+    TGSTimerExecMode.Thread : DoTimerFiring;
+    TGSTimerExecMode.Synchro : Synchronize(Self,DoTimerEvent);
+    TGSTimerExecMode.Queued : Queue(Self,DoTimerFiring);
   end;
 end;
 
@@ -319,7 +347,7 @@ constructor TGSTimerSchedulerThreadContainer.Create;
 begin
   Inherited;
   FSchedClass := TGSTimerSchedulerThread;
-  FOnTimerExecMode := Thread;
+  FOnTimerExecMode := TGSTimerExecMode.Thread;
   FEnabled := False;
   Interval := 1000;
 end;
@@ -397,5 +425,31 @@ begin
     end;
   end;
 end;
+
+{$IFNDEF USE_GENERIC}
+{ TObjectList_TGSEventItem }
+
+procedure TObjectList_TGSEventItem.Add(aGSEventItem: TGSEventItem);
+begin
+  ManagedAdd(aGSEventItem);
+end;
+
+constructor TObjectList_TGSEventItem.Create;
+begin
+  Inherited Create(true);
+end;
+
+function TObjectList_TGSEventItem.GetGSEventItem(Index: Uint32): TGSEventItem;
+begin
+  result := TGSEventItem(FArray[Index]);
+end;
+
+procedure TObjectList_TGSEventItem.SetGSEventItem(Index: Uint32;
+  const Value: TGSEventItem);
+begin
+  ManagedSet(Index,Value);
+end;
+
+{$ENDIF}
 
 end.

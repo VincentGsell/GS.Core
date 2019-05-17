@@ -1,21 +1,28 @@
 unit GS.JSON;
 
+
+{$I GSCore.inc}
+
 interface
 
-{$IFDEF FPC}
-{$MODE Delphi}
-{$ENDIF}
-
 Uses
+{$IFDEF FPC}
+  Classes,
   SysUtils,
-  classes,
+  {$IFDEF USE_GENERIC}
+  Generics.Collections, //Starting 3.1.1 only.
+  {$ENDIF}
+{$ELSE}
+  System.Classes,
+  System.SysUtils,
+  {$IFDEF USE_GENERIC}
+  System.Generics.Collections,
+  {$ENDIF}
+{$ENDIF}
   Jsons,
   JsonsUtilsEx,
-  {$IFDEF FPC}
-  generics.collections;
-  {$ELSE}
-  System.Generics.Collections;
-  {$ENDIF}
+  BcpBase64,
+  GS.Common;
 
 Type
   TGSJsonArrayPropertyItem = Class
@@ -24,29 +31,59 @@ Type
     ItemArrayType :TClass;
   End;
 
+  {$IFDEF USE_GENERIC}
   TGSJsonListOfProperty = class(TDictionary<String,TGSJsonArrayPropertyItem>)
     Procedure AddListProperty(anArrayPropertyName : String; aItemArrayType : TClass);
     Function GetPropertyConfiguration(anArrayPropertyName : String) : TGSJsonArrayPropertyItem;
     Procedure RegisterPropertyArrayTypes(Const PropertyName : String; ItemArrayType : TClass);
   end;
+  {$ELSE}
+  TGSJsonListOfProperty = class(TKeysValues_UTF8StringToObject)
+
+    Function TryGetValue(aKey : String; var aResult : TGSJsonArrayPropertyItem) : Boolean; Reintroduce;
+    Procedure Add(aString : String; aGSJsonArrayPropertyItem: TGSJsonArrayPropertyItem);
+
+    Procedure AddListProperty(anArrayPropertyName : String; aItemArrayType : TClass);
+    Function GetPropertyConfiguration(anArrayPropertyName : String) : TGSJsonArrayPropertyItem;
+    Procedure RegisterPropertyArrayTypes(Const PropertyName : String; ItemArrayType : TClass);
+  end;
+  {$ENDIF}
 
   TGSJson = class(TJson)
   Protected
     class var FListOfProperty : TGSJsonListOfProperty;
+    class var base64 : TBase64;
     class function CheckInstance : Boolean;
     class Procedure Init;
     class Procedure Release;
   Public
+    {$IFDEF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
     class Procedure JsonToObject(Const aJSONString : String; var aObject : TObject);
     class Function ObjectToJson(aObject : TObject) : String;
+    {$ENDIF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
 
     class Function Configuration : TGSJsonListOfProperty;
+
+    class Function Base64StringToBytes(Const aBase64String : String) : TBytes;
+    class function BytesToBase64String(const aBytes : TBytes) : UTF8String;
   end;
+
+  TGSJsonArray = TJsonArray;
 
 implementation
 
 
 { TGSJson }
+
+class function TGSJson.Base64StringToBytes(const aBase64String: String): TBytes;
+begin
+  result := base64.Decode(aBase64String);
+end;
+
+class function TGSJson.BytesToBase64String(const aBytes: TBytes): UTF8String;
+begin
+  result := base64.Encode(aBytes);
+end;
 
 class function TGSJson.CheckInstance: Boolean;
 begin
@@ -65,8 +102,10 @@ end;
 class procedure TGSJson.Init;
 begin
   FListOfProperty := Nil;
+  base64 := TBase64.Create;
 end;
 
+{$IFDEF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
 class Procedure TGSJson.JsonToObject(const aJSONString: String;
   var aObject: TObject);
 begin
@@ -77,20 +116,33 @@ class function TGSJson.ObjectToJson(aObject: TObject): String;
 begin
   Result := jsonsUtilsEx.__ObjectToJson(aObject);
 end;
+{$ENDIF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
 
 class procedure TGSJson.Release;
+{$IFDEF USE_GENERIC}
 var aItem : TPair<String, TGSJsonArrayPropertyItem>;
     ab : TArray<TPair<String, TGSJsonArrayPropertyItem>>;
+{$ELSE}
+var i : integer;
+{$ENDIF}
 begin
   if Assigned(FListOfProperty) then
   begin
+  {$IFDEF USE_GENERIC}
     ab := FListOfProperty.ToArray;
     for aItem in ab do
     begin
       aItem.Value.Free;
     end;
     FreeAndNil(FListOfProperty);
+  {$ELSE}
+     for I := 0 to FListOfProperty.Count-1 do
+     begin
+       FListOfProperty.FArray[i].Value.Free;
+     end;
+  {$ENDIF}
   end;
+  FreeAndNil(base64);
 end;
 
 { TGSJsonListOfProperty }
@@ -99,6 +151,19 @@ procedure TGSJsonListOfProperty.RegisterPropertyArrayTypes(const PropertyName: S
   ItemArrayType: TClass);
 begin
   AddListProperty(PropertyName,ItemArrayType);
+end;
+
+procedure TGSJsonListOfProperty.Add(aString: String;
+  aGSJsonArrayPropertyItem: TGSJsonArrayPropertyItem);
+begin
+  Assert(assigned(aGSJsonArrayPropertyItem));
+  Inherited Add(aString, aGSJsonArrayPropertyItem);
+end;
+
+function TGSJsonListOfProperty.TryGetValue(aKey: String;
+  var aResult: TGSJsonArrayPropertyItem): Boolean;
+begin
+  Result := Inherited TryGetValue(aKey,TObject(aResult));
 end;
 
 procedure TGSJsonListOfProperty.AddListProperty(anArrayPropertyName: String;
