@@ -44,7 +44,7 @@ For your conveniance and for easy integration, those libs are availables on this
   ![Alt text](/../master/Ressources/fmxjsonperiodicdemo.png?raw=true "FMX JSON Demo")
  
   GS.FileUtils  :   A GUI app to see how glacify process could work.
-  ![Alt text](/../master/Ressources/glacify.png?raw=true "FMX JSON Demo")
+  ![Alt text](/../master/Ressources/glacify.png?raw=true "Glacify RnD project")
   
   GS.ReferenceDB : A little console app to experiment Reference capability.
   
