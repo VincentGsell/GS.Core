@@ -24,7 +24,7 @@
   Glacify is an full R&D project, witch aim to reach the fellowing features : 
   - in one file archiving (=a "glacier"), versioning capability, archiving by provide cyphering and compression, get clear file version   on demand, capabity to scan directory and only process changed files.
 
-#Dependancy
+# Dependancy
 
 As this Core fundation class is dedicated to Bus and GRID app, dependancy with a lot of features coverage is needed : 
 
