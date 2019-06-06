@@ -209,7 +209,6 @@ var
   {$ENDIF}
   lTypeInfo: PPTypeInfo;
   lpTypeInfo: PPPTypeInfo;
-  Prop: PPropInfo;
   j : integeR;
   arrobj : TObjectDynArray;
   arrstr : TStringDynArray;
@@ -218,6 +217,7 @@ var
   jcs : String;
 
   js : TJson;
+  lsName : String;
 
     Procedure RT;
     begin
@@ -239,7 +239,8 @@ begin
     end;
     for i := 0 to iCnt-1 do
     begin
-      if not InArray(pl[i]^.Name, PropList) then
+      lsName := String(pl[i]^.Name);
+      if not InArray(lsName, PropList) then
         Continue;
       sVal := '';
       case pl[i]^.PropType^.Kind of
@@ -268,7 +269,7 @@ begin
         tkWString: sVal := '"'+js.Encode(GetWideStrProp(obj,pl[i]))+'"';
         tkEnumeration:
         begin
-          sVal := GetEnumProp(obj,pl[i].Name);
+          sVal := GetEnumProp(obj,lsName);
           sVal := '"'+js.Encode(IntToStr(GetEnumValue(pl[i]^.PropType{$IFNDEF FPC}^{$ENDIF},sVal)))+'"';  //GetEnumValue(pl[i]^.PropType^,GetEnumProp(obj,pl[i].Name))
         end;
         tkClass:
@@ -339,7 +340,7 @@ begin
         tkInterface : RT;
       end;
 
-      Result := Result + '"' + js.Encode(pl[i]^.Name)+'" : '+sVal;
+      Result := Result + '"' + js.Encode(lsName)+'" : '+sVal;
       if Trim(Result) <> '{' then
       begin
         if i< icnt-1 then
@@ -384,7 +385,7 @@ var //Json stuffs
     lstringArray : TStringDynArray;
     lpc : Cardinal;
     i,j : integer;
-    lsTemp : String;
+    lsTemp, lsName : String;
 
     Procedure RT;
     begin
@@ -405,7 +406,8 @@ begin
     lpc := GetPropList(aObject, lpl);
     for i := 0 to lpc-1 do
     begin
-      lJsValue := lJSON[lpl[i].Name];
+      lsName := String(lpl[i].Name);
+      lJsValue := lJSON[lsName];
 
       if lJsValue.IsNull then
       begin
@@ -426,23 +428,23 @@ begin
         begin
           if lJsValue.ValueType = jvString then //According to JSON, it is parhaps a date ? Rtti reconize date as float.
           begin
-            lsTemp := lJSON[lpl[i].Name].AsString;
+            lsTemp := lJSON[lsName].AsString;
             if JSONStringIsCompatibleDate(lsTemp) then
             begin
-              SetFloatProp(aObject,lpl[i].Name,JSONStringToDate(lsTemp));
+              SetFloatProp(aObject,lsName,JSONStringToDate(lsTemp));
             end
             Else
             begin
-              raise Exception.Create(lcst_exceptheader + 'Incompatible type (Perhaps unknow date format) Property "'+lpl[i].Name+'"');
+              raise Exception.Create(lcst_exceptheader + 'Incompatible type (Perhaps unknow date format) Property "'+lsName+'"');
             end;
           end
           else
           begin
-            SetFloatProp(aObject,lpl[i].Name,lJSON[lpl[i].Name].AsNumber);
+            SetFloatProp(aObject,lsName,lJSON[lsName].AsNumber);
           end;
         end;
-        tkInt64  : SetInt64Prop(aObject,lpl[i].Name,lJSON[lpl[i].Name].AsInteger);
-        tkInteger: SetOrdProp(aObject,lpl[i].Name,lJSON[lpl[i].Name].AsInteger);
+        tkInt64  : SetInt64Prop(aObject,lsName,lJSON[lsName].AsInteger);
+        tkInteger: SetOrdProp(aObject,lsName,lJSON[lsName].AsInteger);
         tkLString,
         tkString,
         tkUString,
@@ -453,9 +455,9 @@ begin
         {$ENDIF}
         tkWString:
         begin
-          SetStrProp(aObject,lpl[i].Name,lJSON[lpl[i].Name].AsString);
+          SetStrProp(aObject,String(lsName),lJSON[String(lsName)].AsString);
         end;
-        tkEnumeration: SetOrdProp(aObject,lpl[i].Name,Integer(lJSON[lpl[i].Name].AsInteger));
+        tkEnumeration: SetOrdProp(aObject,String(lsName),Integer(lJSON[lsName].AsInteger));
         tkClass:
         begin
           if (lJsValue.ValueType = TJsonValueType.jvObject) or (lJsValue.ValueType = TJsonValueType.jvNone) then
@@ -470,14 +472,14 @@ begin
                 InternalJsonToObject(lJsValue.Stringify, lo);
               Except
                 On E: Exception do
-                  raise Exception.Create(lcst_exceptheader + '[InternalJsonToObject reentrance single object] (Property '+string(lpl[i].Name)+') ' + E.Message);
+                  raise Exception.Create(lcst_exceptheader + '[InternalJsonToObject reentrance single object] (Property '+string(lsName)+') ' + E.Message);
               end;
-              SetObjectProp(aObject,lpl[i]^.Name,lo);
+              SetObjectProp(aObject,String(lpl[i]^.Name),lo);
             end;
           end
           else
           begin
-            raise Exception.Create(lcst_exceptheader + 'Original JSON type not match with class type : Property "'+string(lpl[i].Name)+'"');
+            raise Exception.Create(lcst_exceptheader + 'Original JSON type not match with class type : Property "'+string(lsName)+'"');
           end;
         end;
         tkDynArray :
@@ -507,7 +509,7 @@ begin
                   end
                   else
                   begin
-                    raise Exception.Create(lcst_exceptheader + ' Delphi Class resolving : Not object Error : Property "'+lpl[i].Name+'"');
+                    raise Exception.Create(lcst_exceptheader + ' Delphi Class resolving : Not object Error : Property "'+lsName+'"');
                   end;
                   {$ELSE}
                   //FPC side : first view not possible :( Use kind of marshaller config instead.
@@ -518,7 +520,7 @@ begin
                   end
                   else
                   begin
-                    raise Exception.Create(lcst_exceptheader + ' FPC Class resolving : Not object Error : Property "'+lpl[i].Name+'"');
+                    raise Exception.Create(lcst_exceptheader + ' FPC Class resolving : Not object Error : Property "'+lsName+'"');
                   end;
                   {$ENDIF}
                   lo := loClass.Create;
@@ -528,7 +530,7 @@ begin
                     lDynObjArray[Length(lDynObjArray)-1] := lo;
                   Except
                     On E: EXception do
-                      raise Exception.Create(lcst_exceptheader +'[InternalJsonToObject reentrance] : Property "'+lpl[i].Name+'" - ' + E.Message);
+                      raise Exception.Create(lcst_exceptheader +'[InternalJsonToObject reentrance] : Property "'+lsName+'" - ' + E.Message);
                   end;
                 end;
                 jvNumber:
@@ -538,16 +540,16 @@ begin
                 end
                 else
                 begin
-                  raise Exception.Create(lcst_exceptheader + 'type not implemented or supported : Property "'+lpl[i].Name+'"');
+                  raise Exception.Create(lcst_exceptheader + 'type not implemented or supported : Property "'+lsName+'"');
                 end;
               end;
             end;
             if lJsArray.Count>0 then
             begin
               case lJsArray[0].ValueType of
-              jvString : SetDynArrayProp(aObject,string(lpl[i].Name),lstringArray);
-              jvObject : SetDynArrayProp(aObject,string(lpl[i].Name),lDynObjArray);
-              jvNumber : SetDynArrayProp(aObject,string(lpl[i].Name),lIntegerArray);
+              jvString : SetDynArrayProp(aObject,lsName,lstringArray);
+              jvObject : SetDynArrayProp(aObject,lsName,lDynObjArray);
+              jvNumber : SetDynArrayProp(aObject,lsName,lIntegerArray);
               end;
             end;
           end

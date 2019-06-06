@@ -41,7 +41,7 @@ Type
   TGSJsonListOfProperty = class(TKeysValues_UTF8StringToObject)
 
     Function TryGetValue(aKey : String; var aResult : TGSJsonArrayPropertyItem) : Boolean; Reintroduce;
-    Procedure Add(aString : String; aGSJsonArrayPropertyItem: TGSJsonArrayPropertyItem);
+    Procedure Add(aString : String; aGSJsonArrayPropertyItem: TGSJsonArrayPropertyItem); Reintroduce;
 
     Procedure AddListProperty(anArrayPropertyName : String; aItemArrayType : TClass);
     Function GetPropertyConfiguration(anArrayPropertyName : String) : TGSJsonArrayPropertyItem;
@@ -52,11 +52,11 @@ Type
   TGSJson = class(TJson)
   Protected
     class var FListOfProperty : TGSJsonListOfProperty;
-    class var base64 : TBase64;
     class function CheckInstance : Boolean;
     class Procedure Init;
     class Procedure Release;
   Public
+    class var base64 : TBase64;
     {$IFDEF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
     class Procedure JsonToObject(Const aJSONString : String; var aObject : TObject);
     class Function ObjectToJson(aObject : TObject) : String;
@@ -65,7 +65,7 @@ Type
     class Function Configuration : TGSJsonListOfProperty;
 
     class Function Base64StringToBytes(Const aBase64String : String) : TBytes;
-    class function BytesToBase64String(const aBytes : TBytes) : UTF8String;
+    class function BytesToBase64String(const aBytes : TBytes) : String;
   end;
 
   TGSJsonArray = TJsonArray;
@@ -80,13 +80,14 @@ begin
   result := base64.Decode(aBase64String);
 end;
 
-class function TGSJson.BytesToBase64String(const aBytes: TBytes): UTF8String;
+class function TGSJson.BytesToBase64String(const aBytes: TBytes): String;
 begin
   result := base64.Encode(aBytes);
 end;
 
 class function TGSJson.CheckInstance: Boolean;
 begin
+  result :=true;
   if Not Assigned(FListOfProperty) then
   begin
     FListOfProperty := TGSJsonListOfProperty.Create;

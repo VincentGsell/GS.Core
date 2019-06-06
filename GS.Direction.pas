@@ -35,6 +35,10 @@ Const GLB_Math_PrecisionTolerance = 1.0E-12;
       GLB_RadianCst : Double = Pi / 180;
 
 Type
+TPt2f = Record
+  X,Y : Single;
+end;
+
 TPt = Record
   X,Y,Z : Single;
 end;
@@ -107,6 +111,7 @@ function Line(var P1, P2: TPt): TLn; Overload; inline;
 function Line(X, Y, Z, X1, Y1, Z1: Single): TLn; Overload; inline;
 function Point(X, Y, Z: Single): TPt; Overload;inline;
 function Point(X,Y : Single) : TPt; Overload;inline;
+function Point2f(X,Y : Single) : TPt2f; Overload;inline;
 function Rect(Left,Top, Right, Bottom : Single) : TRct;inline;
 
 Procedure vInit(var vector : TVector);inline;
@@ -332,6 +337,13 @@ begin
   Result.Y:=Y;
   Result.Z:=0;
 end;
+
+function Point2f(X,Y : Single) : TPt2f; Overload;inline;
+begin
+  result.X := X;
+  result.Y := Y;
+end;
+
 
 function Rect(Left,Top, Right, Bottom : Single) : TRct;
 begin
