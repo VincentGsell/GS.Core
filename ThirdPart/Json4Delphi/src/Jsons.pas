@@ -865,9 +865,10 @@ begin
     jvNumber: Result := FixedFloatToStr(FNumberValue);
     jvBoolean :
     begin
-      result := StrBoolean[true];
-      if FBooleanValue then
-        Result := StrBoolean[true];
+      result := strBoolean[FBooleanValue];
+      //result := StrBoolean[true]; //? VGS 20190618
+      //if FBooleanValue then
+      //  Result := StrBoolean[true];
     end;
     jvObject: Result := FObjectValue.Stringify;
     jvArray: Result := FArrayValue.Stringify;

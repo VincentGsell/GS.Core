@@ -43,7 +43,6 @@ Type TGSStringEncoding = (ASCIIEncoding, AnsiEncoding, UTF7Enconding, UTF8Encodi
 procedure WriteString(Stream: TStream; Const Data: String; const Encoding : TGSStringEncoding = TGSStringEncoding.UTF8Encoding);
 function ReadString(Stream: TStream; const Encoding : TGSStringEncoding = TGSStringEncoding.UTF8Encoding): String;
 
-
 function ReadBytes(Stream : TStream) : TBytes; //Bytes from stream with size signature.
 procedure WriteBytes(stream : TStream; const aBytes : TBytes);
 
@@ -53,9 +52,9 @@ procedure BytesToStream(stream : TStream; const aBytes : TBytes);
 Procedure WriteStream(Stream : TStream; const SourceStream : TMemoryStream);
 Procedure ReadStream(Stream : TStream; var DestinationStream : TMemoryStream);
 
-//Write without signature.
-procedure WriteRAWStringUTF8(Stream : TStream; Const Data : String);
-function ReadRAWStringUTF8(Stream : TStream) : String;
+//Write without prefixed size by default.
+procedure WriteRAWStringUTF8(Stream : TStream; Const Data : String; Const ByteLenPrefix : Boolean = false);
+function ReadRAWStringUTF8(Stream : TStream; Const ByteLenPrefix : Boolean = false) : String;
 //Procedure Write_UTF82Bytes(var Buffer : TBytes; const Data : UTF8String); Inline;
 
 
@@ -93,28 +92,45 @@ begin
   end;
 end;
 
-Procedure WriteRAWStringUTF8(Stream : TStream; Const Data : String);
+Procedure WriteRAWStringUTF8(Stream : TStream; Const Data : String; Const ByteLenPrefix : Boolean = false);
 var b : TStringStream;
+    l : UInt32;
 begin
    b := TStringStream.Create(UTF8String(Data));
   try
+    if ByteLenPrefix then
+    begin
+      l := UInt32(Abs(b.Size));
+      Stream.Write(l,SizeOf(UINT32));
+    end;
     Stream.CopyFrom(b,b.Size);
   finally
     FreeAndNil(b);
   end;
 end;
 
-function ReadRAWStringUTF8(Stream : TStream) : String;
+function ReadRAWStringUTF8(Stream : TStream; Const ByteLenPrefix : Boolean = false) : String;
 var b : TStringStream;
+    l  : UInt32;
 begin
-   b := TStringStream.Create(UTF8String(' '));
+   l := 0;
+   //b := TStringStream.Create(UTF8String(' '));
+   b := TStringStream.Create;
   try
-    {$ifdef FPC}
-    b.WriteString('');
-    b.CopyFrom(Stream,Stream.Size);
-    {$else}
-    b.LoadFromStream(Stream);
-    {$endif}
+    if ByteLenPrefix then
+    begin
+      Stream.read(l,sizeOf(UINT32));
+      b.CopyFrom(Stream,l);
+    end
+    else
+    begin
+      {$ifdef FPC}
+      //b.WriteString('');
+      //b.CopyFrom(Stream,Stream.Size);
+      {$else}
+      {$endif}
+      b.LoadFromStream(Stream);
+    end;
     result := b.DataString;
   finally
     FreeAndNil(b);
