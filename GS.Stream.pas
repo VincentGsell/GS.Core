@@ -114,8 +114,7 @@ var b : TStringStream;
     l  : UInt32;
 begin
    l := 0;
-   //b := TStringStream.Create(UTF8String(' '));
-   b := TStringStream.Create;
+   b := TStringStream.Create(UTF8String(' ')); //Force UTF87 encoding.
   try
     if ByteLenPrefix then
     begin
@@ -126,16 +125,17 @@ begin
     begin
       {$ifdef FPC}
       //b.WriteString('');
-      //b.CopyFrom(Stream,Stream.Size);
+      b.CopyFrom(Stream,Stream.Size);
       {$else}
-      {$endif}
       b.LoadFromStream(Stream);
+      {$endif}
     end;
     result := b.DataString;
   finally
     FreeAndNil(b);
   end;
 end;
+
 
 
 procedure WriteDateTime(Stream: TStream; const Value: TDateTime);
