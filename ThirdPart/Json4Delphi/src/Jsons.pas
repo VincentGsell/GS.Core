@@ -202,7 +202,7 @@ type
     FList: TList;
     FAutoAdd: Boolean;
     function GetCount: Integer;
-    function GetItems(Index: Integer): TJsonPair;
+    function GetPairs(Index: Integer): TJsonPair;
     function GetValues(Name: String): TJsonValue;
   public
     constructor Create(AOwner: TJsonBase = nil);
@@ -237,7 +237,7 @@ type
 
   public
     property Count: Integer read GetCount;
-    property Items[Index: Integer]: TJsonPair read GetItems;
+    property Pairs[Index: Integer]: TJsonPair read GetPairs;
     property Values[Name: String]: TJsonValue read GetValues; default;
     property AutoAdd: Boolean read FAutoAdd write FAutoAdd;
 
@@ -1114,7 +1114,7 @@ begin
   Clear;
   if not(Source is TJsonObject) then RaiseAssignError(Source);
   Src := Source as TJsonObject;
-  for I := 0 to Src.Count - 1 do Add.Assign(Src.Items[I]);
+  for I := 0 to Src.Count - 1 do Add.Assign(Src.Pairs[I]);
 end;
 
 procedure TJsonObject.Clear;
@@ -1184,7 +1184,7 @@ begin
   Result := FList.Count;
 end;
 
-function TJsonObject.GetItems(Index: Integer): TJsonPair;
+function TJsonObject.GetPairs(Index: Integer): TJsonPair;
 begin
   Result := TJsonPair(FList[Index]);
 end;
@@ -1215,7 +1215,7 @@ procedure TJsonObject.Merge(Addition: TJsonObject);
 var
   I: Integer;
 begin
-  for I := 0 to Addition.Count - 1 do Add.Assign(Addition.Items[I]);
+  for I := 0 to Addition.Count - 1 do Add.Assign(Addition.Pairs[I]);
 end;
 
 procedure TJsonObject.Parse(JsonString: String);
@@ -1459,7 +1459,7 @@ begin
   RaiseIfNone;
   case FStructType of
     jsArray: Result := FJsonArray.Items[Index];
-    jsObject: Result := FJsonObject.Items[Index].Value;
+    jsObject: Result := FJsonObject.Pairs[Index].Value;
   end;
 end;
 

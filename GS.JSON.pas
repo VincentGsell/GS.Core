@@ -64,6 +64,8 @@ Type
 
     class Function Configuration : TGSJsonListOfProperty;
 
+    function Path(jsonPath : string) : TJsonValue;
+
     class Function Base64StringToBytes(Const aBase64String : String) : TBytes;
     class function BytesToBase64String(const aBytes : TBytes) : String;
   end;
@@ -117,6 +119,38 @@ class function TGSJson.ObjectToJson(aObject: TObject): String;
 begin
   Result := jsonsUtilsEx.__ObjectToJson(aObject);
 end;
+
+function TGSJson.Path(jsonPath: string): TJsonValue;
+var l : TstringList;
+    ll : TJsonObject;
+  I: Integer;
+begin
+  result := nil;
+  l := TStringList.Create;
+  try
+    l.Delimiter := '.';
+    l.DelimitedText := jsonPath;
+    if l.Count>1 then
+    begin
+      ll := get(l[0]).AsObject;
+      if l.Count=2 then
+      begin
+        result := ll.Values[l[1]];
+      end
+      else
+      begin
+        for i := 1 to l.Count-2 do
+          ll := ll.Values[l[i]].AsObject;
+        result := ll.Values[l[l.Count-1]];
+      end;
+    end
+    else
+      raise Exception.Create('Error Message');
+  finally
+    FreeAndNil(l);
+  end;
+end;
+
 {$ENDIF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
 
 class procedure TGSJson.Release;
