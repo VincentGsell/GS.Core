@@ -369,7 +369,12 @@ begin
   lt := TList_TThreadTask(Pool.Lock);
   try
     for i := 0 to lt.Count-1 do
+    begin
+      if lt[i].FEventTask is TStackTaskProc then
+        TStackTaskProc(lt[i].FEventTask).Terminate;
+
       lt[i].Terminate;
+    end;
   finally
     Pool.Unlock;
   end;

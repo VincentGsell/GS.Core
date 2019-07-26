@@ -110,8 +110,8 @@ function gsStepMonitoring(aMonIndex : UInt32) : Uint64;
 implementation
 
 
-var glbMon : Array of UInt64;
-    glbIndex : UInt32;
+var glbMon : Array of Int64;
+    glbIndex : integer;
     glbLock : {$IFDEF FPC}SyncObjs.{$ENDIF}TCriticalSection;
 
 function gsNewMonitoring : UInt32;

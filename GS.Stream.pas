@@ -32,7 +32,7 @@ function ReadInteger(Stream: TStream): Integer;
 function ReadInt32(Stream: TStream): Int32;
 function ReadInt64(Stream: TStream): Int64;
 function ReadUInt64(Stream: TStream): UInt64;
-function ReadUINT32(Stream: TStream): UInt32;
+function ReadUint32(Stream: TStream): UInt32;
 function ReadByte(Stream: TStream): Byte;
 function ReadBoolean(Stream: TStream): Boolean;
 function ReadDouble(Stream: TStream): Double;
@@ -220,7 +220,7 @@ begin
   Stream.Read(Result, SizeOf(UInt64));
 end;
 
-function ReadUINT32(Stream: TStream): UINT32;
+function ReadUint32(Stream: TStream): UINT32;
 begin
   Stream.Read(Result, SizeOf(UINT32));
 end;
