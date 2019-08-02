@@ -114,7 +114,7 @@ var b : TStringStream;
     l  : UInt32;
 begin
    l := 0;
-   b := TStringStream.Create(UTF8String(' ')); //Force UTF87 encoding.
+   b := TStringStream.Create(UTF8String(' ')); //Force UTF8 encoding.
   try
     if ByteLenPrefix then
     begin
@@ -268,14 +268,18 @@ procedure WriteString(Stream: TStream; Const Data: String; const Encoding : TGSS
 var b : TStringStream;
     l : UINT32;
 begin
-   b := TStringStream.Create(Data,GetEncoding(Encoding));
-  try
-    l := b.Size;
-    Stream.Write(l,SizeOf(UINT32));
-    Stream.CopyFrom(b,b.Size);
-  finally
-    FreeAndNil(b);
-  end;
+ {$ifdef FPC}
+ b := TStringStream.Create(UTF8String(Data)); //TODO lencoding , EncodingUTF8, GetEncoding(Encoding)));
+ {$else}
+ b := TStringStream.Create(Data,GetEncoding(Encoding));
+ {$endif}
+ try
+   l := b.Size;
+   Stream.Write(l,SizeOf(UINT32));
+   Stream.CopyFrom(b,b.Size);
+ finally
+   FreeAndNil(b);
+ end;
 end;
 
 function ReadString(Stream: TStream; const Encoding : TGSStringEncoding = TGSStringEncoding.UTF8Encoding): String;
@@ -287,7 +291,11 @@ begin
   Stream.read(i,sizeOf(UINT32));
   if i>0 then
   begin
+    {$ifdef FPC}
+    b := TStringStream.Create(UTF8String(' ')); //TODO lencoding , EncodingUTF8, GetEncoding(Encoding)));
+    {$else}
     b := TStringStream.Create(' ',GetEncoding(Encoding));
+    {$endif}
     try
       b.CopyFrom(Stream,i);
       Result := b.DataString;

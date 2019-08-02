@@ -4,6 +4,7 @@
  {$MINENUMSIZE 1}
  {$PACKSET 1}
  {$PACKENUM 1}
+ {$H+}
 {$CODEPAGE UTF8}
 {$MACRO ON}
  {$IFOPT D+} {$DEFINE DEBUG} {$ENDIF}
@@ -31,11 +32,13 @@
 {$typeinfo on}
 {$scopedenums on}
 
-//Third part cyphers lib.
-{$DEFINE LIB_CIPHERS_ENABLED}
+//Third part cyphers lib : Custom cypher system.
+{.$DEFINE LIB_CIPHERS_ENABLED}
 
 //Generic.
-// Disable for FPC : We use FPC Stable version (3.04) - And on above version (trunk) - Link error persists when we used .
+// Disable for FPC : We use FPC Stable version (3.04) - And on above version (3.3/trunk) - Link error persists when we used Generics heavely.
 // Disable for DELPHI too : We fellow FPC for instance to not have 2 codes version to manage.
 // TODO : Evaluate eventual Side effect : Is "No generic mode" more speed and/or less memory usage regarding to support and code facilities ?
 {.$DEFINE USE_GENERIC}
+
+

@@ -78,3 +78,5 @@ Binaries/Win32/Debug/PeriodicTableJSON.json..GSJsonDemoSaved.json
 
 *.identcache
 *.stat
+*.ppu
+*.bak

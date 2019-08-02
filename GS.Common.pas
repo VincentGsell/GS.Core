@@ -1,7 +1,6 @@
 /// Title      : GS.Common
 /// Short Desc : Common code, no dependancy.
 /// Source     : https://github.com/VincentGsell
-/// Aim        : - Group thread and List impl.
 ///
 /// History
 /// 20180101 - VGS - Create
@@ -27,6 +26,19 @@ Const
   CST_DATAREPONAME_PREFIX = 'Sys.';
   CST_DATAREPONAME_SUFFIX = '.DataRepo';
   CST_ARRAY_INIT_QTE = 10;
+  CST_DEFAULT_CYPH_KEY = 'efsdsadjpodjlkkassdsasrjhedfjhdbfsaiaweibw_WDcsew1212'+
+                         'aweeosdnhehfalhgwmduzt1  .v 9^32e1cacjfalcurnclyaucal'+
+                         '2384ehq b 8bz 2q*x"*c*&%t  has gf3qfauw xq33rt waza2q'+
+                         'sugc gf8f2qr lbc8 29KZGZRNCQ43ZN2CAN.   eniwuz45835n4'+
+                         'erraqaqi32zremmrkqncddqnkjdgfendshgflerkj<sjagfkudkzq'+
+                         'zgfesibfnlir197g9332290 s 329em*%Refcq*Rfysnfcaw.3oiv'+
+                         'lwsau4zreo nfli43emecue239brul.infawdhtnwufsu.nlfoiew'+
+                         'me9854z842924986ttrvsger257vskjgiu*%e*asdwdjlwqkjlkej';
+
+{$IFDEF FPC}
+const
+  INFINITE = Cardinal($FFFFFFFF);
+{$ENDIF}
 
 
 Type
@@ -167,7 +179,63 @@ Procedure StreamDecrypt(aStreamToDecrypt : TMemoryStream);
 procedure QuickSort(var aArray: TStringItemArray; Start, Stop: Integer);
 function BinSearch(aArray: TStringItemArray; aKey: UTF8String; Const Stop: Integer = -1): Integer;
 
+var GLB_OTP_FILE : String; //One-time pad key file (https://en.wikipedia.org/wiki/One-time_pad) -> Should be localized in a secured dir/file.
+
 implementation
+
+function sencrypt_XorCipher(const Key, Source: TBytes): TBytes;
+var
+  I: Integer;
+begin
+  if Length(Key) = 0 then
+    Exit(Source);
+  SetLength(Result, Length(Source));
+  for I := Low(Source) to High(Source) do
+    Result[I] := Key[I mod Length(Key)] xor Source[I];
+end;
+
+procedure BetterThanNothingEncryptDecrypt(aStreamToEncrypt : TMemoryStream);
+var b,c : TBytesStream;
+    Key,r : TBytes;
+
+    function GetOTPfile : TBytes;
+    begin
+      if FileExists(GLB_OTP_FILE) then
+      begin
+        c := TBytesStream.Create;
+        try
+          c.LoadFromFile(GLB_OTP_FILE);
+          key := c.Bytes;
+        finally
+          FreeAndNil(c);
+        end;
+      end
+      else
+      begin
+        Key:= BytesOf(CST_DEFAULT_CYPH_KEY); //-/
+      end;
+    end;
+begin
+  b := TBytesStream.Create;
+  try
+    b.LoadFromStream(aStreamToEncrypt);
+    key := GetOTPFile;
+    r := sencrypt_XorCipher(Key,b.Bytes);
+    b.Clear;
+    aStreamToEncrypt.Clear;
+    c := TBytesStream.Create(r);
+    try
+      b.LoadFromStream(c);
+    finally
+      FreeAndNil(c);
+    end;
+    b.Position := 0;
+    aStreamToEncrypt.LoadFromStream(b);
+  finally
+    FreeAndNil(b);
+  end;
+end;
+
 
 {$IFDEF LIB_CIPHERS_ENABLED}
 //uses ...; Here a nice ciphers lib.
@@ -178,6 +246,9 @@ Procedure StreamEncrypt(aStreamToEncrypt : TMemoryStream);
 {$ENDIF}
 begin
 {$IFDEF LIB_CIPHERS_ENABLED}
+  raise Exception.Create('To implement');
+{$ELSE}
+  BetterThanNothingEncryptDecrypt(aStreamToEncrypt);
 {$ENDIF}
 end;
 
@@ -186,6 +257,9 @@ Procedure StreamDecrypt(aStreamToDecrypt : TMemoryStream);
 {$ENDIF}
 begin
 {$IFDEF LIB_CIPHERS_ENABLED}
+  raise Exception.Create('To implement');
+{$ELSE}
+  BetterThanNothingEncryptDecrypt(aStreamToDecrypt);
 {$ENDIF}
 end;
 

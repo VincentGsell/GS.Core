@@ -108,7 +108,7 @@ begin
   base64 := TBase64.Create;
 end;
 
-{$IFDEF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
+{$IFDEF DCC} //Currently, this compile on FPC work only for trunk. But Trunk is broken on ARM. :(
 class Procedure TGSJson.JsonToObject(const aJSONString: String;
   var aObject: TObject);
 begin
@@ -119,6 +119,7 @@ class function TGSJson.ObjectToJson(aObject: TObject): String;
 begin
   Result := jsonsUtilsEx.__ObjectToJson(aObject);
 end;
+{$ENDIF DCC} //Currently, this compile on FPC work only for trunk. But Trunk is broken on ARM. :(
 
 function TGSJson.Path(jsonPath: string): TJsonValue;
 var l : TstringList;
@@ -151,7 +152,6 @@ begin
   end;
 end;
 
-{$ENDIF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
 
 class procedure TGSJson.Release;
 {$IFDEF USE_GENERIC}

@@ -151,7 +151,7 @@ begin
       end;
     end;
   end;
-  //In All oher case (wrEvent, erError) we exit : It used to finish th thread.
+  //In All oher case (wrEvent, erError) we exit : It used to finish thread.
 end;
 
 procedure TGSTimerThread.Execute;
