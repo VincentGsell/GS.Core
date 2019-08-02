@@ -36,9 +36,19 @@
 {.$DEFINE LIB_CIPHERS_ENABLED}
 
 //Generic.
-// Disable for FPC : We use FPC Stable version (3.04) - And on above version (3.3/trunk) - Link error persists when we used Generics heavely.
+// Disable for FPC : We use FPC "Stable" - And on above version (3.3/trunk) - Link error persists when we used Generics heavely.
 // Disable for DELPHI too : We fellow FPC for instance to not have 2 codes version to manage.
 // TODO : Evaluate eventual Side effect : Is "No generic mode" more speed and/or less memory usage regarding to support and code facilities ?
 {.$DEFINE USE_GENERIC}
 
+//Service support. Enable this service, it will be automaticaly start.
+{.$DEFINE WEBSOCKET_SUPPORT}
+{$DEFINE HYPERVISOR_SUPPORT}
+{$DEFINE UDP_SERVER_SUPPORT} //Discovery, udp support.
+
+{$IFDEF FPC}
+  {$IFDEF CPUARM}
+    {$UNDEFINE WEBSOCKET_SUPPORT} //on ARM, FPC Compilation is made, for quality reason, only with "stable" release. mORMot used 3.3+.
+  {$ENDIF}
+{$ENDIF}
 
