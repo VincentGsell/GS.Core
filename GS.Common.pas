@@ -205,7 +205,7 @@ var b,c : TBytesStream;
         c := TBytesStream.Create;
         try
           c.LoadFromFile(GLB_OTP_FILE);
-          key := c.Bytes;
+          result := c.Bytes;
         finally
           FreeAndNil(c);
         end;
@@ -660,7 +660,6 @@ end;
 
 function TObjectDictionary_StringStream.TryGetValue(aKey: String;
   var aResult: TStream): Boolean;
-var l : Int32;
 begin
   Result := Inherited TryGetValue(aKey,TObject(aResult));
 end;

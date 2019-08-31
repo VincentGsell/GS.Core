@@ -298,8 +298,6 @@ begin
 end;
 
 function TStackThreadPool.GetAllThreadAreIdling: Boolean;
-var i : integer;
-    lt : TList_TThreadTask;
 begin
   Result := ThreadIdling;
 end;
@@ -382,7 +380,6 @@ end;
 
 function TStackThreadPool.ThreadIdling: Boolean;
 var lt : TList_TThreadTask;
-    i : integer;
 begin
   FCurrentStackProtector.Acquire;
  try
@@ -629,7 +626,6 @@ end;
 procedure TStackDynamicThreadPool.check;
 var i : Integer;
     lt : TList_TThreadTask;
-    lNeedNewThread : Boolean;
 begin
   lt := TList_TThreadTask(Pool.Lock);
   try
@@ -695,7 +691,6 @@ end;
 
 function TStackDynamicThreadPool.GetPoolCapacity: Uint32;
 var lt : TList_TThreadTask;
-    i : integer;
 begin
   lt := TList_TThreadTask(Pool.Lock);
   try
