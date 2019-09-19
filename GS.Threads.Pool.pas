@@ -210,7 +210,7 @@ begin
     end;
     for I := 0 to lt.Count-1 do
     begin
-      if TVisibilityThread(lt[i]).Started then
+      if TVisibilityThread(TThread(lt[i])).Started then
         lt[i].Run; //Pulse
     end;
   finally
@@ -269,7 +269,7 @@ begin
   try
     for I := 0 to lt.Count-1 do
     begin
-      if TVisibilityThread(lt[i]).Started then
+      if TVisibilityThread(TThread(lt[i])).Started then
       begin
         lt[i].Terminate;
         lt[i].Run;
@@ -602,7 +602,7 @@ end;
 
 procedure TThreadTask.Run;
 begin
-  if Not(Terminated) and Not(TVisibilityThread(Self).Started) then
+  if Not(Terminated) and Not(TVisibilityThread(TThread(Self)).Started) then
     Start;
   if Not(Terminated) then
     FWorkNow.SetEvent;
