@@ -111,7 +111,7 @@ end;
 
 destructor TGSTimerThread.Destroy;
 begin
-  If Not(Suspended) then
+  if Not(Terminated) And Not(Suspended) then
   begin
     Terminate;
     FTrigger.SetEvent;

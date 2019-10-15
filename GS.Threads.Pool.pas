@@ -47,20 +47,8 @@ Type
   //...Overide this to make your task (this one is good for task "Without loop" inside...
   TStackTask = Class
   public
-    Procedure Execute; Virtual; abstract;
+    Procedure Execute(Worker : TThread); Virtual; abstract;
   end;
-
-  //...or if you plan to use tasks for long process (which have loop or which is long), use this one instead,
-  //and test Terminated value. (as you do as a thread).
-  TStackTaskProc = Class(TStackTask)
-  protected
-    Fterminated : boolean;
-  public
-    Constructor Create; Virtual;
-    procedure Terminate;
-    Property Terminated : Boolean read FTerminated;
-  end;
-
 
   TThreadTask = class; //real TThread descendant (Resident "reused" thread)
                        //This may not to be intended to changed, normaly.
@@ -120,7 +108,7 @@ Type
   ///  - Summon <PoolCapacity> number of thread, no more, no less.
   ///  - Once you have called "Warm", or once your first task submited, all ressource are up and ready.
   ///  - Once ressource up and ready, it is very efficient to take task and process (because threads are up and ready)
-  ///  - In delphi, it replace efficiently TTask, it is as efficient as TTask, but there are Metrics and ressource manageged.
+  ///  - In delphi, it can replace ITask, it is as efficient as ITask, with more Metrics.
   ///
   TStackThreadPool = class
   private
@@ -368,9 +356,6 @@ begin
   try
     for i := 0 to lt.Count-1 do
     begin
-      if lt[i].FEventTask is TStackTaskProc then
-        TStackTaskProc(lt[i].FEventTask).Terminate;
-
       lt[i].Terminate;
     end;
   finally
@@ -427,11 +412,6 @@ destructor TThreadTask.Destroy;
 begin
   if Assigned(FEventTask) then
   begin
-    if FEventTask is TStackTaskProc then
-    begin
-       TStackTaskProc(FEventTask).Terminate;
-    end;
-
     if FThreadPool.FreeTaskOnceProcessed  then
     begin
       FreeAndNil(FEventTask);
@@ -484,9 +464,7 @@ var FInternalTask : TStackTask;
       FTaskTick := FTiming.UserTime;
       FEventTask := FInternalTask;
       DoEventStart;
-      if Terminated then Exit;
-      FInternalTask.Execute;
-      if Terminated then Exit;
+      FInternalTask.Execute(Self);
       TThread.GetSystemTimes(FTiming);
       FTaskTick := FTiming.UserTime - FTaskTick;
       DoEventFinished;
@@ -606,19 +584,6 @@ begin
     Start;
   if Not(Terminated) then
     FWorkNow.SetEvent;
-end;
-
-{ TStackTaskProc }
-
-constructor TStackTaskProc.Create;
-begin
-  Inherited;
-  FTerminated := False;
-end;
-
-procedure TStackTaskProc.Terminate;
-begin
-  Fterminated := True;
 end;
 
 { TStackDynaminThreadPool }

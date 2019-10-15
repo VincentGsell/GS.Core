@@ -274,9 +274,9 @@ end;
 destructor TGSTimerSchedulerThread.Destroy;
 begin
   FEventLocker.Acquire;
+  inherited;
   FreeAndNil(FEventLocker);
   FreeAndNil(FEventList);
-  inherited;
 end;
 
 procedure TGSTimerSchedulerThread.DoTimerEvent;
