@@ -233,7 +233,7 @@ end;
 
 constructor TStackThreadPool.Create(const aInitialPoolCapacity: UInt32; const Warm : Boolean);
 begin
-  FSynchoEvent := TGSProtectedBoolean.Create(True);
+  FSynchoEvent := TGSProtectedBoolean.Create(False);
   FCurrentStackProtector := TCriticalSection.Create;
   FCurrentStack := TList_TStackTask.Create;
 
@@ -317,10 +317,13 @@ begin
   Result := True;
   for i := 0 to aList.Count-1 do
   begin
+//    result := ((aList[i].Status = TThreadTaskStatus.Idle) Or (aList[i].Terminated));
+//    if not result then
+//      Exit;
     If Not ((aList[i].Status = TThreadTaskStatus.Idle) Or (aList[i].Terminated)) then
     begin
       Result := False;
-      Break;
+      Exit;
     end;
   end;
 end;
@@ -366,16 +369,20 @@ end;
 function TStackThreadPool.ThreadIdling: Boolean;
 var lt : TList_TThreadTask;
 begin
+{
   FCurrentStackProtector.Acquire;
  try
     Result := FCurrentStack.Count = 0;
+    if result then
+      exit;
   finally
     FCurrentStackProtector.Release;
   end;
+}
 
   lt := TList_TThreadTask(Pool.Lock);
   try
-    result := Result And InternalThreadIdling(lt);
+    result := InternalThreadIdling(lt);
   finally
     Pool.Unlock;
   end;
@@ -439,7 +446,8 @@ var FInternalTask : TStackTask;
     end
     else
     begin
-      raise Exception.Create('to do : In this thread or in another one ? Bus ?');
+      if assigned(FThreadPool.OnTaskStart) then
+        InternalDoStackTaskEventStart;
     end;
   end;
 
@@ -452,7 +460,8 @@ var FInternalTask : TStackTask;
     end
     else
     begin
-      raise Exception.Create('to do : In this thread or in another one ? Bus ?');
+      if assigned(FThreadPool.OnTaskStart) then
+        InternalDoStackTaskEventFinished;
     end;
   end;
 
