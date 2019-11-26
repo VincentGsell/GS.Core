@@ -9,7 +9,7 @@
 /// 1) Create a TStackThreadPool instance. This instance should be resident. It'll wait for TStackTask object.
 /// 2) Implement your "task" on a inheritated TStackTask
 /// 3) Call YourThreadPool instance as is : YourThreaDPool.Submit(YourTask);
-/// 4) Following yourTaks option, YourTak will be delivered by an event.
+/// 4) Depending yourTask options, YourTask will be delivered by an event or not.
 unit GS.Threads.Pool;
 
 {$I GSCore.inc}
@@ -317,15 +317,15 @@ begin
   Result := True;
   for i := 0 to aList.Count-1 do
   begin
-//    result := ((aList[i].Status = TThreadTaskStatus.Idle) Or (aList[i].Terminated));
-//    if not result then
-//      Exit;
-    If Not ((aList[i].Status = TThreadTaskStatus.Idle) Or (aList[i].Terminated)) then
-    begin
-      Result := False;
+    result := result and ((aList[i].Status = TThreadTaskStatus.Idle) Or (aList[i].Terminated));
+    if not result then
       Exit;
-    end;
   end;
+
+  if Result then
+    result := result and (StackTaskCount=0);  //All thread are idling *AND* there are no work in queue.
+  //--> idle on pool level means, there are *no* work to do currently.
+  //--> If we split those 2 notions, it could become hard to use the lib, in practice -> We stuck those 2 notions to make it easier.
 end;
 
 function TStackThreadPool.LockStack: TList_TStackTask;
@@ -369,18 +369,8 @@ end;
 function TStackThreadPool.ThreadIdling: Boolean;
 var lt : TList_TThreadTask;
 begin
-{
-  FCurrentStackProtector.Acquire;
- try
-    Result := FCurrentStack.Count = 0;
-    if result then
-      exit;
-  finally
-    FCurrentStackProtector.Release;
-  end;
-}
-
-  lt := TList_TThreadTask(Pool.Lock);
+  result := false;
+  if pool.tryLock(lt) then
   try
     result := InternalThreadIdling(lt);
   finally
@@ -468,6 +458,7 @@ var FInternalTask : TStackTask;
   Procedure ExecuteTask;
   begin
     try
+    try
       FStatus.Value := Byte(TThreadTaskStatus.Processing);
       TThread.GetSystemTimes(FTiming);
       FTaskTick := FTiming.UserTime;
@@ -481,14 +472,15 @@ var FInternalTask : TStackTask;
     Except
       //Event Error
     end;
-
-    try
-      if FThreadPool.FreeTaskOnceProcessed  then
-      begin
-        FreeAndNil(FEventTask);
+    finally
+      try
+        if FThreadPool.FreeTaskOnceProcessed  then
+        begin
+          FreeAndNil(FEventTask);
+        end;
+      Except
+        //Event free error.
       end;
-    Except
-      //Event free error.
     end;
   end;
 
@@ -497,69 +489,68 @@ begin
   while Not Terminated do
   begin
     case FWorkNow.WaitFor(CST_THREAD_POOL_WAIT_DURATION) of
-    wrSignaled :
-    begin
-      if Terminated then Exit;
-      //Ask if a task is available to run
-      Repeat
-        FInternalTask := nil;
-        FThreadPool.FCurrentStackProtector.Acquire;
-        try
-          FCurrentStackCount := FThreadPool.FCurrentStack.Count;
-          if FCurrentStackCount>0 then
-          begin
-            FInternalTask := FThreadPool.FCurrentStack[0];
-            FThreadPool.FCurrentStack.Delete(0);
-            FIdleTime := 0;
-          end;
-        finally
-          FThreadPool.FCurrentStackProtector.Release;
-        end;
-        if Terminated then Exit;
-
-        if Assigned(FInternalTask) then
-        begin
-          ExecuteTask;
-        end;
-      Until FInternalTask = nil;
-      FStatus.Value := Byte(TThreadTaskStatus.Idle);
-    end;
-    wrTimeout :
-    begin
-      if Terminated then Exit;
-
-      if FThreadPool is TStackDynamicThreadPool then
+      wrSignaled :
       begin
-
-        FThreadPool.FCurrentStackProtector.Acquire;
-        try
-          FCurrentStackCount := FThreadPool.FCurrentStack.Count;
-        finally
-          FThreadPool.FCurrentStackProtector.Release;
-        end;
-
-        if FCurrentStackCount=0 then
-        begin
-          FThreadPool.clean;
-          FIdleTime := FIdleTime + CST_THREAD_POOL_WAIT_DURATION;
-          if FIdleTime > TStackDynamicThreadPool(FthreadPool).MaxThreadContiniousIdlingTime.Value then
-          begin
-            if  FThreadPool.PoolCapacity>1 then //I'm really not the last one ?
-              Terminate; //No : suicide. :/
-          end
-          else
-          begin
-            FWorkNow.SetEvent;  //Check stack again.
+        //Ask if a task is available to run
+        Repeat
+          if Terminated then Break;
+          FInternalTask := nil;
+          FThreadPool.FCurrentStackProtector.Acquire;
+          try
+            FCurrentStackCount := FThreadPool.FCurrentStack.Count;
+            if FCurrentStackCount>0 then
+            begin
+              FInternalTask := FThreadPool.FCurrentStack[0];
+              FThreadPool.FCurrentStack.Delete(0);
+              FIdleTime := 0;
+            end;
+          finally
+            FThreadPool.FCurrentStackProtector.Release;
           end;
 
-        end;
+          if Assigned(FInternalTask) then
+          begin
+            ExecuteTask;
+          end;
+        Until (FInternalTask = nil) or (Terminated);
+        FStatus.Value := Byte(TThreadTaskStatus.Idle);
       end;
+      wrTimeout :
+      begin
+        if Terminated then Break;
 
-    end;
-    wrAbandoned, wrError :
-    begin
-      if Terminated then Exit;
-    end;
+        if FThreadPool is TStackDynamicThreadPool then
+        begin
+
+          FThreadPool.FCurrentStackProtector.Acquire;
+          try
+            FCurrentStackCount := FThreadPool.FCurrentStack.Count;
+          finally
+            FThreadPool.FCurrentStackProtector.Release;
+          end;
+
+          if FCurrentStackCount=0 then
+          begin
+            FThreadPool.clean;
+            FIdleTime := FIdleTime + CST_THREAD_POOL_WAIT_DURATION;
+            if FIdleTime > TStackDynamicThreadPool(FthreadPool).MaxThreadContiniousIdlingTime.Value then
+            begin
+              if  FThreadPool.PoolCapacity>1 then //I'm really not the last one ?
+                Terminate; //No : suicide. :/
+            end
+            else
+            begin
+              FWorkNow.SetEvent;  //Check stack again.
+            end;
+
+          end;
+        end;
+
+      end;
+      wrAbandoned, wrError :
+      begin
+        Break;
+      end;
     end;
   end;
   FStatus.Value := Byte(TThreadTaskStatus.Terminating);

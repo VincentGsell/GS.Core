@@ -47,6 +47,7 @@ Type
     Constructor Create(aObject : TObject; const OwnedObject : Boolean = True); reintroduce;
     Destructor Destroy; Override;
     function Lock : TObject; Override;
+    function tryLock(obj : TObject) : boolean;
   end;
 
   TGSProtectedBoolean = Class(TGSProtectedItem)
@@ -209,6 +210,15 @@ function TGSProtectedObject.Lock: TObject;
 begin
   Inherited Lock;
   Result := FObject;
+end;
+
+function TGSProtectedObject.tryLock(obj: TObject): boolean;
+begin
+  result := FCriticalSection.TryEnter;
+  if result then
+  begin
+    obj := FObject;
+  end;
 end;
 
 { TGSProtectedByte }
