@@ -57,7 +57,6 @@ Type
   TThreadTaskStatus = (WaitForStart, Idle, Processing, Terminating);
   TThreadTask = Class(TThread)
   private
-    //for event (synchro or not)
     FEventTask : TStackTask;
     FTaskTick : UInt64;
     Procedure InternalDoStackTaskEventStart;
@@ -422,8 +421,7 @@ begin
 end;
 
 procedure TThreadTask.Execute;
-var FInternalTask : TStackTask;
-    FTiming : TThread.TSystemTimes;
+var FTiming : TThread.TSystemTimes;
     FIdleTime : Uint64;
     FCurrentStackCount : Uint32;
 
@@ -458,20 +456,19 @@ var FInternalTask : TStackTask;
   Procedure ExecuteTask;
   begin
     try
-    try
-      FStatus.Value := Byte(TThreadTaskStatus.Processing);
-      TThread.GetSystemTimes(FTiming);
-      FTaskTick := FTiming.UserTime;
-      FEventTask := FInternalTask;
-      DoEventStart;
-      FInternalTask.Execute(Self);
-      TThread.GetSystemTimes(FTiming);
-      FTaskTick := FTiming.UserTime - FTaskTick;
-      DoEventFinished;
-      if Terminated then Exit;
-    Except
-      //Event Error
-    end;
+      try
+        FStatus.Value := Byte(TThreadTaskStatus.Processing);
+        TThread.GetSystemTimes(FTiming);
+        FTaskTick := FTiming.UserTime;
+        DoEventStart;
+        FEventTask.Execute(Self);
+        TThread.GetSystemTimes(FTiming);
+        FTaskTick := FTiming.UserTime - FTaskTick;
+        DoEventFinished;
+        if Terminated then Exit;
+      Except
+        //Event Error
+      end;
     finally
       try
         if FThreadPool.FreeTaskOnceProcessed  then
@@ -494,13 +491,13 @@ begin
         //Ask if a task is available to run
         Repeat
           if Terminated then Break;
-          FInternalTask := nil;
+          FEventTask := nil;
           FThreadPool.FCurrentStackProtector.Acquire;
           try
             FCurrentStackCount := FThreadPool.FCurrentStack.Count;
             if FCurrentStackCount>0 then
             begin
-              FInternalTask := FThreadPool.FCurrentStack[0];
+              FEventTask := FThreadPool.FCurrentStack[0];
               FThreadPool.FCurrentStack.Delete(0);
               FIdleTime := 0;
             end;
@@ -508,11 +505,11 @@ begin
             FThreadPool.FCurrentStackProtector.Release;
           end;
 
-          if Assigned(FInternalTask) then
+          if Assigned(FEventTask) then
           begin
             ExecuteTask;
           end;
-        Until (FInternalTask = nil) or (Terminated);
+        Until (FEventTask = nil) or (Terminated);
         FStatus.Value := Byte(TThreadTaskStatus.Idle);
       end;
       wrTimeout :
@@ -575,7 +572,7 @@ end;
 
 procedure TThreadTask.InternalDoStackTaskEventStart;
 begin
-FThreadPool.OnTaskStart(FThreadIndex, FEventTask, 0);
+  FThreadPool.OnTaskStart(FThreadIndex, FEventTask, 0);
 end;
 
 procedure TThreadTask.Run;
