@@ -346,16 +346,20 @@ begin
 end;
 
 Procedure WriteStream(Stream : TStream; const SourceStream : TMemoryStream);
+var l : Uint32;
 begin
-  WriteInt64(Stream, SourceStream.Size-SourceStream.Position);
-  Stream.CopyFrom(SourceStream,SourceStream.Size-SourceStream.Position);
+  l := SourceStream.Size-SourceStream.Position;
+  WriteInt64(Stream, l);
+  if l>0 then
+    Stream.CopyFrom(SourceStream,SourceStream.Size-SourceStream.Position);
 end;
 
 Procedure ReadStream(Stream : TStream; var DestinationStream : TMemoryStream);
 var il : Int64;
 begin
   il := ReadInt64(Stream);
-  DestinationStream.CopyFrom(Stream,il);
+  if il>0 then
+    DestinationStream.CopyFrom(Stream,il);
 end;
 
 
