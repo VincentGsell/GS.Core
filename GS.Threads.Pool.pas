@@ -147,6 +147,8 @@ Type
     //Procedure GetPoolState : UnicodeString;
     Procedure Submit(aIStackTask : TStackTask); Virtual;
 
+    Procedure Await;
+
     Property OnTaskStart : TStackTaskEvent read FOnStackStart Write FOnStackStart;
     Property OnTaskFinished : TStackTaskEvent read FOnStackFinished Write FOnStackFinished;
 
@@ -178,6 +180,11 @@ Type
 implementation
 
 { TStackThreadPool }
+
+procedure TStackThreadPool.Await;
+begin
+  while not(ThreadIdling) do;
+end;
 
 procedure TStackThreadPool.Check;
 var i : Integer;
@@ -369,7 +376,7 @@ function TStackThreadPool.ThreadIdling: Boolean;
 var lt : TList_TThreadTask;
 begin
   result := false;
-  if pool.tryLock(lt) then
+  if pool.tryLock(TObject(lt)) then
   try
     result := InternalThreadIdling(lt);
   finally
