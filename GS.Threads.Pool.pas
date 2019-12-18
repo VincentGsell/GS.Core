@@ -42,16 +42,16 @@ Const
   CST_MAXTHREADCONTINIOUSIDLINGTIME = 1000; //In case of dynamic thread pool, if a thread is idling continously during this time, it will terminate.
 
 Type
+  TThreadTask = class; //real TThread descendant (Resident "reused" thread)
+                       //This may not to be intended to changed, normaly.
 
   //Make choice...
   //...Overide this to make your task (this one is good for task "Without loop" inside...
   TStackTask = Class
   public
-    Procedure Execute(Worker : TThread); Virtual; abstract;
+    Procedure Execute(Worker : TThreadTask); Virtual; abstract;
   end;
 
-  TThreadTask = class; //real TThread descendant (Resident "reused" thread)
-                       //This may not to be intended to changed, normaly.
   TStackThreadPool = class; //Pool object.
 
   TThreadTaskStatus = (WaitForStart, Idle, Processing, Terminating);
@@ -61,6 +61,9 @@ Type
     FTaskTick : UInt64;
     Procedure InternalDoStackTaskEventStart;
     Procedure InternalDoStackTaskEventFinished;
+    {$IFDEF FPC}
+    function GetStarted: boolean;
+    {$ENDIF}
   protected
     FStatus : TGSProtectedByte;
     FThreadIndex : UInt32;
@@ -73,6 +76,12 @@ Type
     Procedure Execute; Override;
     Procedure Run; Virtual;
     Property Status : TThreadTaskStatus read GetStatus;
+
+    property Terminated;
+    {$IFDEF FPC}
+    //redefine here, because FPC on arm seems to not like typecasting from TVisibility thread.
+    property Started : boolean read GetStarted;
+    {$ENDIF}
   End;
 
   {$IFDEF USE_GENERIC}
@@ -204,7 +213,7 @@ begin
     end;
     for I := 0 to lt.Count-1 do
     begin
-      if TVisibilityThread(TThread(lt[i])).Started then
+      if TThreadTask(lt[i]).Started then
         lt[i].Run; //Pulse
     end;
   finally
@@ -263,7 +272,7 @@ begin
   try
     for I := 0 to lt.Count-1 do
     begin
-      if TVisibilityThread(TThread(lt[i])).Started then
+      if TThreadTask(lt[i]).Started then
       begin
         lt[i].Terminate;
         lt[i].Run;
@@ -397,7 +406,7 @@ begin
   Inherited Create(true);
   Assert(Assigned(aThreadPool));
   FStatus := TGSProtectedByte.Create(Byte(TThreadTaskStatus.WaitForStart));
-  FreeOnTerminate := False;
+  FreeOnTerminate := False; //Important ! Called from outside.
   FThreadPool := aThreadPool;
   FWorkNow := TEvent.Create(nil,false,false,emptystr);
   lt := TList_TThreadTask(aThreadPool.Pool.Lock);
@@ -567,6 +576,14 @@ begin
   end;
 end;
 
+{$IFDEF FPC}
+function TThreadTask.GetStarted: boolean;
+begin
+  result := not(Suspended); //Not same behaviour than DCC, but work in our case.
+  //Normally, FStarted is set to true just before Execute.
+end;
+{$ENDIF}
+
 function TThreadTask.GetStatus: TThreadTaskStatus;
 begin
   result := TThreadTaskStatus(FStatus.Value);
@@ -584,7 +601,7 @@ end;
 
 procedure TThreadTask.Run;
 begin
-  if Not(Terminated) and Not(TVisibilityThread(TThread(Self)).Started) then
+  if Not(Terminated) and Not(Started) then
     Start;
   if Not(Terminated) then
     FWorkNow.SetEvent;

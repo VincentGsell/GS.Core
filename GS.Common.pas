@@ -42,28 +42,6 @@ const
 
 
 Type
-  //Terminated is usualy a protected property :
-  //It is normaly used to check is the current thread is not terminated or freed inside its own loop.
-  //In multithreaded intercourse ecosystem, and managed thread as GRID, where "service" thread is terminated "always"
-  //before Bus for example, it is a bit problematic to get a status of a caller thread.
-  //so, we used this trick to expose publicly this property : Note that, normaly, we should :
-  // - Define this in another var, but it will first be a mandatory to subclass thread object.
-  // - Protect this property, if this boolean data is not aligned. Todo : think and make this one better.
-
-  { TVisibilityThread }
-
-  TVisibilityThread = Class(TThread)
-  private
-    {$IFDEF FPC}
-    function GetStarted: Boolean;
-    {$ENDIF}
-  public
-    property terminated;
-    {$IFDEF FPC}
-    property Started : Boolean read GetStarted;
-    {$ENDIF}
-  end;
-
   TKeyValueStringItem = Packed Record
     Key : UTF8String;
     Value : TObject;
