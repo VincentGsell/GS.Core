@@ -1,3 +1,9 @@
+[![](https://tokei.rs/b1/github/VincentGsell/GS.Core?category=code)](https://github.com//VincentGsell/GS.Core)
+[![](https://tokei.rs/b1/github/VincentGsell/GS.Core?category=files)](https://github.com//VincentGsell/GS.Core)
+[![](https://tokei.rs/b1/github/VincentGsell/GS.Core?category=lines)](https://github.com//VincentGsell/GS.Core)
+[![](https://tokei.rs/b1/github/VincentGsell/GS.Core?category=blanks)](https://github.com//VincentGsell/GS.Core)
+[![](https://tokei.rs/b1/github/VincentGsell/GS.Core?category=comments)](https://github.com//VincentGsell/GS.Core)
+
 # GS.Core
   Core functions shared by several projects 
   
