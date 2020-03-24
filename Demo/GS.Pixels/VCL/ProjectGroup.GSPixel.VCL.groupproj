@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{1D34FC9F-D41B-411C-812E-D72323421E20}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Minimal\Minimal.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Raster\Raster.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Minimal">
+        <MSBuild Projects="Minimal\Minimal.dproj"/>
+    </Target>
+    <Target Name="Minimal:Clean">
+        <MSBuild Projects="Minimal\Minimal.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Minimal:Make">
+        <MSBuild Projects="Minimal\Minimal.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Raster">
+        <MSBuild Projects="Raster\Raster.dproj"/>
+    </Target>
+    <Target Name="Raster:Clean">
+        <MSBuild Projects="Raster\Raster.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Raster:Make">
+        <MSBuild Projects="Raster\Raster.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Minimal;Raster"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Minimal:Clean;Raster:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Minimal:Make;Raster:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

@@ -75,6 +75,9 @@ Binaries/
 Binaries/Win32/Debug/Test.data
 Binaries/Win32/Debug/TestHuge.data
 Binaries/Win32/Debug/PeriodicTableJSON.json..GSJsonDemoSaved.json
+R&D/
+ThirdPart/clipper_ver6.4.2
+ThirdPart/PXL
 
 *.identcache
 *.stat
