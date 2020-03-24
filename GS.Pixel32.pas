@@ -61,24 +61,6 @@ case cardinal of
 end;
 pTP32Rec = ^TP32Rec;
 
-//Gradiant processing.
-  tagRGBQUAD = record
-    rgbBlue: Byte;
-    rgbGreen: Byte;
-    rgbRed: Byte;
-    rgbReserved: Byte;
-  end;
-  TRGBQuad = tagRGBQUAD;
-  PRGBQuad = ^TRGBQuad;
-
-  PRGBQuadArray = ^TRGBQuadArray;
-  TRGBQuadArray = array[0..1024] of TRGBQuad;
-
-  TGradientColors = array[0..255] of TRGBQuad;
-
-  TGradientShift = -100..100;
-  TGradientRotation = -100..100;
-
 const
   gspColorNone : TP32 = $00000000;
   gspWhite : TP32 = $FFFFFFFF;
@@ -91,13 +73,16 @@ const
   gspNavy  : TP32 = $FF000080;
   clOlive : TP32 = $FF7F7F00;
   clYellow : TP32 = $FFFFFF00;
+
 Type
+TPixel32 = class;
 
 TPixel32CustomShader = class(TPixel32InterfacedObject, iPixShader)
 protected
   fsurface : iPixSurface;
-public
   procedure init(surface : iPixSurface);
+public
+  constructor create(surface : iPixSurface); virtual;
   procedure process; virtual; abstract;
 end;
 
@@ -116,6 +101,12 @@ public
   procedure setXYZ(x,y,z : Int32); virtual;
 end;
 
+//Starting from here, the rasterizer will be different.
+TCustomPixelChHeShader = class(TPixel32ColorShader)
+public
+  Texture : TPixel32;
+end;
+
 TPixel32 = Class(TPixel32InterfacedObject, iPixSurface)
 private
     function GetFillColor: TP32;
@@ -131,8 +122,8 @@ protected
   fDrawShader : TPixel32ColorShader;
   FCurrentDrawShader : TPixel32ColorShader;
 
-
   procedure InternalRasterize(const a, b, c: TP32Vertex);
+  procedure InternalRasterizeTex(const a, b, c: TP32Vertex);
 
 public
   constructor create(const width : uInt32 = 32; const Height : uInt32 = 32); virtual;
@@ -141,12 +132,8 @@ public
   procedure flipVertical;
 
   procedure copyTo(target : iPixSurface);
+  procedure AlphaLayerReset;
 
-
-  procedure RadialRect;
-  procedure RadialCentral;
-  procedure LinearHorizontal;
-  procedure UpdatePattern(colorBegin, colorend : TP32; shift : TGradientShift; rotation : TGradientRotation; out Colors: TGradientColors);
   function GetRValue(c : TP32) : byte;
   function GetBValue(c : TP32) : byte;
   function GetGValue(c : TP32) : byte;
@@ -179,7 +166,7 @@ function P32Vertex(const x : integer = 0; const y : integer = 0; const z : integ
 
 implementation
 
-Uses GS.Pixel32.TexMapChHe;
+Uses GS.Pixel32.TexMapBase, GS.Pixel32.TexMapChHe;
 
 function P32Vertex(const x : integer; const y : integer; const z : integer) : TP32Vertex;
 begin
@@ -190,13 +177,25 @@ end;
 
 { TPixel32 }
 
+procedure TPixel32.AlphaLayerReset;
+var i : integer;
+    b : pTP32;
+begin
+  b := getSurfacePtr;
+  for i := 0 to high(fsurface) do
+  begin
+    TP32Rec(b^).AlphaChannel := 255;
+    inc(b);
+  end;
+end;
+
 procedure TPixel32.clear;
 var
   i: Integer;
 begin
   fFillShader.Bits := getSurfacePtr;
   for i := 0 to high(fsurface) do
-      fFillShader.process;
+    fFillShader.process;
 end;
 
 procedure TPixel32.copyTo(target: iPixSurface);
@@ -209,10 +208,9 @@ end;
 constructor TPixel32.create(const width, Height: uInt32);
 begin
   inherited create;
-  fFillShader := TPixel32BasicColorShader.Create;
-  fDrawShader := TPixel32ColorShader.Create;
-  fFillShader.init(Self);
-  fDrawShader.init(Self);
+
+  fFillShader := TPixel32BasicColorShader.Create(self);
+  fDrawShader := TPixel32ColorShader.Create(self);
   FCurrentDrawShader := fDrawShader;
 
   color_fill := gspWhite;
@@ -229,343 +227,34 @@ begin
   FreeAndNil(fDrawShader);
 end;
 
-  function TPixel32.GetRValue(c : TP32) : byte;
-  begin
-    result := TP32Rec(c).Red;
-  end;
-  function TPixel32.GetBValue(c : TP32) : byte;
-  begin
-    result := TP32Rec(c).Blue;
-  end;
-  function TPixel32.GetGValue(c : TP32) : byte;
-  begin
-    result := TP32Rec(c).Green;
-  end;
-
-procedure TPixel32.UpdatePattern(colorBegin, colorend : TP32; shift : TGradientShift; rotation : TGradientRotation; out Colors: TGradientColors);
-var
-  dRed, dGreen, dBlue: Integer;
-  RGBColor1, RGBColor2: TP32;
-  RGB1, RGB2: TRGBQuad;
-  Index, rIndex: Integer;
-  M, rM: Integer;
-
-
-  function mul_div(a,b,c : integer) : integer;
-  begin
-    result := round(a*b/c);
-  end;
+function TPixel32.GetRValue(c : TP32) : byte;
 begin
-//  if Reverse then
-//  begin
-//    RGBColor1 := ColorToRGB(ColorEnd);
-//    RGBColor2 := ColorToRGB(ColorBegin);
-//  end
-//  else
-  begin
-    RGBColor1 := ColorBegin;
-    RGBColor2 := ColorEnd;
-  end;
-
-  RGB1.rgbRed := GetRValue(RGBColor1);
-  RGB1.rgbGreen := GetGValue(RGBColor1);
-  RGB1.rgbBlue := GetBValue(RGBColor1);
-  RGB1.rgbReserved := 0;
-
-  RGB2.rgbRed := GetRValue(RGBColor2);
-  RGB2.rgbGreen := GetGValue(RGBColor2);
-  RGB2.rgbBlue := GetBValue(RGBColor2);
-  RGB2.rgbReserved := 0;
-
-//  if Shift > 0 then
-//  begin
-//    RGB1.rgbRed := Byte(RGB1.rgbRed + mul_div(RGB2.rgbRed - RGB1.rgbRed, Shift, 100));
-//    RGB1.rgbGreen := Byte(RGB1.rgbGreen + mul_div(RGB2.rgbGreen - RGB1.rgbGreen, Shift, 100));
-//    RGB1.rgbBlue := Byte(RGB1.rgbBlue + mul_div(RGB2.rgbBlue - RGB1.rgbBlue, Shift, 100));
-//  end
-//  else if Shift < 0 then
-  begin
-    RGB2.rgbRed := Byte(RGB2.rgbRed + mul_div(RGB2.rgbRed - RGB1.rgbRed, Shift, 100));
-    RGB2.rgbGreen := Byte(RGB2.rgbGreen + mul_div(RGB2.rgbGreen - RGB1.rgbGreen, Shift, 100));
-    RGB2.rgbBlue := Byte(RGB2.rgbBlue + mul_div(RGB2.rgbBlue - RGB1.rgbBlue, Shift, 100));
-  end;
-
-  dRed := RGB2.rgbRed - RGB1.rgbRed;
-  dGreen := RGB2.rgbGreen - RGB1.rgbGreen;
-  dBlue := RGB2.rgbBlue - RGB1.rgbBlue;
-
-  M := mul_div(255, Rotation, 100);
-  if M = 0 then
-    for Index := 0 to 255 do
-      with Colors[Index] do
-      begin
-        rgbRed := RGB1.rgbRed + (Index * dRed) div 255;
-        rgbGreen := RGB1.rgbGreen + (Index * dGreen) div 255;
-        rgbBlue := RGB1.rgbBlue + (Index * dBlue) div 255;
-      end
-  else if M > 0 then
-  begin
-    M := 255 - M;
-    for Index := 0 to M - 1 do
-      with Colors[Index] do
-      begin
-        rgbRed := RGB1.rgbRed + (Index * dRed) div M;
-        rgbGreen := RGB1.rgbGreen + (Index * dGreen) div M;
-        rgbBlue := RGB1.rgbBlue + (Index * dBlue) div M;
-      end;
-    for Index := M to 255 do
-      with Colors[Index] do
-      begin
-        rIndex := 255 - Index;
-        rM := 255 - M;
-        rgbRed := RGB1.rgbRed + ((rIndex) * dRed) div (rM);
-        rgbGreen := RGB1.rgbGreen + ((rIndex) * dGreen) div (rM);
-        rgbBlue := RGB1.rgbBlue + ((rIndex) * dBlue) div (rM);
-      end;
-  end
-  else if M < 0 then
-  begin
-    M := -M;
-    for Index := 0 to M do
-      with Colors[Index] do
-      begin
-        rgbRed := RGB2.rgbRed - (Index * dRed) div M;
-        rgbGreen := RGB2.rgbGreen - (Index * dGreen) div M;
-        rgbBlue := RGB2.rgbBlue - (Index * dBlue) div M;
-      end;
-    for Index := M + 1 to 255 do
-      with Colors[Index] do
-      begin
-        rIndex := 255 - Index;
-        rM := 255 - M;
-        rgbRed := RGB2.rgbRed - ((rIndex) * dRed) div (rM);
-        rgbGreen := RGB2.rgbGreen - ((rIndex) * dGreen) div (rM);
-        rgbBlue := RGB2.rgbBlue - ((rIndex) * dBlue) div (rM);
-      end;
-  end;
+  result := TP32Rec(c).Red;
 end;
 
-procedure TPixel32.RadialRect;
-var
-  X, Y: Integer;
-  pRGB: PRGBQuad;
-  Row1, Row2: PRGBQuadArray;
-  Colors: TGradientColors;
+function TPixel32.GetBValue(c : TP32) : byte;
 begin
-  UpdatePattern(gspGreen,gspBlue,Random(100)-100,100,Colors);
-  for Y := 0 to 255 do
-  begin
-
-    // Top & Bottom
-    Row1 := PRGBQuadArray(getSurfaceScanLinePtr(Y));
-    Row2 := PRGBQuadArray(getSurfaceScanLinePtr(511-Y));
-
-    pRGB := @Colors[y];
-    for x:=Y to 511-y do
-    begin
-      Row1[X] := pRGB^;
-      Row2[X] := pRGB^;
-    end;
-
-    for x:=0 to y do
-    begin
-      pRGB := @Colors[x];
-
-      Row1[X] := pRGB^;     // Left
-      Row2[X] := pRGB^;
-
-      Row1[511-X] := pRGB^; // Right
-      Row2[511-X] := pRGB^;
-     end
-  end;
-
+  result := TP32Rec(c).Blue;
 end;
 
-procedure TPixel32.RadialCentral;
-var
-  X, Y, rX: Integer;
-  pRGB: PRGBQuad;
-  Row1, Row2: PRGBQuadArray;
-  PreCalcXs: array[0..180] of Integer;
-  Colors: TGradientColors;
+function TPixel32.GetGValue(c : TP32) : byte;
 begin
-  UpdatePattern(gspGreen,gspBlue,Random(100)-100,100,Colors);
-//  Pattern.Width := 362;
-//  Pattern.Height := 362;
-
-  rX := 0;
-  for X := 180 downto 0 do
-  begin
-    PreCalcXs[rX] := X * X;
-    Inc(rX);
-  end;
-
-  for Y := 180 downto 0 do
-  begin
-    Row1 := PRGBQuadArray(getSurfaceScanLinePtr(Y));
-    Row2 := PRGBQuadArray(getSurfaceScanLinePtr(361-Y));
-    for X := 180 downto 0 do
-    begin
-      rX := 361 - X;
-      pRGB := @Colors[Round(Sqrt(PreCalcXs[X] + PreCalcXs[Y]))];
-      Row1[X] := pRGB^;
-      Row1[rX] := pRGB^;
-      Row2[X] := pRGB^;
-      Row2[rX] := pRGB^;
-    end;
-  end;
+  result := TP32Rec(c).Green;
 end;
 
-procedure TPixel32.LinearHorizontal;
-var
-  X,Y: Integer;
-  Row: PRGBQuadArray;
-  Colors: TGradientColors;
-begin
-  UpdatePattern(gspGreen,gspBlue,Random(100)-100,100,Colors);
-//  Pattern.Width := 256;
-//  Pattern.Height := 1;
-  for Y := 0 to 255 do
-  begin
-    Row := PRGBQuadArray(getSurfaceScanLinePtr(Y));
-
-    for X := 0 to 255 do
-      Row[X] := Colors[X];
-  end;
-end;
 
 procedure TPixel32.InternalRasterize(const a, b, c: TP32Vertex);
-{             1
-    0....:....0....:
-         a                Lines (x1,x2)
-         #                 ( 5,  5)
-        #.#                ( 4,  6)
-       #...#               ( 3,  7)
-      #.....#              ( 2,  8)
-     #.......#             ( 1,  9)
-  c ###.......#            ( 0, 10)
-       ###.....#           ( 3, 11)
-          ###...#          ( 6, 12)
-             ###.#         ( 9, 13)
-                ###        (12, 14)
-                    b
-}
-type
-  TFlatLine = record
-    x1, x2: Integer;
-    z1, z2: Integer;
-  end;
-var
-  Top, Bottom, Count: Integer;
-  Lines: array of TFlatLine;
-  Index: Integer;
-
-  procedure delta(v: Integer; var delta, incr: Integer);
-  begin
-    if v < 0 then
-    begin
-      delta := -v;
-      incr := -1;
-    end else begin
-      delta := v;
-      incr := +1;
-    end;
-  end;
-
-  procedure error(var ex, dx, x, ix: Integer; ee: Integer);
-  begin
-    if ex > ee then
-    begin
-      dec(ex, ee);
-      inc(x, ix);
-    end;
-    inc(ex, dx);
-  end;
-
-  procedure Scan(const a, b: TP32Vertex);
-  var
-    dx, dy, dz: Integer;
-    ix, iy, iz: Integer;
-    ex, ey, ez: Integer;
-    x,  y,  z : Integer;
-    ee, ii : Integer;
-  begin
-    delta(Trunc(b.x) - Trunc(a.x), dx, ix);
-    delta(Trunc(b.y) - Trunc(a.y), dy, iy);
-    delta(Trunc(b.z) - Trunc(a.z), dz, iz);
-    ex := dx;
-    ey := dy;
-    ez := dz;
-    ee := Max(ex, Max(ey, ez));
-    x := Trunc(a.x);
-    y := Trunc(a.y) - Top;
-    z := Trunc(a.z);
-    for ii := 0 to ee do
-    begin
-      if x < Lines[y].x1 then
-      begin
-        Lines[y].x1 := x;
-        Lines[y].z1 := z;
-      end;
-      if x > Lines[y].x2 then
-      begin
-        Lines[y].x2 := x;
-        Lines[y].z2 := z;
-      end;
-      error(ex, dx, x, ix, ee);
-      error(ey, dy, y, iy, ee);
-      error(ez, dz, z, iz, ee);
-    end;
-  end;
-
-  procedure drawLine(y: Integer; Line: TFlatLine);
-  var
-    dx, dz: Integer;
-    ix, iz: Integer;
-    ex, ez: Integer;
-    x,  z: Integer;
-    ee, ii : Integer;
-  begin
-    if y<0 then
-      Exit;
-    if y>(fheight-1) then
-      exit;
-
-    delta(Line.x2 - Line.x1, dx, ix);
-    if ix * dx < 0 then
-      Exit;
-    delta(Line.z2 - Line.z1, dz, iz);
-    ex := dx;
-    ez := dz;
-    ee := Max(ex, ez);
-    x := Line.x1;
-    z := Line.z1;
-    for ii := 0 to ee + 1 do
-    begin
-      if (x>-1) and (x<fwidth) then
-        pixel(x, y, z);
-      error(ex, dx, x, ix, ee);
-      error(dz, dz, z, iz, ee);
-    end;
-  end;
-
 begin
-  Top := Trunc(Min(a.y, Min(b.y, c.y)));
-  Bottom := Trunc(Max(a.y, Max(b.y, c.y)));
-  Count := Bottom - Top + 1;
-  SetLength(Lines, Count);
-  for Index := 0 to Count - 1 do
-  begin
-    Lines[Index].x1 := MaxInt;
-    Lines[Index].x2 := 1 - MaxInt;
-  end;
-  Scan(a, b);
-  Scan(b, c);
-  Scan(c, a);
-  for Index := 0 to Count - 1 do
-  begin
-    drawLine(Index + Top, Lines[Index]);
-  end;
+  triangleRasterize(self,a,b,c);
+end;
+
+procedure TPixel32.InternalRasterizeTex(const a, b, c: TP32Vertex);
+var aa,bb,cc : TVector3;
+begin
+  aa := Vector3(a.x,a.y,a.z);
+  bb := Vector3(b.x,b.y,b.z);
+  cc := Vector3(c.x,c.y,c.z);
+  TexMap(Self,TCustomPixelChHeShader(FCurrentDrawShader).Texture,aa,bb,cc,Point2(0,0),Point2(1,0),Point2(1,1));
 end;
 
 procedure TPixel32.flipVertical;
@@ -700,7 +389,11 @@ begin
   a := P32Vertex(x,y,0);
   b := P32Vertex(x1,y1,0);
   c := P32Vertex(x2,y2,0);
-  InternalRasterize(a,b,c);
+
+  if FCurrentDrawShader is TCustomPixelChHeShader then
+    InternalRasterizeTex(a,b,c)
+  else
+    InternalRasterize(a,b,c);
 end;
 
 procedure TPixel32.ResetDrawShader;
@@ -747,6 +440,12 @@ begin
 end;
 
 { TPixel32CustomShader }
+
+constructor TPixel32CustomShader.create(surface: iPixSurface);
+begin
+  inherited create;
+  init(surface);
+end;
 
 procedure TPixel32CustomShader.init(surface: iPixSurface);
 begin

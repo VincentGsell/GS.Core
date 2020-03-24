@@ -240,7 +240,9 @@ begin
   begin
    for Counter:= 0 to 2 do
     begin
-     OneOverZ:= 1.0 / pVertices[Counter].z;
+     OneOverZ:= 1.0;
+     if pVertices[Counter].z <> 0 then
+       OneOverZ:= 1.0 / pVertices[Counter].z;
      aOneOverZ[Counter]:= OneOverZ;
      aUOverZ[Counter]  := pVertices[Counter].u * OneOverZ;
      aVOverZ[Counter]  := pVertices[Counter].v * OneOverZ;
@@ -574,7 +576,7 @@ begin
 
       if (UInt<Texture.Width) And (VInt<Texture.Height) then
       begin
-        //PCardinal(pDestBits)^:= PCardinal(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
+//        PCardinal(pDestBits)^:= PCardinal(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
         sourceT := pTP32Rec(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
 
         pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
@@ -742,21 +744,6 @@ begin
  TextureMapTriangle(Dest, @Pts, Texture);
 
  end;
-
-
-
-///
-///
-///
-///
-///
-///
-///
-///
-///
-///
-///
-///
 
 
 //---------------------------------------------------------------------------

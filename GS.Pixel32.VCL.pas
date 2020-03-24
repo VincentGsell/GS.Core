@@ -27,7 +27,7 @@ unit GS.Pixel32.VCL;
 
 interface
 
-Uses SysUtils, Classes, Types, Windows, GS.Pixel32;
+Uses SysUtils, Classes, Types, Windows, Graphics, GS.Pixel32;
 
 Type
 
@@ -35,6 +35,8 @@ TPixel32WinHelper = class helper for TPixel32
 public
   procedure CopyToDc(dstDc: HDC; x: Integer = 0; y: Integer = 0;
     transparent: Boolean = true; bkColor: TP32 = 0);
+
+  procedure CopyFromDC(srcDc: HDC; const srcRect: TRect);
 end;
 
 var
@@ -155,6 +157,38 @@ begin
   finally
     FreeAndNil(tmp);
   end;
+end;
+
+procedure TPixel32WinHelper.CopyFromDC(srcDc: HDC; const srcRect: TRect);
+var
+  bi: TBitmapInfoHeader;
+  bm, oldBm: HBitmap;
+  memDc: HDC;
+  pixels: Pointer;
+  w,h: integer;
+begin
+  w := RectWidth(srcRect);
+  h := RectHeight(srcRect);
+  resize(w, h);
+  bi := Get32bitBitmapInfoHeader(w, h);
+  memDc := GetCompatibleMemDc;
+  try
+    bm := CreateDIBSection(memDc,
+      PBITMAPINFO(@bi)^, DIB_RGB_COLORS, pixels, 0, 0);
+    if bm = 0 then Exit;
+    try
+      oldBm := SelectObject(memDc, bm);
+      BitBlt(memDc, 0, 0, w, h, srcDc, srcRect.Left,srcRect.Top, SRCCOPY);
+      Move(pixels^, getSurfacePtr^, w * h * sizeOf(TP32));
+      SelectObject(memDc, oldBm);
+    finally
+      DeleteObject(bm);
+    end;
+  finally
+    DeleteDc(memDc);
+  end;
+  AlphaLayerReset;
+  FlipVertical;
 end;
 
 end.

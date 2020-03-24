@@ -11,22 +11,12 @@ TP32UVMap = record
   v : Single;
 end;
 
-TPixel32GouraudShader = class(TPixel32ColorShader)
-protected
-  fva,fvb,fvc : TP32Vertex;
-  fca,fcb,fcc : TP32;
-public
-  procedure setVertexAndColor(VertexA,VertexB,VertexC : TP32Vertex; ca,cb,cc : TP32);
-  procedure process; override;
-end;
-
-
-TPixel32SquaredMotif = class(TPixel32ColorShader)
+TPixel32ShaderSquaredMotif = class(TPixel32ColorShader)
 protected
   ff, fm : TP32;
   fl : Integer;
 public
-  Constructor create; virtual;
+  constructor create(surface : iPixSurface); reintroduce;
   procedure SetDataColor(_colorFill, _ColorMotif : TP32; const SquareLen : Integer = 5);
   procedure process; override;
 end;
@@ -34,43 +24,15 @@ end;
 
 implementation
 
-{ TPixel32GouraudShader }
+{ TPixel32ShaderSquaredMotif }
 
-procedure TPixel32GouraudShader.process;
-var colorcoef1,colorcoef2,colorcoef3 : single;
-    c : TP32;
+constructor TPixel32ShaderSquaredMotif.create(surface : iPixSurface);
 begin
-  colorcoef1 := (abs(fx - fva.x)/fva.x);
-  colorcoef2 := abs(fx - fvb.x)/fvb.x;
-  colorcoef3 := abs(fx - fvc.x)/fvc.x;
-
-  c := Trunc((fca * colorcoef1) + (fcb * colorcoef2) + (fcc * colorcoef3)) div 3;
-
-  Color := c;
-
-  inherited;
-end;
-
-procedure TPixel32GouraudShader.setVertexAndColor(VertexA, VertexB,
-  VertexC: TP32Vertex; ca, cb, cc: TP32);
-begin
-  fva := VertexA;
-  fvb := VertexB;
-  fvc := VertexC;
-  fca := ca;
-  fcb := cb;
-  fcc := cc;
-end;
-
-{ TPixel32SquaredMotif }
-
-constructor TPixel32SquaredMotif.create;
-begin
-  inherited;
+  inherited create(surface);
   fl := 5;
 end;
 
-procedure TPixel32SquaredMotif.process;
+procedure TPixel32ShaderSquaredMotif.process;
 begin
   Color := ff;
   if fx mod fl = 1 then
@@ -82,7 +44,7 @@ begin
   inherited;
 end;
 
-procedure TPixel32SquaredMotif.SetDataColor(_colorFill, _ColorMotif: TP32;
+procedure TPixel32ShaderSquaredMotif.SetDataColor(_colorFill, _ColorMotif: TP32;
   const SquareLen: Integer);
 begin
   ff := _colorFill;

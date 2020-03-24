@@ -4,11 +4,12 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,  Vcl.StdCtrls,
   GS.Geometry.Direction,
   GS.Pixel32,
   GS.Pixel32.PixelShader,
-  GS.Pixel32.VCL, Vcl.StdCtrls;
+  GS.Pixel32.Effect.Generator.Gradient,
+  GS.Pixel32.VCL;
 
 type
   TStar = record
@@ -43,14 +44,15 @@ type
     mouse : TP32Vertex;
     mouseLeft : boolean;
 
-    gouraud : TPixel32GouraudShader;
-    scotish : TPixel32SquaredMotif;
+    scotish : TPixel32ShaderSquaredMotif;
 
+    textureShaderTest : TCustomPixelChHeShader;
+
+    gradientTexture : TPixel32;
 
     //Use low level raster.
     function buildQuad(len,cx,cy,angleInDegree : Integer) : TQuadVertices;
     procedure drawQuad(const vertices : TQuadVertices; color : TP32);
-    procedure drawQuadGouraud(const vertices : TQuadVertices; col : TQuadColors);
     procedure drawQuads;
   end;
 
@@ -105,26 +107,6 @@ begin
   pixel.lineTo( vertices[0].x, vertices[0].y);
 end;
 
-procedure TForm2.drawQuadGouraud(const vertices: TQuadVertices;col : TQuadColors);
-begin
-  //Draw 2 triangles for the quad.
-  pixel.setDrawShader(gouraud);
-  gouraud.setVertexAndColor(vertices[0],vertices[1],vertices[2],col[0],col[1],col[2]);
-  pixel.rasterize( vertices[0].x, vertices[0].y, vertices[1].x, vertices[1].y, vertices[2].x, vertices[2].y);
-  gouraud.setVertexAndColor(vertices[2],vertices[3],vertices[0],col[2],col[3],col[0]);
-  pixel.rasterize( vertices[2].x, vertices[2].y, vertices[3].x, vertices[3].y, vertices[0].x, vertices[0].y);
-
-  pixel.moveTo( vertices[0].x, vertices[0].y);
-
-  //Draw border.
-  pixel.color_pen := gspBlack;
-  pixel.lineTo( vertices[1].x, vertices[1].y);
-  pixel.lineTo( vertices[2].x, vertices[2].y);
-  pixel.lineTo( vertices[3].x, vertices[3].y);
-  pixel.lineTo( vertices[0].x, vertices[0].y);
-
-end;
-
 procedure TForm2.drawQuads;
 var i : integer;
     vv : TQuadVertices;
@@ -138,20 +120,39 @@ end;
 
 procedure TForm2.FormCreate(Sender: TObject);
 var i : integer;
+    grad : TPixel32GeneratorGradient;
 begin
   pixel :=  TPixel32.create;
   mouseLeft := false;
 
-  gouraud := TPixel32GouraudShader.Create;
-  gouraud.init(pixel);
-  scotish := TPixel32SquaredMotif.Create;
-  scotish.init(pixel);
+  scotish := TPixel32ShaderSquaredMotif.Create(pixel);
+
+  //Generate a picture, for a texture.
+
+  gradientTexture := TPixel32.create;
+  grad := TPixel32GeneratorGradient.Create;
+  try
+    grad.init(gradientTexture);
+    grad.ColorA := gspWhite;
+    grad.ColorB := gspRed;
+    grad.ShiftGradient := -50;
+    grad.RorateGradient := 0;
+    grad.process;
+  finally
+    FreeAndNil(grad);
+  end;
+
+  textureShaderTest := TCustomPixelChHeShader.Create(pixel);
+  textureShaderTest.Texture := gradientTexture;
 
 end;
 
 procedure TForm2.FormDestroy(Sender: TObject);
 begin
-  freeAndnil(pixel);
+  FreeAndnil(pixel);
+  FreeAndNil(scotish);
+  FreeAndNil(gradientTexture);
+  FreeAndNil(textureShaderTest);
 end;
 
 procedure TForm2.FormMouseDown(Sender: TObject; Button: TMouseButton;
@@ -170,7 +171,6 @@ end;
 procedure TForm2.FormPaint(Sender: TObject);
 var i : integer;
     vv : TQuadVertices;
-    QCol : TQuadColors;
 
 begin
   pixel.clear;
@@ -189,8 +189,7 @@ begin
   if mouseLeft then
   begin
     vv := buildQuad(200,mouse.x,mouse.y,mouse.x);
-    scotish.SetDataColor(gspBlue,gspWhite,5);
-    pixel.setDrawShader(scotish);
+    pixel.setDrawShader(textureShaderTest);
     drawQuad(vv,gspOrange);
     pixel.ResetDrawShader; //back to standart colo drawer.
   end;
@@ -205,25 +204,16 @@ begin
   drawQuad(vv,gspOrange);
   vv := buildQuad(100,120,200,mouse.y+40);
   drawQuad(vv,gspAqua);
-  vv := buildQuad(100,120,220,mouse.y+50);
-  QCol[0] := gspWhite;
-  QCol[1] := gspBlack;
-  QCol[2] := gspRed;
-  QCol[3] := gspGreen;
-  drawQuadGouraud(vv,QCol);
 
   scotish.SetDataColor(gspBlue,gspWhite,5);
   pixel.setDrawShader(scotish);
+  vv := buildQuad(100,120,220,mouse.y+50);
+  drawQuad(vv,gspWhite);
 
   pixel.color_pen := gspBlue;
   pixel.moveTo(width div 2, height div 2);
   pixel.lineTo(mouse.x,mouse.y);
   pixel.ResetDrawShader; //back to standart colo drawer.
-
-
-  pixel.RadialRect;
-  pixel.RadialCentral;
-  pixel.LinearHorizontal;
 
 
   //VCL specific.

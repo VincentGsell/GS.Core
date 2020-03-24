@@ -102,6 +102,10 @@
             <Form>Form2</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="..\..\..\..\GS.Pixel32.Effect.Generator.pas"/>
+        <DCCReference Include="..\..\..\..\GS.Pixel32.Effect.Generator.Gradient.pas"/>
+        <DCCReference Include="..\..\..\..\GS.Pixel32.TexMapChHe.pas"/>
+        <DCCReference Include="..\..\..\..\GS.Pixel32.TexMapBase.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

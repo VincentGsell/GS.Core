@@ -35,6 +35,7 @@ Type
 iPixSurface = interface;
 iPixShader = interface;
 iPixService = interface;
+iPixSurfaceEffect = interface;
 
 //Using graphics stuff, friend class, fine memory tuning needed :
 //Desactivate attached memory management.
@@ -49,7 +50,7 @@ iPixShader = interface
   procedure process;
 end;
 
-iSurfaceEffect = interface
+iPixSurfaceEffect = interface
   procedure init(surface : iPixSurface);
   procedure process;
 end;
@@ -79,6 +80,18 @@ iPixService = interface
   function uri : string;
   procedure Ask(param : TStream);
   procedure Answer(content : TStream; success : boolean; report : TStream);
+end;
+
+
+///
+///
+///
+///  F R O N T  E N D
+///
+///
+
+TPixel = class
+//  procedure ActiveBackend(backName : string);
 end;
 
 implementation
