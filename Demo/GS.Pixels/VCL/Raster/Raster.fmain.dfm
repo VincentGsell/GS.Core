@@ -19,10 +19,10 @@ object Form2: TForm2
   OnResize = FormResize
   PixelsPerInch = 96
   TextHeight = 13
-  object TimerRepaint: TTimer
+  object TimerUpdate: TTimer
     Interval = 1
-    OnTimer = TimerRepaintTimer
-    Left = 432
-    Top = 256
+    OnTimer = TimerUpdateTimer
+    Left = 32
+    Top = 16
   end
 end

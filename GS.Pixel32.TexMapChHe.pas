@@ -21,7 +21,7 @@ unit GS.Pixel32.TexMapChHe;
 //                  - Rename for units coherence.
 //---------------------------------------------------------------------------
 interface
-
+{$define TextureWrapping}
 //---------------------------------------------------------------------------
 uses
  GS.Pixel32, sysutils;
@@ -40,14 +40,14 @@ uses
 //---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
-//{$ifdef TextureWrapping}
-//const
+{$ifdef TextureWrapping}
+var
  // ykot:
  // The following values should be equal to (Width - 1, Height - 1) for
  // wrapping to work.
-// WrapUAnd = $1FF;
-// WrapVAnd = $1FF;
-//{$endif}
+ WrapUAnd : integer; // = $1FF;
+ WrapVAnd : integer; // = $1FF;
+{$endif}
 
 //---------------------------------------------------------------------------
 // The following directive enables perspective correction when clipping
@@ -90,7 +90,7 @@ function Point2(x, y: Single): TPoint2;
 //---------------------------------------------------------------------------
 // Notice: the vertices should be specified in anti-clockwise order.
 //---------------------------------------------------------------------------
-procedure TexMap(Dest, Texture: TPixel32; const v0, v1, v2: TVector3;
+procedure TexMap(Dest : TPixel32; Shader : TPixel32CustomShader; const v0, v1, v2: TVector3;
  const uv0, uv1, uv2: TPoint2);
 
 procedure TexMapAffine(Dest, Texture: TPixel32;
@@ -442,9 +442,97 @@ end;
 //---------------------------------------------------------------------------
 // DrawScanLine
 //---------------------------------------------------------------------------
+
+procedure DrawScanLine(Dest: TPixel32;
+ const Gradients: TGradients; var pLeft, pRight: TEdge; shader : TPixel32CustomShader);
+const
+ AffineLength = 8;
+var
+ XStart, Width: Integer;
+ pDestBits   : Pointer;
+ OneOverZLeft: Single;
+ dOneOverZdXAff, dUOverZdXAff, dVOverZdXAff: Single;
+ OneOverZRight, UOverZRight, VOverZRight: Single;
+ Subdivisions, WidthModLength: Integer;
+ Counter : Integer;
+ sourceT : TP32Rec;
+
+ x,y : integer;
+ procedure MemToCoord(m : Pointer);
+ var p : Pointer;
+     offset : nativeInt;
+     poff : nativeInt;
+ begin
+   x := 0;
+   y := 0;
+
+   p := Dest.getSurfacePtr;
+   offset := nativeInt(m) - nativeInt(p);
+   poff := offset div 4;
+
+   y := poff div (Dest.width);
+   x := poff - (y * Dest.width);
+ end;
+
+begin
+  XStart:= pLeft.X;
+  Width := pRight.X - XStart;
+
+  if (Width <= 1) then
+    Exit;
+
+  pDestBits:= Dest.getSurfacePtr;
+  Inc(Integer(pDestBits), pLeft.Y * Dest.Width*4 + XStart * 4);
+  OneOverZLeft:= pLeft.OneOverZ;
+
+  dOneOverZdXAff:= Gradients.dOneOverZdX * AffineLength;
+  dUOverZdXAff  := Gradients.dUOverZdX * AffineLength;
+  dVOverZdXAff  := Gradients.dVOverZdX * AffineLength;
+
+  OneOverZRight:= OneOverZLeft + dOneOverZdXAff;
+
+  Subdivisions  := Width div AffineLength;
+  WidthModLength:= Width mod AffineLength;
+
+  if (WidthModLength = 0) then
+  begin
+   Dec(Subdivisions);
+   WidthModLength:= AffineLength;
+  end;
+
+  while (Subdivisions > 0) do
+  begin
+    for Counter:= 0 to AffineLength - 1 do
+    begin
+      MemToCoord(pDestBits);
+      if (x>-1) and (x<Dest.width) and (y>-1) and (y<Dest.height) and (y = pleft.Y) then
+        Dest.pixel(x,y);
+      Inc(Integer(pDestBits), 4);
+    end;
+
+    OneOverZRight:= OneOverZRight + dOneOverZdXAff;
+    UOverZRight  := UOverZRight + dUOverZdXAff;
+    VOverZRight  := VOverZRight + dVOverZdXAff;
+
+    Dec(Subdivisions);
+  end;
+
+  if (WidthModLength <> 0) then
+  begin
+    Dec(WidthModLength);
+    for Counter:= 0 to WidthModLength do
+    begin
+      MemToCoord(pDestBits);
+      if (x>0) and (x<Dest.width) and (y>0) and (y<Dest.height) and (y = pleft.Y) then
+        Dest.pixel(x,y);
+      Inc(Integer(pDestBits), 4);
+    end;
+  end;
+end;
+
+
 procedure DrawScanLine_suba(Dest: TPixel32;
- const Gradients: TGradients; var pLeft, pRight: TEdge;
- Texture: TPixel32);
+ const Gradients: TGradients; var pLeft, pRight: TEdge; Shader : TCustomPixelChHeShader);
 const
  AffineLength = 8;
 var
@@ -462,7 +550,28 @@ var
  Subdivisions, WidthModLength: Integer;
  Counter, UInt, VInt: Integer;
  sourceT : TP32Rec;
+
+ x,y : integer;
+ procedure MemToCoord(m : Pointer);
+ var p : Pointer;
+     offset : nativeInt;
+     poff : nativeInt;
+ begin
+   x := 0;
+   y := 0;
+
+   p := Dest.getSurfacePtr;
+   offset := nativeInt(m) - nativeInt(p);
+   poff := offset div 4;
+
+   y := poff div (Dest.width);
+   x := poff - (y * Dest.width);
+ end;
+
 begin
+  Assert(assigned(shader));
+  Assert(assigned(TCustomPixelChHeShader(shader).Texture));
+
   XStart:= pLeft.X;
   Width := pRight.X - XStart;
 
@@ -471,13 +580,12 @@ begin
 
   //pDestBits:= Dest.Bits;
   pDestBits:= Dest.getSurfacePtr;
-  //pTextureBits:= Texture.Bits;
-  pTextureBits:= Texture.getSurfacePtr;
-
-  //Inc(Integer(pDestBits), pLeft.Y * Dest.Pitch + XStart * 4);
   Inc(Integer(pDestBits), pLeft.Y * Dest.Width*4 + XStart * 4);
+  //Inc(Integer(pDestBits), pLeft.Y * Dest.Pitch + XStart * 4);
+  pTextureBits:= TCustomPixelChHeShader(Shader).Texture.getSurfacePtr;
   //TextureDeltaScan:=Texture.Pitch;
-  TextureDeltaScan:= Texture.Width*4;
+  TextureDeltaScan:= TCustomPixelChHeShader(Shader).Texture.Width*4;
+
 
   OneOverZLeft:= pLeft.OneOverZ;
   UOverZLeft  := pLeft.UOverZ;
@@ -520,14 +628,19 @@ begin
       UInt:= U shr 16;
       VInt:= V shr 16;
 
-      if (UInt<Texture.Width) And (VInt<Texture.Height) then
+      if (UInt<TCustomPixelChHeShader(Shader).Texture.Width) And (VInt<TCustomPixelChHeShader(Shader).Texture.Height) then
       begin
-       //PCardinal(pDestBits)^:= PCardinal(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
-       sourceT := pTP32Rec(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
+//       PCardinal(pDestBits)^:= PCardinal(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
+        MemToCoord(pDestBits);
+        if (x>-1) and (x<Dest.width) and (y>-1) and (y<Dest.height) and (y = pleft.Y) then
+        begin
+          sourceT := pTP32Rec(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
 
-       pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
-       pTP32Rec(pDestBits).Blue:=(sourceT.AlphaChannel * (sourceT.Blue - pTP32Rec(pDestBits).Blue) shr 8) + (pTP32Rec(pDestBits).Blue);
-       pTP32Rec(pDestBits).Green:=(sourceT.AlphaChannel * (sourceT.Green - pTP32Rec(pDestBits).Green) shr 8) + (pTP32Rec(pDestBits).Green);
+          pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
+          pTP32Rec(pDestBits).Blue:=(sourceT.AlphaChannel * (sourceT.Blue - pTP32Rec(pDestBits).Blue) shr 8) + (pTP32Rec(pDestBits).Blue);
+          pTP32Rec(pDestBits).Green:=(sourceT.AlphaChannel * (sourceT.Green - pTP32Rec(pDestBits).Green) shr 8) + (pTP32Rec(pDestBits).Green);
+
+        end;
       end;
 
       Inc(Integer(pDestBits), 4);
@@ -574,14 +687,20 @@ begin
       UInt:= U shr 16;
       VInt:= V shr 16;
 
-      if (UInt<Texture.Width) And (VInt<Texture.Height) then
+      if (UInt<TCustomPixelChHeShader(Shader).Texture.Width) And (VInt<TCustomPixelChHeShader(Shader).Texture.Height) then
       begin
-//        PCardinal(pDestBits)^:= PCardinal(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
-        sourceT := pTP32Rec(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
 
-        pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
-        pTP32Rec(pDestBits).Blue:=(sourceT.AlphaChannel * (sourceT.Blue - pTP32Rec(pDestBits).Blue) shr 8) + (pTP32Rec(pDestBits).Blue);
-        pTP32Rec(pDestBits).Green:=(sourceT.AlphaChannel * (sourceT.Green - pTP32Rec(pDestBits).Green) shr 8) + (pTP32Rec(pDestBits).Green);
+        MemToCoord(pDestBits);
+        if (x>0) and (x<Dest.width) and (y>0) and (y<Dest.height) and (y = pleft.Y) then
+        begin
+//        PCardinal(pDestBits)^:= PCardinal(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
+          sourceT := pTP32Rec(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
+
+          pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
+          pTP32Rec(pDestBits).Blue:=(sourceT.AlphaChannel * (sourceT.Blue - pTP32Rec(pDestBits).Blue) shr 8) + (pTP32Rec(pDestBits).Blue);
+          pTP32Rec(pDestBits).Green:=(sourceT.AlphaChannel * (sourceT.Green - pTP32Rec(pDestBits).Green) shr 8) + (pTP32Rec(pDestBits).Green);
+        end;
+
       end;
 
       Inc(Integer(pDestBits), 4);
@@ -593,8 +712,7 @@ begin
 end;
 
 //---------------------------------------------------------------------------
-procedure TextureMapTriangle(Dest: TPixel32; pVertices: PPoint3DArray;
- Texture: TPixel32);
+procedure TextureMapTriangle(Dest: TPixel32; pVertices: PPoint3DArray; Shader : TPixel32CustomShader);
 var
  Top, Middle, Bottom, MiddleForCompare, BottomForCompare, Height: Integer;
  y0, y1, y2: TFixed28_4;
@@ -680,14 +798,30 @@ begin
   end;
 
  Height:= TopToMiddle.Height;
- while (Height <> 0) do
+
+  if Assigned(shader) and (shader is TCustomPixelChHeShader) then
   begin
-   DrawScanLine_suba(Dest, Gradients, pLeft^, pRight^, Texture);
+    While (Height <> 0) do
+    begin
+      DrawScanLine_suba(Dest, Gradients, pLeft^, pRight^, TCustomPixelChHeShader(Shader));
 
-   EdgeStep(TopToMiddle);
-   EdgeStep(TopToBottom);
+      EdgeStep(TopToMiddle);
+      EdgeStep(TopToBottom);
 
-   Dec(Height);
+      Dec(Height);
+    end;
+  end
+  else
+  begin
+    While (Height <> 0) do
+    begin
+      DrawScanLine(Dest, Gradients, pLeft^, pRight^, Shader);
+
+      EdgeStep(TopToMiddle);
+      EdgeStep(TopToBottom);
+
+      Dec(Height);
+    end;
   end;
 
  Height:= MiddleToBottom.Height;
@@ -702,15 +836,31 @@ begin
    pRight:= @MiddleToBottom;
   end;
 
- while (Height <> 0) do
+  if Assigned(shader) and (shader is TCustomPixelChHeShader) then
   begin
-   DrawScanLine_suba(Dest, Gradients, pLeft^, pRight^, Texture);
+    While (Height <> 0) do
+    begin
+      DrawScanLine_suba(Dest, Gradients, pLeft^, pRight^, TCustomPixelChHeShader(Shader));
 
-   EdgeStep(MiddleToBottom);
-   EdgeStep(TopToBottom);
+      EdgeStep(MiddleToBottom);
+      EdgeStep(TopToBottom);
 
-   Dec(Height);
+      Dec(Height);
+    end;
+  end
+  else
+  begin
+    While (Height <> 0) do
+    begin
+      DrawScanLine(Dest, Gradients, pLeft^, pRight^, Shader);
+
+      EdgeStep(MiddleToBottom);
+      EdgeStep(TopToBottom);
+
+      Dec(Height);
+    end;
   end;
+
 end;
 
 //---------------------------------------------------------------------------
@@ -718,32 +868,41 @@ end;
 // the conversion from floats to fixed point and converting texture
 // coordinates from [0..1] to [0..Size].
 //---------------------------------------------------------------------------
-procedure TexMap(Dest, Texture: TPixel32; const v0, v1, v2: TVector3;
+procedure TexMap(Dest: TPixel32; Shader : TPixel32CustomShader; const v0, v1, v2: TVector3;
  const uv0, uv1, uv2: TPoint2);
 var
  Pts: TPoint3DArray;
+ tlw, tlh : integer;
 begin
- Pts[2].x:= FloatToFixed28_4(v0.x);
- Pts[2].y:= FloatToFixed28_4(v0.y);
- Pts[2].z:= v0.z;
- Pts[2].u:= uv0.x * Texture.Width;
- Pts[2].v:= uv0.y * Texture.Height;
+  assert(assigned(Dest));
+  tlw := 1;
+  tlh := 1;
+  if (assigned(Shader)) And (Shader is TCustomPixelChHeShader) then
+  begin
+    tlw := TCustomPixelChHeShader(Shader).Texture.width;
+    tlh := TCustomPixelChHeShader(Shader).Texture.height;
+  end;
 
- Pts[1].x:= FloatToFixed28_4(v1.x);
- Pts[1].y:= FloatToFixed28_4(v1.y);
- Pts[1].z:= v1.z;
- Pts[1].u:= uv1.x * Texture.Width;
- Pts[1].v:= uv1.y * Texture.Height;
+  Pts[2].x:= FloatToFixed28_4(v0.x);
+  Pts[2].y:= FloatToFixed28_4(v0.y);
+  Pts[2].z:= v0.z;
+  Pts[2].u:= uv0.x * tlw;
+  Pts[2].v:= uv0.y * tlh;
 
- Pts[0].x:= FloatToFixed28_4(v2.x);
- Pts[0].y:= FloatToFixed28_4(v2.y);
- Pts[0].z:= v2.z;
- Pts[0].u:= uv2.x * Texture.Width;
- Pts[0].v:= uv2.y * Texture.Height;
+  Pts[1].x:= FloatToFixed28_4(v1.x);
+  Pts[1].y:= FloatToFixed28_4(v1.y);
+  Pts[1].z:= v1.z;
+  Pts[1].u:= uv1.x * tlw;
+  Pts[1].v:= uv1.y * tlh;
 
- TextureMapTriangle(Dest, @Pts, Texture);
+  Pts[0].x:= FloatToFixed28_4(v2.x);
+  Pts[0].y:= FloatToFixed28_4(v2.y);
+  Pts[0].z:= v2.z;
+  Pts[0].u:= uv2.x * tlw;
+  Pts[0].v:= uv2.y * tlh;
 
- end;
+  TextureMapTriangle(Dest, @Pts, Shader);
+end;
 
 
 //---------------------------------------------------------------------------
@@ -1107,8 +1266,8 @@ begin
    Item0:= @ClipArray[Base];
    Item1:= @ClipArray[Base + 1 + i];
    Item2:= @ClipArray[Base + 2 + i];
-   TexMap(Dest, Texture, Item2.Position, Item1.Position,
-    Item0.Position, Item2.TexCoord, Item1.TexCoord, Item0.TexCoord);
+//   TexMap(Dest, Texture, Item2.Position, Item1.Position,
+//7    Item0.Position, Item2.TexCoord, Item1.TexCoord, Item0.TexCoord);
   end;
 end;
 
@@ -1171,10 +1330,10 @@ begin
    Item2:= @ClipArray[Base + 2 + i];
    Item3:= @ClipArray[Base + 3 + i];
 
-   TexMap(Dest, Texture, Item2.Position, Item1.Position,
-    Item0.Position, Item2.TexCoord, Item1.TexCoord, Item0.TexCoord);
-   TexMap(Dest, Texture, Item0.Position, Item3.Position,
-    Item2.Position, Item0.TexCoord, Item3.TexCoord, Item2.TexCoord);
+//   TexMap(Dest, Texture, Item2.Position, Item1.Position,
+//    Item0.Position, Item2.TexCoord, Item1.TexCoord, Item0.TexCoord);
+//   TexMap(Dest, Texture, Item0.Position, Item3.Position,
+//    Item2.Position, Item0.TexCoord, Item3.TexCoord, Item2.TexCoord);
   end;
 end;
 

@@ -74,7 +74,7 @@ implementation
 
 procedure TPixel32GeneratorGradient.UpdatePattern(colorBegin, colorend : TP32; shift : TGradientShift; rotation : TGradientRotation; out Colors: TGradientColors);
 var
-  dRed, dGreen, dBlue: Integer;
+  dRed, dGreen, dBlue, dReserved: Integer;
   RGBColor1, RGBColor2: TP32;
   RGB1, RGB2: TRGBQuad;
   Index, rIndex: Integer;
@@ -86,43 +86,47 @@ var
     result := round(a*b/c);
   end;
 begin
-//  if Reverse then
-//  begin
-//    RGBColor1 := ColorToRGB(ColorEnd);
-//    RGBColor2 := ColorToRGB(ColorBegin);
-//  end
-//  else
+  RGBColor1 := ColorBegin;
+  RGBColor2 := ColorEnd;
+
+  RGB1.rgbRed := fsurface.ColorGetRValue(RGBColor1);
+  RGB1.rgbGreen := fsurface.ColorGetGValue(RGBColor1);
+  RGB1.rgbBlue := fsurface.ColorGetBValue(RGBColor1);
+  RGB1.rgbReserved := fsurface.ColorGetAValue(RGBColor1);
+
+  RGB2.rgbRed := fsurface.ColorGetRValue(RGBColor2);
+  RGB2.rgbGreen := fsurface.ColorGetGValue(RGBColor2);
+  RGB2.rgbBlue := fsurface.ColorGetBValue(RGBColor2);
+  RGB2.rgbReserved := fsurface.ColorGetAValue(RGBColor2);
+
+  if Shift > 0 then
   begin
-    RGBColor1 := ColorBegin;
-    RGBColor2 := ColorEnd;
-  end;
-
-  RGB1.rgbRed := fsurface.GetRValue(RGBColor1);
-  RGB1.rgbGreen := fsurface.GetGValue(RGBColor1);
-  RGB1.rgbBlue := fsurface.GetBValue(RGBColor1);
-  RGB1.rgbReserved := 0;
-
-  RGB2.rgbRed := fsurface.GetRValue(RGBColor2);
-  RGB2.rgbGreen := fsurface.GetGValue(RGBColor2);
-  RGB2.rgbBlue := fsurface.GetBValue(RGBColor2);
-  RGB2.rgbReserved := 0;
-
-//  if Shift > 0 then
-//  begin
-//    RGB1.rgbRed := Byte(RGB1.rgbRed + mul_div(RGB2.rgbRed - RGB1.rgbRed, Shift, 100));
-//    RGB1.rgbGreen := Byte(RGB1.rgbGreen + mul_div(RGB2.rgbGreen - RGB1.rgbGreen, Shift, 100));
-//    RGB1.rgbBlue := Byte(RGB1.rgbBlue + mul_div(RGB2.rgbBlue - RGB1.rgbBlue, Shift, 100));
-//  end
-//  else if Shift < 0 then
+    RGB1.rgbRed := Byte(RGB1.rgbRed + mul_div(RGB2.rgbRed - RGB1.rgbRed, Shift, 100));
+    RGB1.rgbGreen := Byte(RGB1.rgbGreen + mul_div(RGB2.rgbGreen - RGB1.rgbGreen, Shift, 100));
+    RGB1.rgbBlue := Byte(RGB1.rgbBlue + mul_div(RGB2.rgbBlue - RGB1.rgbBlue, Shift, 100));
+    RGB1.rgbReserved := Byte(RGB1.rgbReserved + mul_div(RGB2.rgbReserved - RGB1.rgbReserved, Shift, 100));
+  end
+  else if Shift < 0 then
   begin
     RGB2.rgbRed := Byte(RGB2.rgbRed + mul_div(RGB2.rgbRed - RGB1.rgbRed, Shift, 100));
     RGB2.rgbGreen := Byte(RGB2.rgbGreen + mul_div(RGB2.rgbGreen - RGB1.rgbGreen, Shift, 100));
     RGB2.rgbBlue := Byte(RGB2.rgbBlue + mul_div(RGB2.rgbBlue - RGB1.rgbBlue, Shift, 100));
+    RGB2.rgbReserved := Byte(RGB2.rgbReserved + mul_div(RGB2.rgbReserved - RGB1.rgbReserved, Shift, 100));
   end;
 
   dRed := RGB2.rgbRed - RGB1.rgbRed;
   dGreen := RGB2.rgbGreen - RGB1.rgbGreen;
   dBlue := RGB2.rgbBlue - RGB1.rgbBlue;
+  dReserved := RGB2.rgbReserved - RGB1.rgbReserved;
+
+  for Index := 0 to high(Colors) do
+    with Colors[Index] do
+    begin
+      rgbRed := 0;
+      rgbGreen := 0;
+      rgbBlue := 0;
+      rgbReserved := 0;
+    end;
 
   M := mul_div(255, Rotation, 100);
   if M = 0 then
@@ -132,6 +136,7 @@ begin
         rgbRed := RGB1.rgbRed + (Index * dRed) div 255;
         rgbGreen := RGB1.rgbGreen + (Index * dGreen) div 255;
         rgbBlue := RGB1.rgbBlue + (Index * dBlue) div 255;
+        rgbReserved := RGB1.rgbReserved + (Index * dReserved) div 255;
       end
   else if M > 0 then
   begin
@@ -142,6 +147,7 @@ begin
         rgbRed := RGB1.rgbRed + (Index * dRed) div M;
         rgbGreen := RGB1.rgbGreen + (Index * dGreen) div M;
         rgbBlue := RGB1.rgbBlue + (Index * dBlue) div M;
+        rgbReserved := RGB1.rgbReserved + (Index * dReserved) div M;
       end;
     for Index := M to 255 do
       with Colors[Index] do
@@ -151,6 +157,7 @@ begin
         rgbRed := RGB1.rgbRed + ((rIndex) * dRed) div (rM);
         rgbGreen := RGB1.rgbGreen + ((rIndex) * dGreen) div (rM);
         rgbBlue := RGB1.rgbBlue + ((rIndex) * dBlue) div (rM);
+        rgbReserved := RGB1.rgbReserved + ((rIndex) * dReserved) div (rM);
       end;
   end
   else if M < 0 then
@@ -162,6 +169,7 @@ begin
         rgbRed := RGB2.rgbRed - (Index * dRed) div M;
         rgbGreen := RGB2.rgbGreen - (Index * dGreen) div M;
         rgbBlue := RGB2.rgbBlue - (Index * dBlue) div M;
+        rgbReserved := RGB2.rgbReserved - (Index * dReserved) div M;
       end;
     for Index := M + 1 to 255 do
       with Colors[Index] do
@@ -171,6 +179,7 @@ begin
         rgbRed := RGB2.rgbRed - ((rIndex) * dRed) div (rM);
         rgbGreen := RGB2.rgbGreen - ((rIndex) * dGreen) div (rM);
         rgbBlue := RGB2.rgbBlue - ((rIndex) * dBlue) div (rM);
+        rgbReserved := RGB2.rgbReserved - ((rIndex) * dReserved) div (rM);
       end;
   end;
 end;
@@ -182,8 +191,8 @@ var
   Row1, Row2: PRGBQuadArray;
   Colors: TGradientColors;
 begin
+  UpdatePattern(ColorA,ColorB,ShiftGradient,RorateGradient,Colors);
   fsurface.resize(512,512);
-  UpdatePattern(gspGreen,gspBlue,Random(100)-100,100,Colors);
   for Y := 0 to 255 do
   begin
 
@@ -209,7 +218,6 @@ begin
       Row2[511-X] := pRGB^;
      end
   end;
-
 end;
 
 procedure TPixel32GeneratorGradient.RadialCentral;
@@ -258,7 +266,6 @@ begin
   check;
   UpdatePattern(ColorA,ColorB,ShiftGradient,RorateGradient,Colors);
   RadialRect;
-  fsurface.AlphaLayerReset;
 end;
 
 procedure TPixel32GeneratorGradient.LinearHorizontal;
