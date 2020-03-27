@@ -6,6 +6,9 @@
 
 # GS.Core
   Core functions shared by several projects 
+
+- GS.Pixel
+  Raster graphics system. Design to be simple, and build upon simple "software shader" technics.
   
 - GS.JSON
   Another JSON lib. this one permit JsonToObject and ObjectToJson
