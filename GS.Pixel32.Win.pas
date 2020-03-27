@@ -12,20 +12,21 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -----------------------------------------------------------------------------
- Unit Name : GS.Pixe32.VCL
+ Unit Name : GS.Pixe32.Win
  Author    : Vincent Gsell (vincent dot gsell at gmail dot com)
- Purpose   : Pixel32's VCL Bridge.
+ Purpose   : Pixel32's Windows DC Bridge.
  Date:     : 2020031
  History   :
  20200301 - Creating unit.
 
 Description :
-  Friend class helper to handle VCL's DC access
+  Friend class helper to handle Windows's DC access.
+  Use it under Delphi VCL (FormPain event) or Lazarus LCL (WMBackground's Message.DC - See demo)
 -----------------------------------------------------------------------------}
-
-unit GS.Pixel32.VCL;
-
 {$I GSCore.Inc}
+
+unit GS.Pixel32.Win;
+
 
 interface
 

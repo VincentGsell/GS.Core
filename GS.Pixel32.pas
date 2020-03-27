@@ -11,7 +11,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-{-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
  Unit Name : GS.Pixel32
  Author    : Vincent Gsell (vincent dot gsell at gmail dot com)
  Purpose   : basic Pxel class.
@@ -33,9 +33,11 @@ For common, fast usage.
 For learning purpose : Didactic "how it is working under the wood."
 This class will work, as is, in most common scenario. 32Bits ARGB only.
 -----------------------------------------------------------------------------}
-
+{$I GSCore.Inc}
 
 unit GS.Pixel32;
+
+
 
 interface
 
@@ -272,11 +274,9 @@ begin
 
 
   if FCurrentDrawShader is TCustomPixelChHeShader then
-  begin
-    TexMap2(Self,nil,cci,bbi,aai,Point2i(0,0),Point2i(511,0),Point2i(511,511))
-  end
+    triangleRasterizeTexMap(Self,TCustomPixelChHeShader(FCurrentDrawShader),cci,bbi,aai,Point2i(0,0),Point2i(511,0),Point2i(511,511))
   else
-    TexMap(Self,FCurrentDrawShader,aa,bb,cc,Point2(0,0),Point2(1,0),Point2(1,1));
+    triangleRasterizeFlat(Self,FCurrentDrawShader,cci,bbi,aai)
 end;
 
 procedure TPixel32.flipVertical;
@@ -398,7 +398,6 @@ begin
 end;
 
 procedure TPixel32.pixel(const x, y: int32; const z: Int32);
-var shader : TPixel32ColorShader;
 begin
   FCurrentDrawShader.Bits := getSurfacePtr;
   FCurrentDrawShader.setXYZ(x,y,z);
@@ -477,7 +476,6 @@ end;
 procedure TPixel32BasicColorShader.process;
 var sColor : TP32Rec;
 begin
-//  Bits^ := Color;
   sColor := TP32Rec(Color);
   pTP32Rec(Bits).red:=(sColor.AlphaChannel * (sColor.Red - pTP32Rec(Bits).Red) shr 8) + (pTP32Rec(Bits).Red);
   pTP32Rec(Bits).Blue:=(sColor.AlphaChannel * (sColor.Blue - pTP32Rec(Bits).Blue) shr 8) + (pTP32Rec(Bits).Blue);

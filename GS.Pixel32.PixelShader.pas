@@ -1,3 +1,5 @@
+{$I GSCore.Inc}
+
 unit GS.Pixel32.PixelShader;
 
 interface

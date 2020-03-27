@@ -11,7 +11,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-{-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
  Unit Name : GS.Pixel32.Effect.Generator
  Author    : Vincent Gsell (vincent dot gsell at gmail dot com)
  Purpose   : basic Pxel class.
@@ -25,6 +25,7 @@ Description :
 Pixel32 Generator Class : Such as Gouraud Gradient color, Perlin2d noise, plasma
 Aim : One time surface decoration methods, to obtain base graphics for texture, or whatever.
 -----------------------------------------------------------------------------}
+{$I GSCore.Inc}
 unit GS.Pixel32.Effect.Generator;
 
 interface
@@ -63,7 +64,11 @@ procedure TCustomPixel32Generator.init(surface: iPixSurface);
 begin
   assert(assigned(surface));
   assert(surface is TPixel32);
+  {$ifdef fpc}
+  fsurface := surface as TPixel32;
+  {$else}
   fsurface := TPixel32(surface);
+  {$endif}
 end;
 
 

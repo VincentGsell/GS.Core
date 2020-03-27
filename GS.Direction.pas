@@ -11,7 +11,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
------------------------------------------------------------------------------
+{-----------------------------------------------------------------------------
  Unit Name : GS.Direction
  Author    : Vincent Gsell (vincent dot gsell at gmail dot com)
  Purpose   : basic "Directional Vector" routines - TDirectionalObject helper class.
@@ -20,15 +20,10 @@
  20070102 - Creating unit.
  20091120 - Clearing code v1.0
  20180426 - Put this unit in GS collection. Freeing from Types dependancy.
- 20200201 - Renaming and re-integrating to GS.Core
 -----------------------------------------------------------------------------}
-{$I GSCore.Inc}
-
-Unit GS.Geometry.Direction;
+Unit GS.Direction;
 
 interface
-
-
 
 Const GLB_Math_PrecisionTolerance = 1.0E-12;
       GLB_PrecisionTolerance: Double = 1.0E-6;
@@ -212,6 +207,11 @@ begin
   Vector.Y:=P.Y;
   Vector.Z:=P.Z;
   vNorm(Vector,n);
+end;
+
+function vNormal(var Vector: TVector): TVector;
+begin
+
 end;
 
 procedure vRotate(var Vector: TVector;

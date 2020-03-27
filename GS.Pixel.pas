@@ -11,7 +11,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-{-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
  Unit Name : GS.Pixel
  Author    : Vincent Gsell (vincent dot gsell at gmail dot com)
  Purpose   : basic Pixel class introduced by interface.
@@ -23,8 +23,10 @@ Credits :
 
 Description :
 -----------------------------------------------------------------------------}
+{$I GSCore.Inc}
 
 unit GS.Pixel;
+
 
 interface
 
