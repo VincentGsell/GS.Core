@@ -5,7 +5,8 @@ uses
   Minimal.fmain in 'Minimal.fmain.pas' {Form1},
   GS.Pixel in '..\..\..\..\GS.Pixel.pas',
   GS.Pixel32.VCL in '..\..\..\..\GS.Pixel32.VCL.pas',
-  GS.Pixel32 in '..\..\..\..\GS.Pixel32.pas';
+  GS.Pixel32 in '..\..\..\..\GS.Pixel32.pas',
+  GS.Pixel32.Rasterize in '..\..\..\..\GS.Pixel32.Rasterize.pas';
 
 {$R *.res}
 

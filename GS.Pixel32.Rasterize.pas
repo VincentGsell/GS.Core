@@ -1,4 +1,4 @@
-unit GS.Pixel32.TexMapChHe;
+unit GS.Pixel32.Rasterize;
 //---------------------------------------------------------------------------
 // TexMapChHe.pas                                       Modified: 03-Dec-2007
 // Perspective Texture Mapping
@@ -19,9 +19,9 @@ unit GS.Pixel32.TexMapChHe;
 // VGS : 2020/03/20 - Slight modification to work with GS.Pixel32
 //                  - WARNING : Please, take the original units on the original author site if you want original behaviour.
 //                  - Rename for units coherence.
+// VGS : 2020/03/26 - Adding DrawScanLine for flat raster. Introducing Pixel32 shader.
 //---------------------------------------------------------------------------
 interface
-{$define TextureWrapping}
 //---------------------------------------------------------------------------
 uses
  GS.Pixel32, sysutils;
@@ -30,79 +30,160 @@ uses
  TVector3 = record
   x, y, z: Single;
  end;
+ TVector3i = record
+  x, y, z: integer;
+ end;
  TPoint2 = record
   x, y: Single;
+ end;
+ TPoint2i = record
+  x, y: integer;
  end;
 //---------------------------------------------------------------------------
 // ykot:
 // The following option enables texture wrapping, particularly useful when
 // texture coordinates are located outside [0..1] range.
-//---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
-{$ifdef TextureWrapping}
-var
- // ykot:
- // The following values should be equal to (Width - 1, Height - 1) for
- // wrapping to work.
- WrapUAnd : integer; // = $1FF;
- WrapVAnd : integer; // = $1FF;
-{$endif}
 
 //---------------------------------------------------------------------------
 // The following directive enables perspective correction when clipping
 // occurs. This is needed to avoid distortion when using perspective correct
 // texture mapping.
 //---------------------------------------------------------------------------
-{$define PerspectiveClip}
+{.$define PerspectiveClip}
 
 //---------------------------------------------------------------------------
-type
- PClipItem = ^TClipItem;
- TClipItem = record
-  Position: TVector3;
-  TexCoord: TPoint2;
-  Visible : Boolean;
- end;
-
-//---------------------------------------------------------------------------
-// The following parameters define the clipping rectangle.
-//---------------------------------------------------------------------------
-var
- LeftClip  : Integer = 0;
- RightClip : Integer  = 640;
- TopClip   : Integer = 0;
- BottomClip: Integer = 480;
-
-//---------------------------------------------------------------------------
-procedure ClipLeft(inVertices, outVertices: PClipItem; InCount: Integer;
- out OutCount: Integer);
-procedure ClipRight(inVertices, outVertices: PClipItem; InCount: Integer;
- out OutCount: Integer);
-procedure ClipTop(inVertices, outVertices: PClipItem; InCount: Integer;
- out OutCount: Integer);
-procedure ClipBottom(inVertices, outVertices: PClipItem; InCount: Integer;
- out OutCount: Integer);
-
-
 function Vector3(x, y, z: Single): TVector3;
 function Point2(x, y: Single): TPoint2;
+function Vector3i(x, y, z: integer): TVector3i;
+function Point2i(x, y: integer): TPoint2i;
+
 //---------------------------------------------------------------------------
 // Notice: the vertices should be specified in anti-clockwise order.
 //---------------------------------------------------------------------------
 procedure TexMap(Dest : TPixel32; Shader : TPixel32CustomShader; const v0, v1, v2: TVector3;
  const uv0, uv1, uv2: TPoint2);
 
-procedure TexMapAffine(Dest, Texture: TPixel32;
- const v0, v1, v2: TVector3;
- const uv0, uv1, uv2: TPoint2);
-
-procedure TexMapAffine_quad(Dest, Texture: TPixel32;
- const v0, v1, v2, v3 : TVector3;
- const uv0, uv1, uv2, uv3 : TPoint2);
+procedure TexMap2(Dest : TPixel32; Shader : TCustomPixelChHeShader; const v0, v1, v2: TVector3i;
+ const uv0, uv1, uv2: TPoint2i);
 
 //---------------------------------------------------------------------------
 implementation
+
+uses math;
+
+
+ procedure MemToCoord(surface : TPixel32; m : Pointer; out xx,yy : integer);
+ var p : Pointer;
+     offset : nativeInt;
+     poff : nativeInt;
+ begin
+   xx := 0;
+   yy := 0;
+
+   p := surface.getSurfacePtr;
+   offset := nativeInt(m) - nativeInt(p);
+   poff := offset div 4;
+
+   yy := poff div (surface.width);
+   xx := poff - (yy * surface.width);
+ end;
+
+
+
+//procedure DrawTriangle(pt:array of tMyPoint;dest,map:tbitmap);
+procedure TexMap2(Dest : TPixel32; Shader : TCustomPixelChHeShader; const v0, v1, v2: TVector3i;
+ const uv0, uv1, uv2: TPoint2i);
+type
+ tlongarray=array[0..0] of longint;
+ plongarray=^tlongarray;
+var
+  i,j,x,y:integer;
+  minx,miny,maxx,maxy:integer;
+  ax,ay,bx,by,cx,cy,au,av,bu,bv,diviseur:integer;
+  ux,uy,u,v,dx,dy:single;
+  l,ll:plongarray;
+   bits : pTP32;
+begin
+  assert(assigned(Dest));
+
+  minx:=max(min(min(v0.x,v1.x),v2.x),0);
+  miny:=max(min(min(v0.y,v1.y),v2.y),0);
+
+  maxx:=min(max(max(v0.x,v1.x),v2.x),dest.Width-1);
+  maxy:=min(max(max(v0.y,v1.y),v2.y),dest.Height-1);
+
+  if maxx-minx=0 then exit;
+  if maxy-miny=0 then exit;
+
+  ax:=v1.x-v0.x;
+  bx:=v2.x-v0.x;
+  cx:=v2.x-v1.x;
+  ay:=v1.y-v0.y;
+  by:=v2.y-v0.y;
+  cy:=v2.y-v1.y;
+
+  au:=uv1.x-uv0.x;
+  bu:=uv2.x-uv0.x;
+  av:=uv1.y-uv0.y;
+  bv:=uv2.y-uv0.y;
+
+  // triangle plat ou à l'envers
+  if ax*by-ay*bx<=0 then exit;
+  if ax*cy-ay*cx<=0 then exit;
+
+  diviseur:=ay*bx-ax*by;
+
+  dx:=by/diviseur;
+  dy:=ay/diviseur;
+
+  y:=miny-v0.y;
+
+  for j:=miny to maxy do
+  begin
+    l:=dest.getSurfaceScanLinePtr(j);
+
+    x:=minx-v0.x;
+
+    ux:=(y*bx-x*by)/diviseur;
+    uy:=(x*ay-y*ax)/diviseur;
+
+    for i:=minx to maxx do
+    begin
+      if (x*ay-y*ax<=0) and (x*by-y*bx>=0)  and ((i-v1.x)*cy-(j-v1.y)*cx<=0) then
+      begin
+        u:=au*ux+bu*uy+uv0.x;
+        v:=av*ux+bv*uy+uv0.y;
+        ll := TCustomPixelChHeShader(Shader).Texture.getSurfaceScanLinePtr(round(v));
+
+        //l[i]:=ll[round(u)]; //Fast : Direct memory access.
+
+        //Shader methods : Much slower but very clean in code.
+        shader.bits := Dest.getSurfaceScanLinePtr(j);
+        inc(shader.bits,i);
+        Shader.Color := ll[round(u)];
+        Shader.process;
+      end;
+      ux:=ux-dx;
+      uy:=uy+dy;
+
+      inc(x);
+    end;
+
+    inc(y);
+  end;
+
+  // if ShowTriangles then
+  begin
+  //    dest.Canvas.MoveTo(v0.x,v0.y); dest.Canvas.LineTo(v1.x,v1.y);
+  //    dest.Canvas.MoveTo(v1.x,v1.y); dest.Canvas.LineTo(v2.x,v2.y);
+  //    dest.Canvas.MoveTo(v2.x,v2.y); dest.Canvas.LineTo(v0.x,v0.y);
+
+  end;
+end;
+
+
 
 //---------------------------------------------------------------------------
 // structures, inlines, and function declarations
@@ -155,7 +236,20 @@ begin
  Result.z:= z;
 end;
 
+function Vector3i(x, y, z: integer): TVector3i;
+begin
+ Result.x:= x;
+ Result.y:= y;
+ Result.z:= z;
+end;
+
 function Point2(x, y: Single): TPoint2;
+begin
+ Result.x:= x;
+ Result.y:= y;
+end;
+
+function Point2i(x, y: integer): TPoint2i;
 begin
  Result.x:= x;
  Result.y:= y;
@@ -443,37 +537,19 @@ end;
 // DrawScanLine
 //---------------------------------------------------------------------------
 
+
 procedure DrawScanLine(Dest: TPixel32;
- const Gradients: TGradients; var pLeft, pRight: TEdge; shader : TPixel32CustomShader);
+ var pLeft, pRight: TEdge; shader : TPixel32CustomShader);
 const
  AffineLength = 8;
 var
  XStart, Width: Integer;
  pDestBits   : Pointer;
- OneOverZLeft: Single;
- dOneOverZdXAff, dUOverZdXAff, dVOverZdXAff: Single;
- OneOverZRight, UOverZRight, VOverZRight: Single;
  Subdivisions, WidthModLength: Integer;
  Counter : Integer;
  sourceT : TP32Rec;
 
  x,y : integer;
- procedure MemToCoord(m : Pointer);
- var p : Pointer;
-     offset : nativeInt;
-     poff : nativeInt;
- begin
-   x := 0;
-   y := 0;
-
-   p := Dest.getSurfacePtr;
-   offset := nativeInt(m) - nativeInt(p);
-   poff := offset div 4;
-
-   y := poff div (Dest.width);
-   x := poff - (y * Dest.width);
- end;
-
 begin
   XStart:= pLeft.X;
   Width := pRight.X - XStart;
@@ -482,14 +558,7 @@ begin
     Exit;
 
   pDestBits:= Dest.getSurfacePtr;
-  Inc(Integer(pDestBits), pLeft.Y * Dest.Width*4 + XStart * 4);
-  OneOverZLeft:= pLeft.OneOverZ;
-
-  dOneOverZdXAff:= Gradients.dOneOverZdX * AffineLength;
-  dUOverZdXAff  := Gradients.dUOverZdX * AffineLength;
-  dVOverZdXAff  := Gradients.dVOverZdX * AffineLength;
-
-  OneOverZRight:= OneOverZLeft + dOneOverZdXAff;
+  Inc(NativeInt(pDestBits), pLeft.Y * Dest.Width*4 + XStart * 4);
 
   Subdivisions  := Width div AffineLength;
   WidthModLength:= Width mod AffineLength;
@@ -504,15 +573,11 @@ begin
   begin
     for Counter:= 0 to AffineLength - 1 do
     begin
-      MemToCoord(pDestBits);
+      MemToCoord(Dest, pDestBits, x, y);
       if (x>-1) and (x<Dest.width) and (y>-1) and (y<Dest.height) and (y = pleft.Y) then
         Dest.pixel(x,y);
-      Inc(Integer(pDestBits), 4);
+      inc(NativeInt(pDestBits),4);
     end;
-
-    OneOverZRight:= OneOverZRight + dOneOverZdXAff;
-    UOverZRight  := UOverZRight + dUOverZdXAff;
-    VOverZRight  := VOverZRight + dVOverZdXAff;
 
     Dec(Subdivisions);
   end;
@@ -522,10 +587,10 @@ begin
     Dec(WidthModLength);
     for Counter:= 0 to WidthModLength do
     begin
-      MemToCoord(pDestBits);
+      MemToCoord(Dest, pDestBits, x, y);
       if (x>0) and (x<Dest.width) and (y>0) and (y<Dest.height) and (y = pleft.Y) then
         Dest.pixel(x,y);
-      Inc(Integer(pDestBits), 4);
+      inc(NativeInt(pDestBits),4);
     end;
   end;
 end;
@@ -548,26 +613,10 @@ var
  ZLeft, ULeft, VLeft, ZRight, URight, VRight: Single;
  U, V, DeltaU, DeltaV: TFixed16_16;
  Subdivisions, WidthModLength: Integer;
- Counter, UInt, VInt: Integer;
+ Counter, UInt, VInt: NativeInt;
  sourceT : TP32Rec;
 
  x,y : integer;
- procedure MemToCoord(m : Pointer);
- var p : Pointer;
-     offset : nativeInt;
-     poff : nativeInt;
- begin
-   x := 0;
-   y := 0;
-
-   p := Dest.getSurfacePtr;
-   offset := nativeInt(m) - nativeInt(p);
-   poff := offset div 4;
-
-   y := poff div (Dest.width);
-   x := poff - (y * Dest.width);
- end;
-
 begin
   Assert(assigned(shader));
   Assert(assigned(TCustomPixelChHeShader(shader).Texture));
@@ -580,8 +629,8 @@ begin
 
   //pDestBits:= Dest.Bits;
   pDestBits:= Dest.getSurfacePtr;
-  Inc(Integer(pDestBits), pLeft.Y * Dest.Width*4 + XStart * 4);
-  //Inc(Integer(pDestBits), pLeft.Y * Dest.Pitch + XStart * 4);
+  Inc(NativeInt(pDestBits), pLeft.Y * Dest.Width*4 + XStart * 4);
+  //Inc(NativeInt(pDestBits), pLeft.Y * Dest.Pitch + XStart * 4);
   pTextureBits:= TCustomPixelChHeShader(Shader).Texture.getSurfacePtr;
   //TextureDeltaScan:=Texture.Pitch;
   TextureDeltaScan:= TCustomPixelChHeShader(Shader).Texture.Width*4;
@@ -630,20 +679,22 @@ begin
 
       if (UInt<TCustomPixelChHeShader(Shader).Texture.Width) And (VInt<TCustomPixelChHeShader(Shader).Texture.Height) then
       begin
-//       PCardinal(pDestBits)^:= PCardinal(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
-        MemToCoord(pDestBits);
+        MemToCoord(Dest,pDestBits, x,y);
         if (x>-1) and (x<Dest.width) and (y>-1) and (y<Dest.height) and (y = pleft.Y) then
         begin
-          sourceT := pTP32Rec(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
+          sourceT := pTP32Rec(NativeInt(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
 
-          pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
-          pTP32Rec(pDestBits).Blue:=(sourceT.AlphaChannel * (sourceT.Blue - pTP32Rec(pDestBits).Blue) shr 8) + (pTP32Rec(pDestBits).Blue);
-          pTP32Rec(pDestBits).Green:=(sourceT.AlphaChannel * (sourceT.Green - pTP32Rec(pDestBits).Green) shr 8) + (pTP32Rec(pDestBits).Green);
+          Shader.Color := sourceT.Color;
+          Dest.pixel(x,y);
 
+
+//          pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
+//          pTP32Rec(pDestBits).Blue:=(sourceT.AlphaChannel * (sourceT.Blue - pTP32Rec(pDestBits).Blue) shr 8) + (pTP32Rec(pDestBits).Blue);
+//          pTP32Rec(pDestBits).Green:=(sourceT.AlphaChannel * (sourceT.Green - pTP32Rec(pDestBits).Green) shr 8) + (pTP32Rec(pDestBits).Green);
         end;
       end;
 
-      Inc(Integer(pDestBits), 4);
+      inc(NativeInt(pDestBits),4);
 
       Inc(U, DeltaU);
       Inc(V, DeltaV);
@@ -689,21 +740,27 @@ begin
 
       if (UInt<TCustomPixelChHeShader(Shader).Texture.Width) And (VInt<TCustomPixelChHeShader(Shader).Texture.Height) then
       begin
-
-        MemToCoord(pDestBits);
+        MemToCoord(Dest, pDestBits,x,y);
         if (x>0) and (x<Dest.width) and (y>0) and (y<Dest.height) and (y = pleft.Y) then
         begin
-//        PCardinal(pDestBits)^:= PCardinal(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
-          sourceT := pTP32Rec(Integer(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
+          sourceT := pTP32Rec(NativeInt(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4))^;
 
-          pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
-          pTP32Rec(pDestBits).Blue:=(sourceT.AlphaChannel * (sourceT.Blue - pTP32Rec(pDestBits).Blue) shr 8) + (pTP32Rec(pDestBits).Blue);
-          pTP32Rec(pDestBits).Green:=(sourceT.AlphaChannel * (sourceT.Green - pTP32Rec(pDestBits).Green) shr 8) + (pTP32Rec(pDestBits).Green);
+          Shader.Color := sourceT.Color;
+          Dest.pixel(x,y);
+
+          //MemToCoord(TCustomPixelChHeShader(Shader).Texture,pTP32Rec(NativeInt(pTextureBits) + (VInt * TextureDeltaScan) + (UInt * 4)),x,y);
+
+          //Shader.setXYZ(x,y,0);
+          //Shader.process;
+
+//          pTP32Rec(pDestBits).red:=(sourceT.AlphaChannel * (sourceT.Red - pTP32Rec(pDestBits).Red) shr 8) + (pTP32Rec(pDestBits).Red);
+//          pTP32Rec(pDestBits).Blue:=(sourceT.AlphaChannel * (sourceT.Blue - pTP32Rec(pDestBits).Blue) shr 8) + (pTP32Rec(pDestBits).Blue);
+//          pTP32Rec(pDestBits).Green:=(sourceT.AlphaChannel * (sourceT.Green - pTP32Rec(pDestBits).Green) shr 8) + (pTP32Rec(pDestBits).Green);
         end;
 
       end;
 
-      Inc(Integer(pDestBits), 4);
+      Inc(NativeInt(pDestBits), 4);
 
       Inc(U, DeltaU);
       Inc(V, DeltaV);
@@ -815,7 +872,7 @@ begin
   begin
     While (Height <> 0) do
     begin
-      DrawScanLine(Dest, Gradients, pLeft^, pRight^, Shader);
+      DrawScanLine(Dest, pLeft^, pRight^, Shader);
 
       EdgeStep(TopToMiddle);
       EdgeStep(TopToBottom);
@@ -852,7 +909,7 @@ begin
   begin
     While (Height <> 0) do
     begin
-      DrawScanLine(Dest, Gradients, pLeft^, pRight^, Shader);
+      DrawScanLine(Dest, pLeft^, pRight^, Shader);
 
       EdgeStep(MiddleToBottom);
       EdgeStep(TopToBottom);
@@ -902,439 +959,6 @@ begin
   Pts[0].v:= uv2.y * tlh;
 
   TextureMapTriangle(Dest, @Pts, Shader);
-end;
-
-
-//---------------------------------------------------------------------------
-procedure ClipLeft(inVertices, outVertices: PClipItem; InCount: Integer;
- out OutCount: Integer);
-var
- i: Integer;
- CurItem, NextItem, DestItem: PClipItem;
- Theta, nTheta: Single;
- {$ifdef PerspectiveClip}iz0, iz1, zm: Single;{$endif}
-begin
- OutCount:= 0;
-
- CurItem:= inVertices;
- for i:= 0 to InCount - 1 do
-  begin
-   CurItem.Visible:= CurItem.Position.x >= LeftClip;
-   Inc(CurItem);
-  end;
-
- CurItem := inVertices;
- NextItem:= Pointer(Integer(inVertices) + SizeOf(TClipItem));
- DestItem:= outVertices;
-
- for i:= 0 to InCount - 1 do
-  begin
-   if (i = InCount - 1) then NextItem:= inVertices;
-
-   if (CurItem.Visible) then
-    begin
-     Move(CurItem^, DestItem^, SizeOf(TClipItem));
-     Inc(DestItem);
-     Inc(OutCount);
-    end;
-
-   if ((CurItem.Visible <> NextItem.Visible)) then
-    begin
-     Theta:= (LeftClip - CurItem.Position.x) /
-      (NextItem.Position.x - CurItem.Position.x);
-     nTheta:= 1.0 - Theta;
-
-     DestItem.Position.x:= LeftClip;
-     DestItem.Position.y:= CurItem.Position.y * nTheta +
-      NextItem.Position.y * Theta;
-
-     {$ifdef PerspectiveClip}
-     iz0:= 1.0 / CurItem.Position.z;
-     iz1:= 1.0 / NextItem.Position.z;
-     zm := iz0 * nTheta + iz1 * Theta;
-     DestItem.Position.z:= 1.0 / zm;
-     {$else}
-     DestItem.Position.z:= CurItem.Position.z * nTheta +
-      NextItem.Position.z * Theta;
-     {$endif}
-
-     {$ifdef PerspectiveClip}
-     DestItem.TexCoord.x:= ((CurItem.TexCoord.x / CurItem.Position.z) * nTheta +
-      (NextItem.TexCoord.x / NextItem.Position.z) * Theta) *
-      DestItem.Position.z;
-     DestItem.TexCoord.y:= ((CurItem.TexCoord.y / CurItem.Position.z) * nTheta +
-      (NextItem.TexCoord.y / NextItem.Position.z) * Theta) *
-      DestItem.Position.z;
-     {$else}
-     DestItem.TexCoord.x:= CurItem.TexCoord.x * nTheta +
-      NextItem.TexCoord.x * Theta;
-     DestItem.TexCoord.y:= CurItem.TexCoord.y * nTheta +
-      NextItem.TexCoord.y * Theta;
-     {$endif}
-
-     Inc(DestItem);
-     Inc(OutCount);
-    end;
-
-   Inc(CurItem);
-   Inc(NextItem);
-  end;
-end;
-
-//---------------------------------------------------------------------------
-procedure ClipRight(inVertices, outVertices: PClipItem; InCount: Integer;
- out OutCount: Integer);
-var
- i: Integer;
- CurItem, NextItem, DestItem: PClipItem;
- Theta, nTheta: Single;
- {$ifdef PerspectiveClip}iz0, iz1, zm: Single;{$endif}
-begin
- OutCount:= 0;
-
- CurItem:= inVertices;
- for i:= 0 to InCount - 1 do
-  begin
-   CurItem.Visible:= CurItem.Position.x <= RightClip;
-   Inc(CurItem);
-  end;
-
- CurItem := inVertices;
- NextItem:= Pointer(Integer(inVertices) + SizeOf(TClipItem));
- DestItem:= outVertices;
-
- for i:= 0 to InCount - 1 do
-  begin
-   if (i = InCount - 1) then NextItem:= inVertices;
-
-   if (CurItem.Visible) then
-    begin
-     Move(CurItem^, DestItem^, SizeOf(TClipItem));
-     Inc(DestItem);
-     Inc(OutCount);
-    end;
-
-   if ((CurItem.Visible <> NextItem.Visible)) then
-    begin
-     Theta:= (RightClip - CurItem.Position.x) /
-      (NextItem.Position.x - CurItem.Position.x);
-     nTheta:= 1.0 - Theta;
-
-     DestItem.Position.x:= RightClip;
-     DestItem.Position.y:= CurItem.Position.y * nTheta +
-      NextItem.Position.y * Theta;
-
-     {$ifdef PerspectiveClip}
-     iz0:= 1.0 / CurItem.Position.z;
-     iz1:= 1.0 / NextItem.Position.z;
-     zm := iz0 * nTheta + iz1 * Theta;
-     DestItem.Position.z:= 1.0 / zm;
-     {$else}
-     DestItem.Position.z:= CurItem.Position.z * nTheta +
-      NextItem.Position.z * Theta;
-     {$endif}
-
-     {$ifdef PerspectiveClip}
-     DestItem.TexCoord.x:= ((CurItem.TexCoord.x / CurItem.Position.z) * nTheta +
-      (NextItem.TexCoord.x / NextItem.Position.z) * Theta) *
-      DestItem.Position.z;
-     DestItem.TexCoord.y:= ((CurItem.TexCoord.y / CurItem.Position.z) * nTheta +
-      (NextItem.TexCoord.y / NextItem.Position.z) * Theta) *
-      DestItem.Position.z;
-     {$else}
-     DestItem.TexCoord.x:= CurItem.TexCoord.x * nTheta +
-      NextItem.TexCoord.x * Theta;
-     DestItem.TexCoord.y:= CurItem.TexCoord.y * nTheta +
-      NextItem.TexCoord.y * Theta;
-     {$endif}
-
-     Inc(DestItem);
-     Inc(OutCount);
-    end;
-
-   Inc(CurItem);
-   Inc(NextItem);
-  end;
-end;
-
-//---------------------------------------------------------------------------
-procedure ClipTop(inVertices, outVertices: PClipItem; InCount: Integer;
- out OutCount: Integer);
-var
- i: Integer;
- CurItem, NextItem, DestItem: PClipItem;
- Theta, nTheta: Single;
- {$ifdef PerspectiveClip}iz0, iz1, zm: Single;{$endif}
-begin
- OutCount:= 0;
-
- CurItem:= inVertices;
- for i:= 0 to InCount - 1 do
-  begin
-   CurItem.Visible:= CurItem.Position.y >= TopClip;
-   Inc(CurItem);
-  end;
-
- CurItem := inVertices;
- NextItem:= Pointer(Integer(inVertices) + SizeOf(TClipItem));
- DestItem:= outVertices;
-
- for i:= 0 to InCount - 1 do
-  begin
-   if (i = InCount - 1) then NextItem:= inVertices;
-
-   if (CurItem.Visible) then
-    begin
-     Move(CurItem^, DestItem^, SizeOf(TClipItem));
-     Inc(DestItem);
-     Inc(OutCount);
-    end;
-
-   if ((CurItem.Visible <> NextItem.Visible)) then
-    begin
-     Theta:= (TopClip - CurItem.Position.y) /
-      (NextItem.Position.y - CurItem.Position.y);
-     nTheta:= 1.0 - Theta;
-
-     DestItem.Position.y:= TopClip;
-     DestItem.Position.x:= CurItem.Position.x * nTheta +
-      NextItem.Position.x * Theta;
-
-     {$ifdef PerspectiveClip}
-     iz0:= 1.0 / CurItem.Position.z;
-     iz1:= 1.0 / NextItem.Position.z;
-     zm := iz0 * nTheta + iz1 * Theta;
-     DestItem.Position.z:= 1.0 / zm;
-     {$else}
-     DestItem.Position.z:= CurItem.Position.z * nTheta +
-      NextItem.Position.z * Theta;
-     {$endif}
-
-     {$ifdef PerspectiveClip}
-     DestItem.TexCoord.x:= ((CurItem.TexCoord.x / CurItem.Position.z) * nTheta +
-      (NextItem.TexCoord.x / NextItem.Position.z) * Theta) *
-      DestItem.Position.z;
-     DestItem.TexCoord.y:= ((CurItem.TexCoord.y / CurItem.Position.z) * nTheta +
-      (NextItem.TexCoord.y / NextItem.Position.z) * Theta) *
-      DestItem.Position.z;
-     {$else}
-     DestItem.TexCoord.x:= CurItem.TexCoord.x * nTheta +
-      NextItem.TexCoord.x * Theta;
-     DestItem.TexCoord.y:= CurItem.TexCoord.y * nTheta +
-      NextItem.TexCoord.y * Theta;
-     {$endif}
-
-     Inc(DestItem);
-     Inc(OutCount);
-    end;
-
-   Inc(CurItem);
-   Inc(NextItem);
-  end;
-end;
-
-//---------------------------------------------------------------------------
-procedure ClipBottom(inVertices, outVertices: PClipItem; InCount: Integer;
- out OutCount: Integer);
-var
- i: Integer;
- CurItem, NextItem, DestItem: PClipItem;
- Theta, nTheta: Single;
- {$ifdef PerspectiveClip}iz0, iz1, zm: Single;{$endif}
-begin
- OutCount:= 0;
-
- CurItem:= inVertices;
- for i:= 0 to InCount - 1 do
-  begin
-   CurItem.Visible:= CurItem.Position.y <= BottomClip;
-   Inc(CurItem);
-  end;
-
- CurItem := inVertices;
- NextItem:= Pointer(Integer(inVertices) + SizeOf(TClipItem));
- DestItem:= outVertices;
-
- for i:= 0 to InCount - 1 do
-  begin
-   if (i = InCount - 1) then NextItem:= inVertices;
-
-   if (CurItem.Visible) then
-    begin
-     Move(CurItem^, DestItem^, SizeOf(TClipItem));
-     Inc(DestItem);
-     Inc(OutCount);
-    end;
-
-   if ((CurItem.Visible <> NextItem.Visible)) then
-    begin
-     Theta:= (BottomClip - CurItem.Position.y) /
-      (NextItem.Position.y - CurItem.Position.y);
-     nTheta:= 1.0 - Theta;
-
-     DestItem.Position.y:= BottomClip;
-     DestItem.Position.x:= CurItem.Position.x * nTheta +
-      NextItem.Position.x * Theta;
-
-     {$ifdef PerspectiveClip}
-     iz0:= 1.0 / CurItem.Position.z;
-     iz1:= 1.0 / NextItem.Position.z;
-     zm := iz0 * nTheta + iz1 * Theta;
-     DestItem.Position.z:= 1.0 / zm;
-     {$else}
-     DestItem.Position.z:= CurItem.Position.z * nTheta +
-      NextItem.Position.z * Theta;
-     {$endif}
-
-     {$ifdef PerspectiveClip}
-     DestItem.TexCoord.x:= ((CurItem.TexCoord.x / CurItem.Position.z) * nTheta +
-      (NextItem.TexCoord.x / NextItem.Position.z) * Theta) *
-      DestItem.Position.z;
-     DestItem.TexCoord.y:= ((CurItem.TexCoord.y / CurItem.Position.z) * nTheta +
-      (NextItem.TexCoord.y / NextItem.Position.z) * Theta) *
-      DestItem.Position.z;
-     {$else}
-     DestItem.TexCoord.x:= CurItem.TexCoord.x * nTheta +
-      NextItem.TexCoord.x * Theta;
-     DestItem.TexCoord.y:= CurItem.TexCoord.y * nTheta +
-      NextItem.TexCoord.y * Theta;
-     {$endif}
-
-     Inc(DestItem);
-     Inc(OutCount);
-    end;
-
-   Inc(CurItem);
-   Inc(NextItem);
-  end;
-end;
-
-var
- ClipArray: array[0..31] of TClipItem;
-
-//---------------------------------------------------------------------------
-procedure TexMapAffine(Dest, Texture: TPixel32;
- const v0, v1, v2: TVector3;
- const uv0, uv1, uv2: TPoint2);
-var
- i, Base, Count, OutCount: Integer;
- Item0, Item1, Item2: PClipItem;
-begin
-{$ifdef TextureWrapping}
- WrapUAnd := (Texture.Width)-1;
- WrapVAnd := (Texture.Height)-1;
-{$endif}
-
- LeftClip  := 0;
- RightClip := Dest.Width;
- TopClip   := 0;
- BottomClip:= Dest.Height;
-
-
- ClipArray[0].Position:= v0;
- ClipArray[0].TexCoord:= uv0;
- ClipArray[1].Position:= v1;
- ClipArray[1].TexCoord:= uv1;
- ClipArray[2].Position:= v2;
- ClipArray[2].TexCoord:= uv2;
-
- Base := 0;
- Count:= 3;
- ClipLeft(@ClipArray[Base], @ClipArray[Base + Count],
-  Count, OutCount);
-
- Inc(Base, Count);
- Count:= OutCount;
- ClipRight(@ClipArray[Base], @ClipArray[Base + Count],
-  Count, OutCount);
-
- Inc(Base, Count);
- Count:= OutCount;
- ClipTop(@ClipArray[Base], @ClipArray[Base + Count],
-  Count, OutCount);
-
- Inc(Base, Count);
- Count:= OutCount;
- ClipBottom(@ClipArray[Base], @ClipArray[Base + Count],
-  Count, OutCount);
-
- Inc(Base, Count);
- Count:= OutCount;
-
- for i:= 0 to Count - 3 do
-  begin
-   Item0:= @ClipArray[Base];
-   Item1:= @ClipArray[Base + 1 + i];
-   Item2:= @ClipArray[Base + 2 + i];
-//   TexMap(Dest, Texture, Item2.Position, Item1.Position,
-//7    Item0.Position, Item2.TexCoord, Item1.TexCoord, Item0.TexCoord);
-  end;
-end;
-
-
-procedure TexMapAffine_quad(Dest, Texture: TPixel32;
- const v0, v1, v2, v3 : TVector3;
- const uv0, uv1, uv2, uv3 : TPoint2);
-var
- i, Base, Count, OutCount: Integer;
- Item0, Item1, Item2, item3: PClipItem;
-
-begin
-{$ifdef TextureWrapping}
- WrapUAnd := (Texture.Width)-1;
- WrapVAnd := (Texture.Height)-1;
-{$endif}
-
- LeftClip  := 0;
- RightClip := Dest.Width;
- TopClip   := 0;
- BottomClip:= Dest.Height;
-
-
- ClipArray[0].Position:= v0;
- ClipArray[0].TexCoord:= uv0;
- ClipArray[1].Position:= v1;
- ClipArray[1].TexCoord:= uv1;
- ClipArray[2].Position:= v2;
- ClipArray[2].TexCoord:= uv2;
- ClipArray[3].Position:= v3;
- ClipArray[3].TexCoord:= uv3;
-
- Base := 0;
- Count:= 4;
- ClipLeft(@ClipArray[Base], @ClipArray[Base + Count],
-  Count, OutCount);
-
- Inc(Base, Count);
- Count:= OutCount;
- ClipRight(@ClipArray[Base], @ClipArray[Base + Count],
-  Count, OutCount);
-
- Inc(Base, Count);
- Count:= OutCount;
- ClipTop(@ClipArray[Base], @ClipArray[Base + Count],
-  Count, OutCount);
-
- Inc(Base, Count);
- Count:= OutCount;
- ClipBottom(@ClipArray[Base], @ClipArray[Base + Count],
-  Count, OutCount);
-
- Inc(Base, Count);
- Count:= OutCount;
-
- for i:= 0 to Count - 4 do
-  begin
-   Item0:= @ClipArray[Base];
-   Item1:= @ClipArray[Base + 1 + i];
-   Item2:= @ClipArray[Base + 2 + i];
-   Item3:= @ClipArray[Base + 3 + i];
-
-//   TexMap(Dest, Texture, Item2.Position, Item1.Position,
-//    Item0.Position, Item2.TexCoord, Item1.TexCoord, Item0.TexCoord);
-//   TexMap(Dest, Texture, Item0.Position, Item3.Position,
-//    Item2.Position, Item0.TexCoord, Item3.TexCoord, Item2.TexCoord);
-  end;
 end;
 
 

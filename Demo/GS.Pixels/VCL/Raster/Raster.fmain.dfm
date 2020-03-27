@@ -2,8 +2,8 @@ object Form2: TForm2
   Left = 0
   Top = 0
   Caption = 'Form2'
-  ClientHeight = 605
-  ClientWidth = 1018
+  ClientHeight = 490
+  ClientWidth = 772
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -23,6 +23,11 @@ object Form2: TForm2
     Interval = 1
     OnTimer = TimerUpdateTimer
     Left = 32
-    Top = 16
+    Top = 48
+  end
+  object TimerFPS: TTimer
+    OnTimer = TimerFPSTimer
+    Left = 32
+    Top = 104
   end
 end

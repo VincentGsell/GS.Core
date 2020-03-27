@@ -26,6 +26,7 @@ type
 
   TForm2 = class(TForm)
     TimerUpdate: TTimer;
+    TimerFPS: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure FormMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
     procedure FormPaint(Sender: TObject);
@@ -35,6 +36,7 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure FormDestroy(Sender: TObject);
     procedure TimerUpdateTimer(Sender: TObject);
+    procedure TimerFPSTimer(Sender: TObject);
   private
     { Private declarations }
   public
@@ -50,9 +52,12 @@ type
 
     gradientTexture : TPixel32;
 
+    FPS : Integer;
+
     //Use low level raster.
     function buildQuad(len,cx,cy,angleInDegree : Integer) : TQuadVertices;
     procedure drawQuad(const vertices : TQuadVertices; const color : TP32 = $FF000000);
+    procedure drawQuadBorder(const vertices : TQuadVertices; const color : TP32 = $FF000000);
     procedure drawQuads;
   end;
 
@@ -96,6 +101,8 @@ begin
   //Assign this texture a texture shader.
   textureShaderTest := TCustomPixelChHeShader.Create(pixel);
   textureShaderTest.Texture := gradientTexture;
+
+  FPS := 0;
 end;
 
 procedure TForm2.FormDestroy(Sender: TObject);
@@ -134,8 +141,11 @@ begin
   //Note rasterization color depends of the current shader ! See OnPaint event.
   pixel.rasterize( vertices[0].x, vertices[0].y, vertices[1].x, vertices[1].y, vertices[2].x, vertices[2].y);
   pixel.rasterize( vertices[2].x, vertices[2].y, vertices[3].x, vertices[3].y, vertices[0].x, vertices[0].y);
+end;
 
-  //Draw border. If shader permit it. :)
+procedure TForm2.drawQuadBorder(const vertices: TQuadVertices;
+  const color: TP32);
+begin
   pixel.color_pen := gspBlack;
   pixel.moveTo( vertices[0].x, vertices[0].y);
   pixel.lineTo( vertices[1].x, vertices[1].y);
@@ -151,8 +161,12 @@ begin
   //Draw stars with current shader.
   for i := 0 to QUADS_COUNT-1 do
   begin
+    //Draw stars with texture shader.
+    pixel.setDrawShader(textureShaderTest);
     vv := buildQuad(quads[i].len,quads[i].coord.x,quads[i].coord.y,quads[i].startAngle + quads[i].angle);
     drawQuad(vv,pixel.ColorSetAValue(quads[i].col,100));
+//    pixel.ResetDrawShader;
+//    drawQuadBorder(vv,pixel.ColorSetAValue(quads[i].col,100));
   end;
 end;
 
@@ -172,23 +186,11 @@ end;
 procedure TForm2.FormPaint(Sender: TObject);
 var i : integer;
     vv : TQuadVertices;
-
+    lx,ly : integer;
 begin
   pixel.clear;
 
-  //Draw stars with texture shader.
-  pixel.setDrawShader(textureShaderTest);
   drawQuads;
-
-  if mouseLeft then
-  begin
-    //Select scotish shader...
-    pixel.setDrawShader(scotish);
-    ///..And set alpha to basic color of the shader.
-    scotish.SetDataColor(pixel.ColorSetAValue(gspBlue,200),pixel.ColorSetAValue(gspWhite,50),5);
-    vv := buildQuad(200,mouse.x,mouse.y,mouse.x);
-    drawQuad(vv); //Color useless here, because of use of a special shader.
-  end;
 
   pixel.ResetDrawShader; //Back to classical shader (Color shader)
   vv := buildQuad(100,120,120,mouse.y);
@@ -208,6 +210,16 @@ begin
   vv := buildQuad(100,120,220,mouse.y+50);
   drawQuad(vv);
 
+  if mouseLeft then
+  begin
+    //Select scotish shader...
+    pixel.setDrawShader(scotish);
+    ///..And set alpha to basic color of the shader.
+    scotish.SetDataColor(pixel.ColorSetAValue(gspBlue,200),pixel.ColorSetAValue(gspWhite,50),5);
+    vv := buildQuad(200,mouse.x,mouse.y,mouse.x);
+    drawQuad(vv); //Color useless here, because of use of a special shader.
+  end;
+
 
   //And a last one, with texture.
   pixel.setDrawShader(textureShaderTest);
@@ -218,15 +230,23 @@ begin
   pixel.setDrawShader(scotish);
   scotish.SetDataColor(gspBlue,gspWhite,5);
   pixel.color_pen := gspBlue;
-  pixel.moveTo(mouse.x,0);
-  pixel.lineTo(mouse.x,pixel.height);
-  pixel.moveTo(0,mouse.y);
-  pixel.lineTo(pixel.width,mouse.y);
+  lx := mouse.x;
+  ly := mouse.y;
+  //Avoid line cross to be draw where shader will produce "white" screen :)
+  if (lx mod 5) = 1 then
+   inc(lx);
+  if (ly mod 5) = 1 then
+   inc(ly);
+  pixel.moveTo(lx,0);
+  pixel.lineTo(lx,pixel.height);
+  pixel.moveTo(0,ly);
+  pixel.lineTo(pixel.width,ly);
   pixel.ResetDrawShader; //back to standart colo drawer.
 
 
   //VCL specific.
   pixel.CopyToDc(GetDC(Handle));
+  Inc(FPS);
 end;
 
 procedure TForm2.FormResize(Sender: TObject);
@@ -243,7 +263,12 @@ begin
     quads[i].startAngle := Random(360);
     quads[i].angle := Random(360);
   end;
+end;
 
+procedure TForm2.TimerFPSTimer(Sender: TObject);
+begin
+  Caption := 'GS.Pixel32 Raster demo '+IntToStr(FPS);
+  FPS := 0;
 end;
 
 procedure TForm2.TimerUpdateTimer(Sender: TObject);

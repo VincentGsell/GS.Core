@@ -130,7 +130,8 @@
         </DCCReference>
         <DCCReference Include="..\..\..\..\GS.Pixel32.Effect.Generator.pas"/>
         <DCCReference Include="..\..\..\..\GS.Pixel32.Effect.Generator.Gradient.pas"/>
-        <DCCReference Include="..\..\..\..\GS.Pixel32.TexMapChHe.pas"/>
+        <DCCReference Include="..\..\..\..\GS.Pixel32.Rasterize.pas"/>
+        <DCCReference Include="..\..\..\..\GS.Pixel32.Draw.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -153,6 +154,18 @@
                 </Source>
             </Delphi.Personality>
             <Deployment Version="3">
+                <DeployFile LocalName="Win64\Debug\Raster.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win64">
+                        <RemoteName>Raster.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Win64\Debug\Raster.rsm" Configuration="Debug" Class="DebugSymbols">
+                    <Platform Name="Win64">
+                        <RemoteName>Raster.rsm</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win32\Debug\Raster.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>Raster.exe</RemoteName>

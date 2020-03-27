@@ -82,7 +82,6 @@ iPixService = interface
   procedure Answer(content : TStream; success : boolean; report : TStream);
 end;
 
-
 ///
 ///
 ///

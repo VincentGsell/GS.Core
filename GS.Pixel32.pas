@@ -110,10 +110,10 @@ end;
 
 TPixel32 = Class(TPixel32InterfacedObject, iPixSurface)
 private
-    function GetFillColor: TP32;
-    procedure SetFillColor(const Value: TP32);
-    function GetPenColor: TP32;
-    procedure SetPenColor(const Value: TP32);
+  function GetFillColor: TP32;
+  procedure SetFillColor(const Value: TP32);
+  function GetPenColor: TP32;
+  procedure SetPenColor(const Value: TP32);
 protected
   fsurface : TP32Array; //Memory.
   fwidth,fheight : uInt32;
@@ -134,12 +134,17 @@ public
   procedure copyTo(target : iPixSurface);
   procedure AlphaLayerReset(const value : byte = 255);
 
+
+
   function ColorGetRValue(c : TP32) : byte;
   function ColorGetBValue(c : TP32) : byte;
   function ColorGetGValue(c : TP32) : byte;
   function ColorGetAValue(c : TP32) : byte;
   function ColorSetAValue(c : TP32; AlphaValue : Byte) : TP32;
 
+  //Shader
+  procedure setDrawShader(shader : TPixel32ColorShader);
+  procedure ResetDrawShader;
 
   //iPixSurface impl.
   function getSurfacePtr : pointer;
@@ -152,8 +157,6 @@ public
   procedure lineTo(const x,y : Int32;const z : Int32 = 0);
 
   procedure rasterize(x,y,x1,y1,x2,y2 : Int32);
-  procedure setDrawShader(shader : TPixel32ColorShader);
-  procedure ResetDrawShader;
 
   procedure clear;
   function width : uInt32;
@@ -167,7 +170,8 @@ function P32Vertex(const x : integer = 0; const y : integer = 0; const z : integ
 
 implementation
 
-Uses GS.Pixel32.TexMapChHe;
+Uses GS.Pixel32.Rasterize;
+
 
 function P32Vertex(const x : integer; const y : integer; const z : integer) : TP32Vertex;
 begin
@@ -257,12 +261,22 @@ end;
 
 procedure TPixel32.InternalRasterize(const a, b, c: TP32Vertex);
 var aa,bb,cc : TVector3;
+var aai,bbi,cci : TVector3i;
 begin
-//  triangleRasterize(self,a,b,c);
   aa := Vector3(a.x,a.y,a.z);
   bb := Vector3(b.x,b.y,b.z);
   cc := Vector3(c.x,c.y,c.z);
-  TexMap(Self,FCurrentDrawShader,aa,bb,cc,Point2(0,0),Point2(1,0),Point2(1,1));
+  aai := Vector3i(a.x,a.y,a.z);
+  bbi := Vector3i(b.x,b.y,b.z);
+  cci := Vector3i(c.x,c.y,c.z);
+
+
+  if FCurrentDrawShader is TCustomPixelChHeShader then
+  begin
+    TexMap2(Self,nil,cci,bbi,aai,Point2i(0,0),Point2i(511,0),Point2i(511,511))
+  end
+  else
+    TexMap(Self,FCurrentDrawShader,aa,bb,cc,Point2(0,0),Point2(1,0),Point2(1,1));
 end;
 
 procedure TPixel32.flipVertical;
