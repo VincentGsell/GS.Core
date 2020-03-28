@@ -1,12 +1,18 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{1D34FC9F-D41B-411C-812E-D72323421E20}</ProjectGuid>
+        <ProjectGuid>{C3B8C5FD-A3C1-4486-856E-ABD67265D60A}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
-        <Projects Include="Minimal\Minimal.dproj">
+        <Projects Include="Pixel32\Minimal\Minimal.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Raster\Raster.dproj">
+        <Projects Include="Pixel32\Raster\Raster.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\3DRaster\D3DRaster.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\MinimalDelaunay\MiniDelau.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -18,31 +24,49 @@
         </BorlandProject>
     </ProjectExtensions>
     <Target Name="Minimal">
-        <MSBuild Projects="Minimal\Minimal.dproj"/>
+        <MSBuild Projects="Pixel32\Minimal\Minimal.dproj"/>
     </Target>
     <Target Name="Minimal:Clean">
-        <MSBuild Projects="Minimal\Minimal.dproj" Targets="Clean"/>
+        <MSBuild Projects="Pixel32\Minimal\Minimal.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Minimal:Make">
-        <MSBuild Projects="Minimal\Minimal.dproj" Targets="Make"/>
+        <MSBuild Projects="Pixel32\Minimal\Minimal.dproj" Targets="Make"/>
     </Target>
     <Target Name="Raster">
-        <MSBuild Projects="Raster\Raster.dproj"/>
+        <MSBuild Projects="Pixel32\Raster\Raster.dproj"/>
     </Target>
     <Target Name="Raster:Clean">
-        <MSBuild Projects="Raster\Raster.dproj" Targets="Clean"/>
+        <MSBuild Projects="Pixel32\Raster\Raster.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Raster:Make">
-        <MSBuild Projects="Raster\Raster.dproj" Targets="Make"/>
+        <MSBuild Projects="Pixel32\Raster\Raster.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="D3DRaster">
+        <MSBuild Projects="Pixel32\3DRaster\D3DRaster.dproj"/>
+    </Target>
+    <Target Name="D3DRaster:Clean">
+        <MSBuild Projects="Pixel32\3DRaster\D3DRaster.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="D3DRaster:Make">
+        <MSBuild Projects="Pixel32\3DRaster\D3DRaster.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="MiniDelau">
+        <MSBuild Projects="Pixel32\MinimalDelaunay\MiniDelau.dproj"/>
+    </Target>
+    <Target Name="MiniDelau:Clean">
+        <MSBuild Projects="Pixel32\MinimalDelaunay\MiniDelau.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="MiniDelau:Make">
+        <MSBuild Projects="Pixel32\MinimalDelaunay\MiniDelau.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Minimal;Raster"/>
+        <CallTarget Targets="Minimal;Raster;D3DRaster;MiniDelau"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Minimal:Clean;Raster:Clean"/>
+        <CallTarget Targets="Minimal:Clean;Raster:Clean;D3DRaster:Clean;MiniDelau:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Minimal:Make;Raster:Make"/>
+        <CallTarget Targets="Minimal:Make;Raster:Make;D3DRaster:Make;MiniDelau:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

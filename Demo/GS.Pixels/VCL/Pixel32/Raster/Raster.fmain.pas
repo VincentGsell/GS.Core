@@ -9,7 +9,7 @@ uses
   GS.Pixel32,
   GS.Pixel32.PixelShader,
   GS.Pixel32.Effect.Generator.Gradient,
-  GS.Pixel32.VCL;
+  GS.Pixel32.Win;
 
 type
   TStar = record

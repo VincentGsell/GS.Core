@@ -262,12 +262,8 @@ end;
 
 
 procedure TPixel32.InternalRasterize(const a, b, c: TP32Vertex);
-var aa,bb,cc : TVector3;
 var aai,bbi,cci : TVector3i;
 begin
-  aa := Vector3(a.x,a.y,a.z);
-  bb := Vector3(b.x,b.y,b.z);
-  cc := Vector3(c.x,c.y,c.z);
   aai := Vector3i(a.x,a.y,a.z);
   bbi := Vector3i(b.x,b.y,b.z);
   cci := Vector3i(c.x,c.y,c.z);

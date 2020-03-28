@@ -1,15 +1,12 @@
-program Minimal;
+program MiniDelau;
 
 uses
   Vcl.Forms,
-  Minimal.fmain in 'Minimal.fmain.pas' {Form1};
+  MiniDelau.fmain in 'MiniDelau.fmain.pas' {Form1};
 
 {$R *.res}
 
 begin
-  {$IFDEF DEBUG}
-  ReportMemoryLeaksOnShutdown := true;
-  {$ENDIF}
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TForm1, Form1);

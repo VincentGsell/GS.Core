@@ -138,7 +138,6 @@ begin
   for j:=miny to maxy do
   begin
     x:=minx-v0.x;
-
     for i:=minx to maxx do
     begin
       if (x*ay-y*ax<=0) and (x*by-y*bx>=0)  and ((i-v1.x)*cy-(j-v1.y)*cx<=0) then
@@ -147,7 +146,6 @@ begin
       end;
       inc(x);
     end;
-
     inc(y);
   end;
 end;

@@ -1,14 +1,14 @@
-program Minimal;
+program D3DRaster;
 
 uses
   Vcl.Forms,
-  Minimal.fmain in 'Minimal.fmain.pas' {Form1};
+  D3DRaster.fmain in 'D3DRaster.fmain.pas' {Form1};
 
 {$R *.res}
 
 begin
   {$IFDEF DEBUG}
-  ReportMemoryLeaksOnShutdown := true;
+  ReportMemoryLeaksOnShutdown := false;
   {$ENDIF}
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
