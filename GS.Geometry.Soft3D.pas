@@ -74,10 +74,10 @@ Type
     constructor Create; override;
     destructor Destroy; override;
 
-    procedure addVertex(x,y,z : single); overload;  //Normal ?
-    procedure addVertex(const map : TBaseVertexArray); overload; //Normal ?
-    procedure addTriangle(i1,i2,i3 : uint32); //UV ?
-    procedure addQuad(i1,i2,i3,i4 : uint32); //UV ?
+    procedure addVertex(x,y,z : single); overload;  //todo Normal
+    procedure addVertex(const map : TBaseVertexArray); overload; //todo Normal
+    procedure addTriangle(i1,i2,i3 : uint32); //todo UV
+    procedure addQuad(i1,i2,i3,i4 : uint32); //todo UV
 
     procedure meshScale(factor : single);
 
@@ -102,6 +102,8 @@ Type
   public
   end;
 
+  TViewportProjectionType = (Perspective, PerspectiveIsometric, OrthographicIsometric);
+
   TViewport = class
   private
     FList : TObjectList; //To do : Separate list form viewport.
@@ -109,6 +111,7 @@ Type
     FCamZ: single;
     FWireframe: boolean;
     Frasterframe: boolean;
+    FProjection: TViewportProjectionType;
 
   public
     TargetCanvas : iPixSurface;
@@ -125,6 +128,8 @@ Type
 
     property rasterFrame : boolean read Frasterframe write fRasterframe;
     property wireFrame : boolean read FWireframe write FWireframe;
+
+    property Projection : TViewportProjectionType read FProjection write FProjection;
 
   end;
 
@@ -281,6 +286,7 @@ begin
   FCamZ := -15;
   FWireframe := false;
   Frasterframe := true;
+  FProjection := TViewportProjectionType.Perspective;
 end;
 
 destructor TViewport.Destroy;
@@ -340,39 +346,40 @@ begin
 
   FCameraMatrix := TMatrix3D.CreateLookAtDirLH(point3d(0,0,FCamZ),point3d(0,0,1),point3d(0,1,0));
 
-  {$DEFINE PERSPECTIVEPROJECTION}
+  Case FProjection of
+    TViewportProjectionType.Perspective,
+    TViewportProjectionType.PerspectiveIsometric :
+    begin
+      AspectRatio := Width/Height;
+      ZFar := 100;
+      ZNear := 1;
+      FOV := DegToRad(45.0);
+
+      FProjectionMatrix :=
+        TMatrix3D.CreatePerspectiveFovLH(
+            FOV,
+            AspectRatio,ZNear,ZFar);
+    end;
+    TViewportProjectionType.OrthographicIsometric :
+    begin
+      //ORTHOGRAPHIC PROJECTION.
+      // 45° rotation on Y
+      FProjectionMatrix :=
+          TMatrix3D.CreateRotationY(-45*PI/180)
+      // 20° rotation on X
+        * TMatrix3D.CreateRotationX(-20*PI/180)
+      // move the scene to the back to avoid Z Clipping
+        * TMatrix3D.CreateTranslation(TPoint3D.Create(0, 0, -500))
+      // create an iometric projection
+        * TMatrix3D.CreateOrthoOffCenterRH(
+            -Width/50, -Height/50,
+            +Width/50, +Height/50,
+            1, 1000
+          );
+    end;
+  End;
 
 
-
-  {$IFDEF PERSPECTIVEPROJECTION}
-
-  AspectRatio := Width/Height;
-  ZFar := 100;
-  ZNear := 1;
-  FOV := DegToRad(45.0);
-
-  FProjectionMatrix :=
-    TMatrix3D.CreatePerspectiveFovLH(
-        FOV,
-        AspectRatio,ZNear,ZFar)
-      ;
-
-  {$ELSE}
-    //ORTHOGRAPHIC PROJECTION.
-    // 45° rotation on Y
-    FProjectionMatrix :=
-        TMatrix3D.CreateRotationY(-45*PI/180)
-    // 20° rotation on X
-      * TMatrix3D.CreateRotationX(-20*PI/180)
-    // move the scene to the back to avoid Z Clipping
-      * TMatrix3D.CreateTranslation(TPoint3D.Create(0, 0, -500))
-    // create an iometric projection
-      * TMatrix3D.CreateOrthoOffCenterRH(
-          -Width/50, -Height/50,
-          +Width/50, +Height/50,
-          1, 1000
-        );
-  {$ENDIF}
 
 
 //  TargetCanvas.SetLine(0,0,30,30); //,$FFAABBFF);
@@ -408,13 +415,15 @@ begin
 
       //Perspective : Applying Z.
 
-      t.VertexA.X := t.VertexA.X * t.VertexA.Z;
-      t.VertexA.Y := t.VertexA.Y * t.VertexA.Z;
-      t.VertexB.X := t.VertexB.X * t.VertexB.Z;
-      t.VertexB.Y := t.VertexB.Y * t.VertexB.Z;
-      t.VertexC.X := t.VertexC.X * t.VertexC.Z;
-      t.VertexC.Y := t.VertexC.Y * t.VertexC.Z;
-
+      if FProjection = TViewportProjectionType.Perspective then
+      begin
+        t.VertexA.X := t.VertexA.X * t.VertexA.Z;
+        t.VertexA.Y := t.VertexA.Y * t.VertexA.Z;
+        t.VertexB.X := t.VertexB.X * t.VertexB.Z;
+        t.VertexB.Y := t.VertexB.Y * t.VertexB.Z;
+        t.VertexC.X := t.VertexC.X * t.VertexC.Z;
+        t.VertexC.Y := t.VertexC.Y * t.VertexC.Z;
+      end;
 
       //https://www.khronos.org/opengl/wiki/Vertex_Transformation
       //viewport = (0,0,Width, Height) | Formula = windowCoordinate[0] = (x * 0.5 + 0.5) * viewport[2] + viewport[0];

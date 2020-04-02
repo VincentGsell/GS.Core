@@ -32,6 +32,7 @@ constructor TPixel32ShaderSquaredMotif.create(surface : iPixSurface);
 begin
   inherited create(surface);
   fl := 5;
+  SetDataColor(gspWhite,gspBlue,fl);
 end;
 
 procedure TPixel32ShaderSquaredMotif.process;

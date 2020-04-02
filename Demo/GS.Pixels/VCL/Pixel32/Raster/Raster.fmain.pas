@@ -49,7 +49,6 @@ type
     scotish : TPixel32ShaderSquaredMotif;
 
     textureShaderTest : TCustomPixelChHeShader;
-
     gradientTexture : TPixel32;
 
     FPS : Integer;
@@ -120,13 +119,16 @@ begin
   try
     a.TurnBy(angleInDegree);
     a.TurnBy(90); //Turn 90°...
-    Result[0] := P32Vertex(Round(a.GetPointedCoord.X),Round(a.GetPointedCoord.y)); //...Get coord...
+    Result[0] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y)); //...Get coord...
+
     a.TurnBy(90); //...And so on.
-    Result[1] := P32Vertex(Round(a.GetPointedCoord.X),Round(a.GetPointedCoord.y));
+    Result[1] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y));
+
     a.TurnBy(90);
-    Result[2] := P32Vertex(Round(a.GetPointedCoord.X),Round(a.GetPointedCoord.y));
+    Result[2] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y));
+
     a.TurnBy(90);
-    Result[3] := P32Vertex(Round(a.GetPointedCoord.X),Round(a.GetPointedCoord.y));
+    Result[3] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y));
   finally
     FreeandNil(a);
   end;
@@ -203,7 +205,7 @@ begin
   drawQuad(vv,pixel.ColorSetAValue(gspAqua,100));
 
   //Again scotish shader, with variance in color and alpha
-  scotish.SetDataColor(pixel.ColorSetAValue(gspWhite,200),gspBlack,5);
+  scotish.SetDataColor(pixel.ColorSetAValue(gspWhite,10),gspBlack,5);
   pixel.setDrawShader(scotish);
   vv := buildQuad(100,120,220,mouse.y+50);
   drawQuad(vv);

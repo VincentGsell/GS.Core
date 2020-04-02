@@ -34,9 +34,30 @@ Uses Classes, SysUtils;
 
 
 Type
+///
+///  Interface for the "real" graphic memory surface. See GS.Pixel32 for a full impl. exemple.
+///
 iPixSurface = interface;
+
+///
+///  The base access to the pixel is happening throught pixel's shader.
+///  Even if it is a very slow methods, this implementation allow very clear
+///  access (in a code point of view) to the pixel.
+///
 iPixShader = interface;
+
+///
+///  This interface allow to use others graphics lib, such as hundreds available
+///  on the net. Pixel designed to be platform agnostic, but service should be
+///  platform dedicated. If you need performance, or if you want to not adapt
+///  or rewrite existing proven code, service is the way.
+///
 iPixService = interface;
+
+///
+///  All full effect on surface (blur, disolve, matrix will pass throught this
+///  interface.
+///
 iPixSurfaceEffect = interface;
 
 //Using graphics stuff, friend class, fine memory tuning needed :
@@ -80,6 +101,7 @@ end;
 
 iPixService = interface
   function uri : string;
+  function id : string;
   procedure Ask(param : TStream);
   procedure Answer(content : TStream; success : boolean; report : TStream);
 end;

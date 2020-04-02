@@ -84,45 +84,6 @@ begin
   Result.biCompression := BI_RGB;
 end;
 
- {
-procedure TPixel32WinHelper.CopyFromDC(srcDc: HDC; const srcRect: TRect);
-var
-  bi: TBitmapInfoHeader;
-  bm, oldBm: HBitmap;
-  memDc: HDC;
-  pixels: Pointer;
-  w,h: integer;
-begin
-  BeginUpdate;
-  try
-    w := RectWidth(srcRect);
-    h := RectHeight(srcRect);
-    SetSize(w, h);
-    bi := Get32bitBitmapInfoHeader(w, h);
-    memDc := GetCompatibleMemDc;
-    try
-      bm := CreateDIBSection(memDc,
-        PBITMAPINFO(@bi)^, DIB_RGB_COLORS, pixels, 0, 0);
-      if bm = 0 then Exit;
-      try
-        oldBm := SelectObject(memDc, bm);
-        BitBlt(memDc, 0, 0, w, h, srcDc, srcRect.Left,srcRect.Top, SRCCOPY);
-        Move(pixels^, fPixels[0], w * h * sizeOf(TColor32));
-        SelectObject(memDc, oldBm);
-      finally
-        DeleteObject(bm);
-      end;
-    finally
-      DeleteDc(memDc);
-    end;
-    SetAlpha(255);
-    FlipVertical;
-  finally
-    EndUpdate;
-  end;
-end;
-}
-
 procedure TPixel32WinHelper.CopyToDc(dstDc: HDC;
   x,y: Integer; transparent: Boolean; bkColor: TP32);
 var

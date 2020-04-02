@@ -59,7 +59,6 @@ function Point2i(x, y: integer): TPoint2i;
 
 procedure triangleRasterizeTexMap(Dest : TPixel32; Shader : TCustomPixelChHeShader; const v0, v1, v2: TVector3i;
  const uv0, uv1, uv2: TPoint2i);
-
 procedure triangleRasterizeFlat( Dest : TPixel32;
                    Shader : TPixel32BasicColorShader;
                    const v0, v1, v2: TVector3i);
@@ -68,6 +67,7 @@ procedure triangleRasterizeFlat( Dest : TPixel32;
 implementation
 
 uses math;
+
 
 function Vector3(x, y, z: Single): TVector3;
 begin
@@ -96,17 +96,16 @@ begin
 end;
 
 
-procedure triangleRasterizeFlat( Dest : TPixel32;
+function InternaltriangleRasterizeFlat( Dest : TPixel32;
                    Shader : TPixel32BasicColorShader;
-                   const v0, v1, v2: TVector3i);
-type
- tlongarray=array[0..0] of longint;
- plongarray=^tlongarray;
+                   const v0, v1, v2: TVector3i) : boolean;
 var
   i,j,x,y:integer;
   minx,miny,maxx,maxy:integer;
   ax,ay,bx,by,cx,cy,diviseur:integer;
+  temp : integer;
 begin
+  result := false;
   assert(assigned(Dest));
   assert(assigned(Shader));
 
@@ -148,14 +147,22 @@ begin
     end;
     inc(y);
   end;
+  result := true;
+end;
+
+procedure triangleRasterizeFlat( Dest : TPixel32;
+                   Shader : TPixel32BasicColorShader;
+                   const v0, v1, v2: TVector3i);
+begin
+  if not(InternaltriangleRasterizeFlat(Dest,Shader,v0,v1,v2)) then
+    InternaltriangleRasterizeFlat(Dest,Shader,v2,v1,v0);
 end;
 
 
-
-procedure triangleRasterizeTexMap( Dest : TPixel32;
+function internalTriangleRasterizeTexMap( Dest : TPixel32;
                    Shader : TCustomPixelChHeShader;
                    const v0, v1, v2: TVector3i;
-                   const uv0, uv1, uv2: TPoint2i);
+                   const uv0, uv1, uv2: TPoint2i) : boolean;
 type
  tlongarray=array[0..0] of longint;
  plongarray=^tlongarray;
@@ -166,6 +173,7 @@ var
   ux,uy,u,v,dx,dy:single;
   l,ll:plongarray;
 begin
+  result := false;
   assert(assigned(Dest));
   assert(assigned(Shader));
 
@@ -231,7 +239,18 @@ begin
 
     inc(y);
   end;
+  result := true;
 end;
+
+procedure TriangleRasterizeTexMap( Dest : TPixel32;
+                   Shader : TCustomPixelChHeShader;
+                   const v0, v1, v2: TVector3i;
+                   const uv0, uv1, uv2: TPoint2i);
+begin
+  if not(internalTriangleRasterizeTexMap(Dest,Shader,v0,v1,v2,uv0,uv1,uv2)) then
+    internalTriangleRasterizeTexMap(Dest,Shader,v2,v1,v0,uv2,uv1,uv0);
+end;
+
 
 
 end.

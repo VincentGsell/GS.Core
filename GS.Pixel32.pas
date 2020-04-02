@@ -47,7 +47,7 @@ Uses Classes,
      GS.Pixel;
 
 Type
-TP32 = Uint32;
+TP32 = int32;
 pTP32 = ^TP32;
 TP32Array = array of TP32;
 
@@ -134,19 +134,20 @@ public
   procedure flipVertical;
 
   procedure copyTo(target : iPixSurface);
-  procedure AlphaLayerReset(const value : byte = 255);
+  procedure alphaLayerReset(const value : byte = 255);
+  procedure alphaLayerResetByColor(ColorMask : TP32; const value : byte = 255);
 
+  function colorGetRValue(c : TP32) : byte;
+  function colorGetBValue(c : TP32) : byte;
+  function colorGetGValue(c : TP32) : byte;
+  function colorGetAValue(c : TP32) : byte;
+  function colorSetAValue(c : TP32; AlphaValue : Byte) : TP32;
+  function colorP32Rec(r,g,b,a : byte) : TP32rec;
 
-
-  function ColorGetRValue(c : TP32) : byte;
-  function ColorGetBValue(c : TP32) : byte;
-  function ColorGetGValue(c : TP32) : byte;
-  function ColorGetAValue(c : TP32) : byte;
-  function ColorSetAValue(c : TP32; AlphaValue : Byte) : TP32;
 
   //Shader
   procedure setDrawShader(shader : TPixel32ColorShader);
-  procedure ResetDrawShader;
+  procedure resetDrawShader;
 
   //iPixSurface impl.
   function getSurfacePtr : pointer;
@@ -170,6 +171,7 @@ End;
 
 function P32Vertex(const x : integer = 0; const y : integer = 0; const z : integer = 0) : TP32Vertex;
 
+
 implementation
 
 Uses GS.Pixel32.Rasterize;
@@ -182,6 +184,12 @@ begin
   result.z := z;
 end;
 
+function colorP32Rec(r,g,b,a : byte) : TP32rec;
+begin
+
+end;
+
+
 { TPixel32 }
 
 procedure TPixel32.AlphaLayerReset(const value : byte = 255);
@@ -192,6 +200,19 @@ begin
   for i := 0 to high(fsurface) do
   begin
     TP32Rec(b^).AlphaChannel := value;
+    inc(b);
+  end;
+end;
+
+procedure TPixel32.alphaLayerResetByColor(ColorMask: TP32; const value: byte);
+var i : integer;
+    b : pTP32;
+begin
+  b := getSurfacePtr;
+  for i := 0 to high(fsurface) do
+  begin
+    if (TP32Rec(b^).Red = TP32Rec(ColorMask).Red) then
+      TP32Rec(b^).AlphaChannel := value;
     inc(b);
   end;
 end;
@@ -239,6 +260,14 @@ begin
   result := TP32Rec(c).Red;
 end;
 
+function TPixel32.colorP32Rec(r, g, b, a: byte): TP32rec;
+begin
+  result.Red := r;
+  result.Green := g;
+  result.Blue := b;
+  result.AlphaChannel := a;
+end;
+
 function TPixel32.ColorSetAValue(c : TP32; AlphaValue : Byte): TP32;
 begin
   TP32Rec(c).AlphaChannel := AlphaValue;
@@ -263,16 +292,25 @@ end;
 
 procedure TPixel32.InternalRasterize(const a, b, c: TP32Vertex);
 var aai,bbi,cci : TVector3i;
+    w,h : integer;
 begin
   aai := Vector3i(a.x,a.y,a.z);
   bbi := Vector3i(b.x,b.y,b.z);
   cci := Vector3i(c.x,c.y,c.z);
 
-
   if FCurrentDrawShader is TCustomPixelChHeShader then
-    triangleRasterizeTexMap(Self,TCustomPixelChHeShader(FCurrentDrawShader),cci,bbi,aai,Point2i(0,0),Point2i(511,0),Point2i(511,511))
+  begin
+    w := TCustomPixelChHeShader(FCurrentDrawShader).Texture.width-1;
+    h := TCustomPixelChHeShader(FCurrentDrawShader).Texture.height-1;
+    triangleRasterizeTexMap( Self,
+                             TCustomPixelChHeShader(FCurrentDrawShader),
+                             cci,bbi,aai,
+                             Point2i(0,0),
+                             Point2i(w,0),
+                             Point2i(w,h))
+  end
   else
-    triangleRasterizeFlat(Self,FCurrentDrawShader,cci,bbi,aai)
+    triangleRasterizeFlat(Self,FCurrentDrawShader,cci, bbi, aai)
 end;
 
 procedure TPixel32.flipVertical;
@@ -472,10 +510,11 @@ end;
 procedure TPixel32BasicColorShader.process;
 var sColor : TP32Rec;
 begin
-  sColor := TP32Rec(Color);
+  sColor.Color := Color;
   pTP32Rec(Bits).red:=(sColor.AlphaChannel * (sColor.Red - pTP32Rec(Bits).Red) shr 8) + (pTP32Rec(Bits).Red);
   pTP32Rec(Bits).Blue:=(sColor.AlphaChannel * (sColor.Blue - pTP32Rec(Bits).Blue) shr 8) + (pTP32Rec(Bits).Blue);
   pTP32Rec(Bits).Green:=(sColor.AlphaChannel * (sColor.Green - pTP32Rec(Bits).Green) shr 8) + (pTP32Rec(Bits).Green);
+  pTP32Rec(Bits).AlphaChannel := sColor.AlphaChannel;
   inc(Bits);
 end;
 
@@ -498,5 +537,30 @@ begin
   inherited;
   Texture := nil;
 end;
+
+
+
+
+
+
+
+
+
+
+////
+///
+///
+///
+///
+///
+///
+///
+///
+///
+///
+///
+
+
+
 
 end.
