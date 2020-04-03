@@ -5,7 +5,11 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
-  GS.Pixel32, GS.Pixel32.Win, GS.Geometry.Delaunay, Vcl.StdCtrls;
+  GS.Pixel32,
+  GS.Pixel32.Win,
+  GS.Pixel32.PixelShader,
+  GS.Geometry.Delaunay,
+  Vcl.StdCtrls;
 
 type
   TForm1 = class(TForm)
@@ -25,6 +29,7 @@ type
     { Public declarations }
     pixel : TPixel32;
     Delaunay : TDelaunay;
+    currentShader : TPixel32ColorShader;
   end;
 
 var
@@ -43,6 +48,10 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   pixel := TPixel32.create;
   Delaunay := TDelaunay.Create;
+//  currentShader := TPixel32ShaderSquaredMotif.create(pixel);
+//  currentShader := TPixel32ShaderRandomizer.create(pixel);
+  currentShader := TPixel32ShaderColorTest.create(pixel);
+//  currentShader := TPixel32ShaderPlasma.create(pixel);
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -91,15 +100,18 @@ begin
     y2 := Round(Delaunay.Vertex^[Delaunay.Triangle^[i].vv1].y);
     x3 := Round(Delaunay.Vertex^[Delaunay.Triangle^[i].vv2].x);
     y3 := Round(Delaunay.Vertex^[Delaunay.Triangle^[i].vv2].y);
+    pixel.color_pen := pixel.ColorSetAValue(gspGreen,255);
+    pixel.setDrawShader(currentShader);
+    pixel.rasterize(x1,y1,x2,y2,x3,y3);
+    pixel.resetDrawShader;
     if  CheckBox1.Checked then
     begin
       pixel.color_pen := gspBlack;
       pixel.moveTo(x1,y1);
       pixel.lineTo(x2,y2);
       pixel.lineTo(x3,y3);
+      pixel.lineTo(x1,y1);
     end;
-    pixel.color_pen := pixel.ColorSetAValue(gspGreen,60);
-    pixel.rasterize(x1,y1,x2,y2,x3,y3);
   end;
   pixel.CopyToDc(Canvas.handle);
 end;

@@ -73,8 +73,8 @@ const
   gspOrange : TP32 = $FFFF7F00;
   gspAqua :  TP32= $FF00FFFF;
   gspNavy  : TP32 = $FF000080;
-  clOlive : TP32 = $FF7F7F00;
-  clYellow : TP32 = $FFFFFF00;
+  gspOlive : TP32 = $FF7F7F00;
+  gspYellow : TP32 = $FFFFFF00;
 
 Type
 TPixel32 = class;
@@ -82,9 +82,8 @@ TPixel32 = class;
 TPixel32CustomShader = class(TPixel32InterfacedObject, iPixShader)
 protected
   fsurface : iPixSurface;
-  procedure init(surface : iPixSurface);
 public
-  constructor create(surface : iPixSurface); virtual;
+  procedure init(surface : iPixSurface);
   procedure process; virtual; abstract;
 end;
 
@@ -101,13 +100,14 @@ protected
   fx, fy, fz : Integer;
 public
   procedure setXYZ(x,y,z : Int32); virtual;
+  procedure process; override;
 end;
 
 //Starting from here, the rasterizer will be different.
 TCustomPixelChHeShader = class(TPixel32ColorShader)
 public
   Texture : TPixel32;
-  constructor create(surface : iPixSurface); override;
+  constructor create; virtual;
 end;
 
 TPixel32 = Class(TPixel32InterfacedObject, iPixSurface)
@@ -161,12 +161,14 @@ public
 
   procedure rasterize(x,y,x1,y1,x2,y2 : Int32);
 
-  procedure clear;
+  procedure clear; overload;
+  procedure clear(shader : TPixel32BasicColorShader); overload;
   function width : uInt32;
   function height : uInt32;
 
-  property color_fill : TP32 read GetFillColor write SetFillColor;
+  property color_clear : TP32 read GetFillColor write SetFillColor;
   property color_pen : TP32 read GetPenColor write SetPenColor;
+  property currentDrawShader : TPixel32ColorShader read FCurrentDrawShader;
 End;
 
 function P32Vertex(const x : integer = 0; const y : integer = 0; const z : integer = 0) : TP32Vertex;
@@ -218,8 +220,7 @@ begin
 end;
 
 procedure TPixel32.clear;
-var
-  i: Integer;
+var i : integer;
 begin
   fFillShader.Bits := getSurfacePtr;
   for i := 0 to high(fsurface) do
@@ -237,11 +238,11 @@ constructor TPixel32.create(const width, Height: uInt32);
 begin
   inherited create;
 
-  fFillShader := TPixel32BasicColorShader.Create(self);
-  fDrawShader := TPixel32ColorShader.Create(self);
+  fFillShader := TPixel32BasicColorShader.Create;
+  fDrawShader := TPixel32ColorShader.Create;
   FCurrentDrawShader := fDrawShader;
 
-  color_fill := gspWhite;
+  color_clear := gspWhite;
   color_pen := gspBlack;
 
   Resize(width,height);
@@ -272,6 +273,15 @@ function TPixel32.ColorSetAValue(c : TP32; AlphaValue : Byte): TP32;
 begin
   TP32Rec(c).AlphaChannel := AlphaValue;
   result := c;
+end;
+
+procedure TPixel32.clear(shader: TPixel32BasicColorShader);
+var i,j : integer;
+begin
+  Assert(Assigned(shader));
+  for i:= 0 to fwidth-1 do
+    for j:= 0 to fheight-1 do
+      pixel(i,j);
 end;
 
 function TPixel32.ColorGetAValue(c: TP32): byte;
@@ -465,6 +475,7 @@ end;
 procedure TPixel32.setDrawShader(shader: TPixel32ColorShader);
 begin
   assert(Assigned(shader));
+  shader.init(Self);
   FCurrentDrawShader := shader;
 end;
 
@@ -493,12 +504,6 @@ end;
 
 { TPixel32CustomShader }
 
-constructor TPixel32CustomShader.create(surface: iPixSurface);
-begin
-  inherited create;
-  init(surface);
-end;
-
 procedure TPixel32CustomShader.init(surface: iPixSurface);
 begin
   Assert(assigned(surface));
@@ -508,17 +513,25 @@ end;
 { TPixel32BasicColorshader }
 
 procedure TPixel32BasicColorShader.process;
-var sColor : TP32Rec;
 begin
-  sColor.Color := Color;
-  pTP32Rec(Bits).red:=(sColor.AlphaChannel * (sColor.Red - pTP32Rec(Bits).Red) shr 8) + (pTP32Rec(Bits).Red);
-  pTP32Rec(Bits).Blue:=(sColor.AlphaChannel * (sColor.Blue - pTP32Rec(Bits).Blue) shr 8) + (pTP32Rec(Bits).Blue);
-  pTP32Rec(Bits).Green:=(sColor.AlphaChannel * (sColor.Green - pTP32Rec(Bits).Green) shr 8) + (pTP32Rec(Bits).Green);
-  pTP32Rec(Bits).AlphaChannel := sColor.AlphaChannel;
+  Bits^:= Color;
   inc(Bits);
 end;
 
 { TPixel32ColorShader }
+
+procedure TPixel32ColorShader.process;
+var sColor : TP32Rec;  //Desired color.
+    sSurfaceColor : TP32Rec; //Current surface's target color.
+begin
+  sColor.Color := Color;
+  sSurfaceColor.Color := Bits^;
+  sColor.red:=(sColor.AlphaChannel * (sColor.Red - sSurfaceColor.Red) shr 8) + (sSurfaceColor.Red);
+  sColor.Blue:=(sColor.AlphaChannel * (sColor.Blue - sSurfaceColor.Blue) shr 8) + (sSurfaceColor.Blue);
+  sColor.Green:=(sColor.AlphaChannel * (sColor.Green - sSurfaceColor.Green) shr 8) + (sSurfaceColor.Green);
+  Color := sColor.Color;
+  inherited;
+end;
 
 procedure TPixel32ColorShader.setXYZ(x, y, z : Int32);
 begin
@@ -532,7 +545,7 @@ end;
 
 { TCustomPixelChHeShader }
 
-constructor TCustomPixelChHeShader.create(surface: iPixSurface);
+constructor TCustomPixelChHeShader.create;
 begin
   inherited;
   Texture := nil;

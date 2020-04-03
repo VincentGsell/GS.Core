@@ -40,6 +40,9 @@ public
     transparent: Boolean = true; bkColor: TP32 = 0);
 
   procedure CopyFromDC(srcDc: HDC; const srcRect: TRect);
+
+  procedure loadFromFile(filename : String);
+  procedure SaveToFile(filename : String);
 end;
 
 var
@@ -120,6 +123,33 @@ begin
     end;
   finally
     FreeAndNil(tmp);
+  end;
+end;
+
+procedure TPixel32WinHelper.loadFromFile(filename: String);
+var b : TBitmap;
+begin
+  b := TBitmap.Create;
+  try
+    b.LoadFromFile(filename);
+    resize(b.Width,b.Height);
+    CopyFromDC(b.Canvas.Handle,rect(0,0,b.Width,b.Height));
+  finally
+    freeandNil(b); //Free vcl ressources.
+  end;
+end;
+
+procedure TPixel32WinHelper.SaveToFile(filename: String);
+var b : TBitmap;
+begin
+  b := TBitmap.Create;
+  try
+    b.PixelFormat := pf32bit;
+    b.SetSize(width,height);
+    CopyToDc(b.Canvas.Handle);
+    b.SaveToFile(filename);
+  finally
+    freeandNil(b); //Free vcl ressources.
   end;
 end;
 

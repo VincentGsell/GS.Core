@@ -44,12 +44,15 @@ type
     scot : TPixel32ShaderSquaredMotif;
     //Classical color shader.
     colShader : TPixel32ColorShader;
+    //Shader toy inspired texture shader.
+    ShaderToyShader : TPixel32ColorShader; //The shader
+    TextureShader_ShaderToy : TCustomPixelChHeShader;  //Texture shader where the above shader will process.
 
     //And finally, a specialized DethColorTextureShader. (default)
     ///TODO  dctShader := ....
 
     gradientTexture : TPixel32;
-    imageTexGoldo, imageTexDice : TPixel32;
+    imageTexGoldo, imageTexDice, imageTexShader : TPixel32;
 
     procedure appIdle(Sender: TObject; var Done: Boolean);
   end;
@@ -60,23 +63,6 @@ var
 implementation
 
 {$R *.dfm}
-
-procedure TForm1.appIdle(Sender: TObject; var Done: Boolean);
-begin
-  pixel.clear;
-  pixel.color_pen := pixel.ColorSetAValue(gspBlue,20);
-  viewport.Execute;
-  TPixel32(viewport.TargetCanvas).CopyToDc(Image1.Canvas.handle);
-  Image1.Repaint;
-  Inc(FPS);
-  Done := false;
-end;
-
-procedure TForm1.cbWireFrameClick(Sender: TObject);
-begin
-  viewport.wireframe := cbWireFrame.Checked;
-  viewport.rasterFrame := cbRasterFrame.Checked;
-end;
 
 procedure TForm1.FormCreate(Sender: TObject);
 var grad : TPixel32GeneratorGradient;
@@ -113,35 +99,37 @@ begin
   scot := TPixel32ShaderSquaredMotif.Create(pixel);
 
   //Build a classic shader, alpha enabled.
-  colShader := TPixel32ColorShader.create(pixel);
+  colShader := TPixel32ColorShader.create;
   colShader.Color := pixel.colorSetAValue(gspRed,100);
 
   //Assign this texture a texture shader.
-  clatextureShader_computed := TCustomPixelChHeShader.Create(pixel);
+  clatextureShader_computed := TCustomPixelChHeShader.Create;
   clatextureShader_computed.Texture := gradientTexture;
 
-  clatextureShader_imageGoldo := TCustomPixelChHeShader.Create(pixel);
-  b := TBitmap.Create;
-  b.LoadFromFile('../../assets/avatar.bmp');
-  imageTexGoldo := TPixel32.create(b.Width,b.Height);
-  imageTexGoldo.CopyFromDC(b.Canvas.Handle,rect(0,0,b.Width,b.Height));
+  clatextureShader_imageGoldo := TCustomPixelChHeShader.Create;
+  imageTexGoldo := TPixel32.create;
+  imageTexGoldo.loadFromFile('../../assets/avatar.bmp');
   clatextureShader_imageGoldo.Texture := imageTexGoldo;
 
-  clatextureShader_imageDice := TCustomPixelChHeShader.Create(pixel);
-  b := TBitmap.Create;
-  try
-    b.LoadFromFile('../../assets/alpha-dice.bmp');
-    imageTexDice := TPixel32.create(b.Width,b.Height);
-    imageTexDice.CopyFromDC(b.Canvas.Handle,rect(0,0,b.Width,b.Height));
-  finally
-  freeandNil(b); //Free vcl ressources.
-  end;
+  clatextureShader_imageDice := TCustomPixelChHeShader.Create;
+  imageTexDice := TPixel32.create;
+  imageTexDice.loadFromFile('../../assets/alpha-dice.bmp');
   //It is a bmp, alpha value is lost. But on this image, it is easy to rebuild. ;)
-  imageTexDice.alphaLayerResetByColor(gspBlack,0); //recover alpha layer.
+  imageTexDice.alphaLayerResetByColor(gspBlack,0); //get tranparent alpha layer, from black pixel of piture.
   clatextureShader_imageDice.Texture := imageTexDice;
 
+  imageTexShader := TPixel32.create(64,64);
+  ShaderToyShader :=  TPixel32ShaderPlasma.create(100);
+  imageTexShader.setDrawShader(ShaderToyShader);
+  imageTexShader.clear(ShaderToyShader); //clear with shader :)
+  TextureShader_ShaderToy := TCustomPixelChHeShader.create;
+  TextureShader_ShaderToy.Texture := imageTexShader;
+
   //begin with texture shader.
-  TPixel32(viewport.TargetCanvas).setDrawShader(clatextureShader_imageGoldo);
+//  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderColorTest.create(100));
+//  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderPlasma.create(100));
+//  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderRandomizer.create(100));
+  TPixel32(viewport.TargetCanvas).setDrawShader(TextureShader_ShaderToy);
 
   Application.OnIdle := appIdle;
 end;
@@ -150,6 +138,25 @@ procedure TForm1.FormDestroy(Sender: TObject);
 begin
 //  FreeAndNil(viewport);
 //  FreeAndNil(pixel);
+end;
+
+procedure TForm1.appIdle(Sender: TObject; var Done: Boolean);
+begin
+  pixel.clear;
+  pixel.color_pen := pixel.ColorSetAValue(gspBlue,20);
+  if pixel.currentDrawShader = TextureShader_ShaderToy then
+    imageTexShader.clear(ShaderToyShader); //Update texture via shader.
+  viewport.Execute;
+  TPixel32(viewport.TargetCanvas).CopyToDc(Image1.Canvas.handle);
+  Image1.Repaint;
+  Inc(FPS);
+  Done := false;
+end;
+
+procedure TForm1.cbWireFrameClick(Sender: TObject);
+begin
+  viewport.wireframe := cbWireFrame.Checked;
+  viewport.rasterFrame := cbRasterFrame.Checked;
 end;
 
 procedure TForm1.FormMouseWheel(Sender: TObject; Shift: TShiftState;

@@ -42,7 +42,6 @@ object Form1: TForm1
     DoubleBuffered = False
     ParentDoubleBuffered = False
     TabOrder = 0
-    ExplicitLeft = 728
     object Label1: TLabel
       Left = 0
       Top = 128
@@ -96,7 +95,7 @@ object Form1: TForm1
   end
   object TimerFPS: TTimer
     OnTimer = TimerFPSTimer
-    Left = 408
-    Top = 272
+    Left = 8
+    Top = 16
   end
 end
