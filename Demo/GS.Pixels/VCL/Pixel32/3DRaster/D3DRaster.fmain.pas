@@ -4,10 +4,10 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, Vcl.StdCtrls, contnrs,
   GS.Geometry.Soft3D,
   GS.Pixel32.PixelShader,
-  GS.Pixel32.Effect.Generator.Gradient,
+  GS.Pixel32.Effect.Gradient,
   GS.Pixel32,
   GS.Pixel32.Win;
 
@@ -35,6 +35,8 @@ type
     pixel : TPixel32;     //surface for drwaing 3d stuff
     viewport : TViewport; //virtual window on 3d world.
     FPS : integer;
+
+    mem : TObjectList;
 
     //classic computed Texture shader.
     clatextureShader_computed : TCustomPixelChHeShader;
@@ -68,6 +70,8 @@ procedure TForm1.FormCreate(Sender: TObject);
 var grad : TPixel32GeneratorGradient;
     b : TBitmap; //VCL specific bitmap.
 begin
+  mem := TObjectList.Create;
+
   pixel := TPixel32.create;     //surface for drwaing 3d stuff
   viewport := TViewport.Create; //virtual window on 3d world.
   viewport.TargetCanvas := pixel;
@@ -82,9 +86,10 @@ begin
 
   //Generate a gradient "star" picture, for texturing.
   gradientTexture := TPixel32.create; //Storage.
+  mem.Add(gradientTexture);
   grad := TPixel32GeneratorGradient.Create; //Generator.
   try
-    grad.init(gradientTexture);
+    grad.init(gradientTexture,pixel.currentDrawShader);
     grad.ColorA := pixel.ColorSetAValue(gspWhite,120);
     grad.ColorB := gspBlack;
     grad.ShiftGradient := -50;
@@ -96,20 +101,27 @@ begin
 
 
   //Build a "scotish" shader (squared motif, with no rotation (screen oriented))
-  scot := TPixel32ShaderSquaredMotif.Create(pixel);
+  scot := TPixel32ShaderSquaredMotif.Create;
+  mem.Add(scot);
+
 
   //Build a classic shader, alpha enabled.
   colShader := TPixel32ColorShader.create;
-  colShader.Color := pixel.colorSetAValue(gspRed,100);
+  colShader.ColorData := TP32Rec(pixel.colorSetAValue(gspRed,100));
+  mem.Add(colshader);
 
   //Assign this texture a texture shader.
   clatextureShader_computed := TCustomPixelChHeShader.Create;
   clatextureShader_computed.Texture := gradientTexture;
+  mem.Add(clatextureShader_computed);
+
 
   clatextureShader_imageGoldo := TCustomPixelChHeShader.Create;
   imageTexGoldo := TPixel32.create;
   imageTexGoldo.loadFromFile('../../assets/avatar.bmp');
   clatextureShader_imageGoldo.Texture := imageTexGoldo;
+  mem.Add(clatextureShader_imageGoldo);
+  mem.Add(imageTexGoldo);
 
   clatextureShader_imageDice := TCustomPixelChHeShader.Create;
   imageTexDice := TPixel32.create;
@@ -117,27 +129,36 @@ begin
   //It is a bmp, alpha value is lost. But on this image, it is easy to rebuild. ;)
   imageTexDice.alphaLayerResetByColor(gspBlack,0); //get tranparent alpha layer, from black pixel of piture.
   clatextureShader_imageDice.Texture := imageTexDice;
+  mem.Add(clatextureShader_imageDice);
+  mem.Add(imageTexDice);
+
+
+  ShaderToyShader :=  TPixel32ShaderPlasma.create(100);
+  mem.Add(ShaderToyShader);
 
   imageTexShader := TPixel32.create(64,64);
-  ShaderToyShader :=  TPixel32ShaderPlasma.create(100);
   imageTexShader.setDrawShader(ShaderToyShader);
-  imageTexShader.clear(ShaderToyShader); //clear with shader :)
+  imageTexShader.fill(ShaderToyShader); //clear with shader :)
   TextureShader_ShaderToy := TCustomPixelChHeShader.create;
   TextureShader_ShaderToy.Texture := imageTexShader;
+  mem.Add(imageTexShader);
+  mem.Add(TextureShader_ShaderToy);
 
   //begin with texture shader.
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderColorTest.create(100));
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderPlasma.create(100));
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderRandomizer.create(100));
   TPixel32(viewport.TargetCanvas).setDrawShader(TextureShader_ShaderToy);
+//  TPixel32(viewport.TargetCanvas).setDrawShader(colShader);
 
   Application.OnIdle := appIdle;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
-//  FreeAndNil(viewport);
-//  FreeAndNil(pixel);
+  FreeAndNil(pixel);
+  FreeAndNil(mem);
+  FreeAndNil(viewport);
 end;
 
 procedure TForm1.appIdle(Sender: TObject; var Done: Boolean);
@@ -145,7 +166,7 @@ begin
   pixel.clear;
   pixel.color_pen := pixel.ColorSetAValue(gspBlue,20);
   if pixel.currentDrawShader = TextureShader_ShaderToy then
-    imageTexShader.clear(ShaderToyShader); //Update texture via shader.
+    imageTexShader.fill(ShaderToyShader); //Update texture via shader.
   viewport.Execute;
   TPixel32(viewport.TargetCanvas).CopyToDc(Image1.Canvas.handle);
   Image1.Repaint;

@@ -8,7 +8,7 @@ uses
 
 begin
   {$IFDEF DEBUG}
-  ReportMemoryLeaksOnShutdown := false;
+  ReportMemoryLeaksOnShutdown := true;
   {$ENDIF}
   Application.Initialize;
   Application.MainFormOnTaskbar := True;

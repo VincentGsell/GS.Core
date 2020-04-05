@@ -18,7 +18,7 @@ protected
   ff, fm : TP32;
   fl : Integer;
 public
-  constructor create(surface : iPixSurface); reintroduce;
+  constructor create; reintroduce;
   procedure SetDataColor(_colorFill, _ColorMotif : TP32; const SquareLen : Integer = 5);
   procedure process; override;
 end;
@@ -57,7 +57,7 @@ implementation
 
 { TPixel32ShaderSquaredMotif }
 
-constructor TPixel32ShaderSquaredMotif.create(surface : iPixSurface);
+constructor TPixel32ShaderSquaredMotif.create;
 begin
   inherited create;
   fl := 5;
@@ -66,12 +66,12 @@ end;
 
 procedure TPixel32ShaderSquaredMotif.process;
 begin
-  Color := ff;
-  if fx mod fl = 1 then
-    Color := fm
+  ColorData := TP32Rec(ff);
+  if x mod fl = 1 then
+    ColorData := TP32Rec(fm)
   else
-  if fy mod fl = 1 then
-    Color := fm;
+  if y mod fl = 1 then
+    ColorData := TP32Rec(fm);
 
   inherited;
 end;
@@ -102,7 +102,7 @@ end;
 procedure TPixel32ShaderRandomizer.process;
 begin
 //  color := TPixel32(fsurface).colorP32Rec(Random(255),Random(255),Random(255),255).Color;
-  color := TPixel32(fsurface).colorP32Rec(100+Random(155),0,0,fAlpha).Color;
+  ColorData := TPixel32(fsurface).colorP32Rec(100+Random(155),0,0,fAlpha);
   inherited;
 end;
 
@@ -134,15 +134,15 @@ var
   col:TP32Rec;
 
 begin
-	uv.x  := fx / fsurface.width;
-	uv.y  := fy / fsurface.height;
+	uv.x  := x / fsurface.width;
+	uv.y  := y / fsurface.height;
 
 	col.Red    := trunc( (sqrts(mix(-0.20,2,dot(uv.x*2,uv.y*0.5)))+0.2) * 255);
 	col.green  := trunc( (sqrts(mix(-0.20,2,dot(1-uv.y,1-uv.x)))+0.2) * 255);
 	col.blue   := trunc( (sqrts(mix(-0.20,2,dot(1-uv.x,uv.y)))+0.2) * 255);
   col.alphachannel := fAlpha;
 
-  color := col.Color;
+  ColorData:= col;
 
   inherited;
 end;
@@ -177,18 +177,18 @@ var
   col : TP32Rec;
 begin
   iGlobalTime :=  GetTickcount/10000;
-  mov0   := fx + fy + System.cos(sinLarge(iGlobalTime) * 2) * 100. + System.sin(fx / 100) * 1000;
-  mov1   := fy / fsurface.height / 0.2 + iGlobalTime;
-  mov2   := fx / fsurface.width / 0.2;
+  mov0   := x + y + System.cos(sinLarge(iGlobalTime) * 2) * 100. + System.sin(x / 100) * 1000;
+  mov1   := y / fsurface.height / 0.2 + iGlobalTime;
+  mov2   := x / fsurface.width / 0.2;
   c1     := System.abs(sinLarge(mov1 + iGlobalTime) / 2. + mov2 / 2. - mov1 - mov2 + iGlobalTime);
-  c2     := System.abs(System.sin(c1 + sinLarge(mov0 / 1000 + iGlobalTime) + System.sin(fy / 40 + iGlobalTime) + System.sin((fx + fy) / 100) * 3));
-  c3     := System.abs(System.sin(c2 + cosLarge(mov1 + mov2 + c2) + System.cos(mov2) + System.sin(fx / 1000)));
+  c2     := System.abs(System.sin(c1 + sinLarge(mov0 / 1000 + iGlobalTime) + System.sin(y / 40 + iGlobalTime) + System.sin((x + y) / 100) * 3));
+  c3     := System.abs(System.sin(c2 + cosLarge(mov1 + mov2 + c2) + System.cos(mov2) + System.sin(x / 1000)));
   col.Red := trunc(c1*255);
   col.Green := trunc(c2*255);
   col.Blue := trunc(c3*255);
   col.AlphaChannel := fAlpha;
 
-  Color := col.Color;
+  ColorData := col;
 
   inherited;
 end;

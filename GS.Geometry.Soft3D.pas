@@ -191,14 +191,11 @@ end;
 constructor TMesh3D.create;
 begin
   inherited;
-
   fmeshData.Clear;
 end;
 
 destructor TMesh3D.destroy;
 begin
-  FreeAndNil(fmeshData);
-  FreeAndNil(ftransformed);
   inherited;
 end;
 

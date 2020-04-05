@@ -26,7 +26,7 @@ Description :
 -----------------------------------------------------------------------------}
 {$I GSCore.Inc}
 
-unit GS.Pixel32.Effect.Generator.Gradient;
+unit GS.Pixel32.Effect.Gradient;
 
 interface
 
@@ -34,7 +34,7 @@ Uses Classes,
      SysUtils,
      Math,
      GS.Pixel32,
-     GS.Pixel32.Effect.Generator;
+     GS.Pixel32.Effect;
 
 
 Type

@@ -26,7 +26,7 @@ Pixel32 Generator Class : Such as Gouraud Gradient color, Perlin2d noise, plasma
 Aim : One time surface decoration methods, to obtain base graphics for texture, or whatever.
 -----------------------------------------------------------------------------}
 {$I GSCore.Inc}
-unit GS.Pixel32.Effect.Generator;
+unit GS.Pixel32.Effect;
 
 interface
 
@@ -38,16 +38,11 @@ Uses Classes,
 
 Type
 
-TCustomPixel32Generator = class(TPixel32InterfacedObject, iPixSurfaceEffect)
+TCustomPixel32Generator = class(TCustomPixel32SurfaceEffect)
 private
 protected
-  fsurface : TPixel32;
   function getsurface: TPixel32;
 public
-  //iSurfaceEffect
-  procedure init(surface : iPixSurface); virtual;
-  procedure process; virtual; abstract;
-
   property GeneratorSurface : TPixel32 read getsurface;
 end;
 
@@ -58,17 +53,6 @@ implementation
 function TCustomPixel32Generator.getsurface: TPixel32;
 begin
   result := TPixel32(fsurface);
-end;
-
-procedure TCustomPixel32Generator.init(surface: iPixSurface);
-begin
-  assert(assigned(surface));
-  assert(surface is TPixel32);
-  {$ifdef fpc}
-  fsurface := surface as TPixel32;
-  {$else}
-  fsurface := TPixel32(surface);
-  {$endif}
 end;
 
 

@@ -8,7 +8,7 @@ uses
   GS.Geometry.Direction,
   GS.Pixel32,
   GS.Pixel32.PixelShader,
-  GS.Pixel32.Effect.Generator.Gradient,
+  GS.Pixel32.Effect.Gradient,
   GS.Pixel32.Win;
 
 type
@@ -86,7 +86,7 @@ begin
   gradientTexture := TPixel32.create; //Storage.
   grad := TPixel32GeneratorGradient.Create; //Generator.
   try
-    grad.init(gradientTexture);
+    grad.init(gradientTexture, pixel.currentDrawShader);
     grad.ColorA := pixel.ColorSetAValue(gspWhite,120);
     grad.ColorB := gspRed;
     grad.ShiftGradient := -50;
@@ -97,7 +97,7 @@ begin
   end;
 
   //Assign this texture a texture shader.
-  textureShaderTest := TCustomPixelChHeShader.Create(pixel);
+  textureShaderTest := TCustomPixelChHeShader.Create;
   textureShaderTest.Texture := gradientTexture;
 
   FPS := 0;

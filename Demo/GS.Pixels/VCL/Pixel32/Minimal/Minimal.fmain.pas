@@ -4,7 +4,11 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, GS.Pixel32, GS.Pixel32.Win;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  GS.Pixel32,
+  GS.Pixel32.Effect,
+  GS.Pixel32.Effect.Gradient,
+  GS.Pixel32.Win;
 
 type
   TForm1 = class(TForm)

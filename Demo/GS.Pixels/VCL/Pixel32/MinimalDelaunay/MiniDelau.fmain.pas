@@ -48,16 +48,17 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   pixel := TPixel32.create;
   Delaunay := TDelaunay.Create;
-//  currentShader := TPixel32ShaderSquaredMotif.create(pixel);
-//  currentShader := TPixel32ShaderRandomizer.create(pixel);
-  currentShader := TPixel32ShaderColorTest.create(pixel);
-//  currentShader := TPixel32ShaderPlasma.create(pixel);
+//  currentShader := TPixel32ShaderSquaredMotif.create;
+//  currentShader := TPixel32ShaderRandomizer.create;
+  currentShader := TPixel32ShaderColorTest.create;
+//  currentShader := TPixel32ShaderPlasma.create; //!
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
   FreeAndNil(pixel);
   FreeAndNil(Delaunay);
+  FreeAndNil(currentShader);
 end;
 
 procedure TForm1.FormMouseDown(Sender: TObject; Button: TMouseButton;
@@ -89,7 +90,6 @@ var i : integer;
     x2,y2 : integer;
     x3,y3 : integer;
 begin
-  //pixel.ResetDrawShader;
   pixel.clear;
   pixel.color_pen := gspBlue;
   for i:= 1 to Delaunay.HowMany do

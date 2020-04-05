@@ -60,7 +60,7 @@ function Point2i(x, y: integer): TPoint2i;
 procedure triangleRasterizeTexMap(Dest : TPixel32; Shader : TCustomPixelChHeShader; const v0, v1, v2: TVector3i;
  const uv0, uv1, uv2: TPoint2i);
 procedure triangleRasterizeFlat( Dest : TPixel32;
-                   Shader : TPixel32BasicColorShader;
+                   Shader : TPixel32ColorShader;
                    const v0, v1, v2: TVector3i);
 
 //---------------------------------------------------------------------------
@@ -97,7 +97,7 @@ end;
 
 
 function InternaltriangleRasterizeFlat( Dest : TPixel32;
-                   Shader : TPixel32BasicColorShader;
+                   Shader : TPixel32ColorShader;
                    const v0, v1, v2: TVector3i) : boolean;
 var
   i,j,x,y:integer;
@@ -151,7 +151,7 @@ begin
 end;
 
 procedure triangleRasterizeFlat( Dest : TPixel32;
-                   Shader : TPixel32BasicColorShader;
+                   Shader : TPixel32ColorShader;
                    const v0, v1, v2: TVector3i);
 begin
   if not(InternaltriangleRasterizeFlat(Dest,Shader,v0,v1,v2)) then
@@ -228,7 +228,7 @@ begin
         //l[i]:=ll[round(u)]; //Fast : Direct memory access.
 
         //Shader methods : Much slower but very flexible in code.
-        Shader.Color := longword(ll[round(u)]);
+        Shader.ColorData := TP32Rec(longword(ll[round(u)]));
         Dest.pixel(i,j);
       end;
       ux:=ux-dx;

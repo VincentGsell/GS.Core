@@ -68,13 +68,15 @@ public
   function _Release: Integer; stdcall;
 End;
 
+//Pixel shader. (per pixel work)
 iPixShader = interface
   procedure init(surface : iPixSurface);
   procedure process;
 end;
 
+//Whole surface, use shader in a more direct way.
 iPixSurfaceEffect = interface
-  procedure init(surface : iPixSurface);
+  procedure init(surface : iPixSurface; shader : iPixShader);
   procedure process;
 end;
 
