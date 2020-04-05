@@ -80,7 +80,7 @@ begin
   pixel :=  TPixel32.create;
 
   //Build a "scotish" shader (squared motif, with no rotation (screen oriented))
-  scotish := TPixel32ShaderSquaredMotif.Create(pixel);
+  scotish := TPixel32ShaderSquaredMotif.Create;
 
   //Generate a gradient "star" picture, for texturing.
   gradientTexture := TPixel32.create; //Storage.

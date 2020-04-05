@@ -338,7 +338,7 @@ begin
                              Point2i(w,h))
   end
   else
-    triangleRasterizeFlat(Self,fCurrentDrawShader,cci, bbi, aai)
+    triangleRasterizeFlat(Self,cci, bbi, aai)
 end;
 
 procedure TPixel32.flipVertical;

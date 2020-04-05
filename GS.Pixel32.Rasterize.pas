@@ -60,7 +60,6 @@ function Point2i(x, y: integer): TPoint2i;
 procedure triangleRasterizeTexMap(Dest : TPixel32; Shader : TCustomPixelChHeShader; const v0, v1, v2: TVector3i;
  const uv0, uv1, uv2: TPoint2i);
 procedure triangleRasterizeFlat( Dest : TPixel32;
-                   Shader : TPixel32ColorShader;
                    const v0, v1, v2: TVector3i);
 
 //---------------------------------------------------------------------------
@@ -97,7 +96,6 @@ end;
 
 
 function InternaltriangleRasterizeFlat( Dest : TPixel32;
-                   Shader : TPixel32ColorShader;
                    const v0, v1, v2: TVector3i) : boolean;
 var
   i,j,x,y:integer;
@@ -107,7 +105,6 @@ var
 begin
   result := false;
   assert(assigned(Dest));
-  assert(assigned(Shader));
 
   minx:=max(min(min(v0.x,v1.x),v2.x),0);
   miny:=max(min(min(v0.y,v1.y),v2.y),0);
@@ -151,11 +148,10 @@ begin
 end;
 
 procedure triangleRasterizeFlat( Dest : TPixel32;
-                   Shader : TPixel32ColorShader;
                    const v0, v1, v2: TVector3i);
 begin
-  if not(InternaltriangleRasterizeFlat(Dest,Shader,v0,v1,v2)) then
-    InternaltriangleRasterizeFlat(Dest,Shader,v2,v1,v0);
+  if not(InternaltriangleRasterizeFlat(Dest, v0,v1,v2)) then
+    InternaltriangleRasterizeFlat(Dest, v2,v1,v0);
 end;
 
 
