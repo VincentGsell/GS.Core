@@ -49,8 +49,8 @@ begin
   pixel := TPixel32.create;
   Delaunay := TDelaunay.Create;
 //  currentShader := TPixel32ShaderSquaredMotif.create;
-//  currentShader := TPixel32ShaderRandomizer.create;
-  currentShader := TPixel32ShaderColorTest.create;
+  currentShader := TPixel32ShaderRandomizer.create;
+//  currentShader := TPixel32ShaderColorTest.create;
 //  currentShader := TPixel32ShaderPlasma.create; //!
 end;
 
@@ -77,8 +77,6 @@ begin
     pixel.moveTo(x,y);
     Delaunay.AddPoint(x,y);
     Delaunay.Mesh;
-    Delaunay.Mesh;
-    Delaunay.Mesh;
     Caption := IntToStr(Delaunay.HowMany)+' triangle(s)';
   end;
   repaint;
@@ -102,7 +100,10 @@ begin
     y3 := Round(Delaunay.Vertex^[Delaunay.Triangle^[i].vv2].y);
     pixel.color_pen := pixel.ColorSetAValue(gspGreen,255);
     pixel.setDrawShader(currentShader);
-    pixel.rasterize(x1,y1,x2,y2,x3,y3);
+    pixel.setVertex(0,x1,y1,0,0,0);
+    pixel.setVertex(1,x2,y2,0,0,0);
+    pixel.setVertex(2,x3,y3,0,0,0);
+    pixel.rasterize;
     pixel.resetDrawShader;
     if  CheckBox1.Checked then
     begin

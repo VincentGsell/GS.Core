@@ -35,32 +35,10 @@ interface
 
 
 uses
- GS.Pixel32, sysutils;
+ GS.Pixel, GS.Pixel32, sysutils;
 
- type
- TVector3 = record
-  x, y, z: Single;
- end;
- TVector3i = record
-  x, y, z: integer;
- end;
- TPoint2 = record
-  x, y: Single;
- end;
- TPoint2i = record
-  x, y: integer;
- end;
-
-//---------------------------------------------------------------------------
-function Vector3(x, y, z: Single): TVector3;
-function Point2(x, y: Single): TPoint2;
-function Vector3i(x, y, z: integer): TVector3i;
-function Point2i(x, y: integer): TPoint2i;
-
-procedure triangleRasterizeTexMap(Dest : TPixel32; Shader : TCustomPixelChHeShader; const v0, v1, v2: TVector3i;
- const uv0, uv1, uv2: TPoint2i);
-procedure triangleRasterizeFlat( Dest : TPixel32;
-                   const v0, v1, v2: TVector3i);
+procedure triangleRasterizeTexMap(Dest : TPixel32; const v0, v1, v2: TP32Vertex);
+procedure triangleRasterizeFlat( Dest : TPixel32; const v0, v1, v2: TP32Vertex);
 
 //---------------------------------------------------------------------------
 implementation
@@ -68,35 +46,8 @@ implementation
 uses math;
 
 
-function Vector3(x, y, z: Single): TVector3;
-begin
- Result.x:= x;
- Result.y:= y;
- Result.z:= z;
-end;
-
-function Vector3i(x, y, z: integer): TVector3i;
-begin
- Result.x:= x;
- Result.y:= y;
- Result.z:= z;
-end;
-
-function Point2(x, y: Single): TPoint2;
-begin
- Result.x:= x;
- Result.y:= y;
-end;
-
-function Point2i(x, y: integer): TPoint2i;
-begin
- Result.x:= x;
- Result.y:= y;
-end;
-
-
 function InternaltriangleRasterizeFlat( Dest : TPixel32;
-                   const v0, v1, v2: TVector3i) : boolean;
+                   const v0, v1, v2: TP32Vertex) : boolean;
 var
   i,j,x,y:integer;
   minx,miny,maxx,maxy:integer;
@@ -148,7 +99,7 @@ begin
 end;
 
 procedure triangleRasterizeFlat( Dest : TPixel32;
-                   const v0, v1, v2: TVector3i);
+                   const v0, v1, v2: TP32Vertex);
 begin
   if not(InternaltriangleRasterizeFlat(Dest, v0,v1,v2)) then
     InternaltriangleRasterizeFlat(Dest, v2,v1,v0);
@@ -156,9 +107,7 @@ end;
 
 
 function internalTriangleRasterizeTexMap( Dest : TPixel32;
-                   Shader : TCustomPixelChHeShader;
-                   const v0, v1, v2: TVector3i;
-                   const uv0, uv1, uv2: TPoint2i) : boolean;
+                   const v0, v1, v2: TP32Vertex) : boolean;
 type
  tlongarray=array[0..0] of longint;
  plongarray=^tlongarray;
@@ -171,7 +120,8 @@ var
 begin
   result := false;
   assert(assigned(Dest));
-  assert(assigned(Shader));
+  assert(assigned(Dest.currentDrawShader));
+  assert(Dest.currentDrawShader is TPixel32TextureShader);
 
   minx:=max(min(min(v0.x,v1.x),v2.x),0);
   miny:=max(min(min(v0.y,v1.y),v2.y),0);
@@ -189,10 +139,15 @@ begin
   by:=v2.y-v0.y;
   cy:=v2.y-v1.y;
 
-  au:=uv1.x-uv0.x;
-  bu:=uv2.x-uv0.x;
-  av:=uv1.y-uv0.y;
-  bv:=uv2.y-uv0.y;
+  au:=v1.u-v0.u;
+  bu:=v2.u-v0.u;
+  av:=v1.v-v0.v;
+  bv:=v2.v-v0.v;
+
+//  au:=uv1.x-uv0.x;
+//  bu:=uv2.x-uv0.x;
+//  av:=uv1.y-uv0.y;
+//  bv:=uv2.y-uv0.y;
 
   // flat triangle, or reverse
   if ax*by-ay*bx<=0 then exit;
@@ -218,13 +173,14 @@ begin
     begin
       if (x*ay-y*ax<=0) and (x*by-y*bx>=0)  and ((i-v1.x)*cy-(j-v1.y)*cx<=0) then
       begin
-        u:=au*ux+bu*uy+uv0.x;
-        v:=av*ux+bv*uy+uv0.y;
-        ll := TCustomPixelChHeShader(shader).Texture.getSurfaceScanLinePtr(round(v));
+        u:=au*ux+bu*uy+v0.u;
+        v:=av*ux+bv*uy+v0.v;
+
+        ll := TPixel32TextureShader(Dest.currentDrawShader).Texture.getSurfaceScanLinePtr(round(v));
         //l[i]:=ll[round(u)]; //Fast : Direct memory access.
 
         //Shader methods : Much slower but very flexible in code.
-        Shader.ColorData := TP32Rec(longword(ll[round(u)]));
+        Dest.currentDrawShader.ColorData := TP32Rec(longword(ll[round(u)]));
         Dest.pixel(i,j);
       end;
       ux:=ux-dx;
@@ -239,12 +195,10 @@ begin
 end;
 
 procedure TriangleRasterizeTexMap( Dest : TPixel32;
-                   Shader : TCustomPixelChHeShader;
-                   const v0, v1, v2: TVector3i;
-                   const uv0, uv1, uv2: TPoint2i);
+                   const v0, v1, v2: TP32Vertex);
 begin
-  if not(internalTriangleRasterizeTexMap(Dest,Shader,v0,v1,v2,uv0,uv1,uv2)) then
-    internalTriangleRasterizeTexMap(Dest,Shader,v2,v1,v0,uv2,uv1,uv0);
+  if not(internalTriangleRasterizeTexMap(Dest,v0,v1,v2)) then
+    internalTriangleRasterizeTexMap(Dest,v2,v0,v1);
 end;
 
 

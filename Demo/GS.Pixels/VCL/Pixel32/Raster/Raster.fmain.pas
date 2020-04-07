@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,  Vcl.StdCtrls,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,  Vcl.StdCtrls, pngImage,
   GS.Geometry.Direction,
   GS.Pixel32,
   GS.Pixel32.PixelShader,
@@ -47,14 +47,15 @@ type
     mouseLeft : boolean;
 
     scotish : TPixel32ShaderSquaredMotif;
+    dice : TPixel32TextureShader;
 
-    textureShaderTest : TCustomPixelChHeShader;
+    textureShaderTest : TPixel32TextureShader;
     gradientTexture : TPixel32;
 
     FPS : Integer;
 
     //Use low level raster.
-    function buildQuad(len,cx,cy,angleInDegree : Integer) : TQuadVertices;
+    function buildQuad(lenx,leny,cx,cy,angleInDegree : Integer) : TQuadVertices;
     procedure drawQuad(const vertices : TQuadVertices; const color : TP32 = $FF000000);
     procedure drawQuadBorder(const vertices : TQuadVertices; const color : TP32 = $FF000000);
     procedure drawQuads;
@@ -82,6 +83,14 @@ begin
   //Build a "scotish" shader (squared motif, with no rotation (screen oriented))
   scotish := TPixel32ShaderSquaredMotif.Create;
 
+  //Build a texture based shader.
+  dice := TPixel32TextureShader.Create;
+  dice.Texture := TPixel32.create;
+  dice.Texture.loadFromFile('../../../../../assets/alpha-dice.bmp');
+  dice.Texture.alphaLayerResetByColor(gspBlack,0); //Make it transparent (starting from bmp)
+  dice.Texture.alphaLayerResetByColor(gspWhite,0); //Dice hole too ;)
+//  dice.Texture.alphaLayerReset(100);
+
   //Generate a gradient "star" picture, for texturing.
   gradientTexture := TPixel32.create; //Storage.
   grad := TPixel32GeneratorGradient.Create; //Generator.
@@ -97,7 +106,7 @@ begin
   end;
 
   //Assign this texture a texture shader.
-  textureShaderTest := TCustomPixelChHeShader.Create;
+  textureShaderTest := TPixel32TextureShader.Create;
   textureShaderTest.Texture := gradientTexture;
 
   FPS := 0;
@@ -109,39 +118,71 @@ begin
   FreeAndNil(scotish);
   FreeAndNil(gradientTexture);
   FreeAndNil(textureShaderTest);
+  FreeAndNil(dice.Texture);
+  FreeAndNil(dice);
 end;
 
-function TForm2.buildQuad(len,cx,cy,angleInDegree : Integer) : TQuadVertices;
+function TForm2.buildQuad(lenx,leny,cx,cy,angleInDegree : Integer) : TQuadVertices;
 var a : TDirectionalObject;
+    tw,th : integer;
 begin
   //processing quad edge using GS.TDirectionalObject. (easy and more intuitive than matrix for simple geometry handling.)
-  a := TDirectionalObject.Create(cx,cy,len div 2);
+  tw := 0;
+  th := 0;
+  if pixel.currentDrawShader is TPixel32TextureShader then
+  begin
+    tw := TPixel32TextureShader(pixel.currentDrawShader).Texture.width;
+    th := TPixel32TextureShader(pixel.currentDrawShader).Texture.height;
+  end;
+
+  Result[0] := P32Vertex(trunc(cx-lenx/2),trunc(cy-leny/2),0,0,0);
+  Result[1] := P32Vertex(trunc(cx+lenx/2),trunc(cy-leny/2),0,tw,0);
+  Result[2] := P32Vertex(trunc(cx+lenx/2),trunc(cy+leny/2),0,tw,th);
+  Result[3] := P32Vertex(trunc(cx-lenx/2),trunc(cy+leny/2),0,0,th);
+
+
+  a := TDirectionalObject.Create(cx,cy,10);
   try
+    a.SetPointedCoord(Point(result[0].x,result[0].Y,0));
     a.TurnBy(angleInDegree);
-    a.TurnBy(90); //Turn 90°...
-    Result[0] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y)); //...Get coord...
+    Result[0] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,0,0); //...Get coord...
 
-    a.TurnBy(90); //...And so on.
-    Result[1] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y));
+//    a.TurnBy(90); //...And so on.
+    a.SetPointedCoord(Point(result[1].x,result[1].Y,0));
+    a.TurnBy(angleInDegree);
+    Result[1] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,tw,0);
 
-    a.TurnBy(90);
-    Result[2] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y));
+//    a.TurnBy(90);
+    a.SetPointedCoord(Point(result[2].x,result[2].Y,0));
+    a.TurnBy(angleInDegree);
+    Result[2] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,tw,th);
 
-    a.TurnBy(90);
-    Result[3] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y));
+//    a.TurnBy(90);
+    a.SetPointedCoord(Point(result[3].x,result[3].Y,0));
+    a.TurnBy(angleInDegree);
+    Result[3] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,0,th);
   finally
     FreeandNil(a);
   end;
+
 end;
 
 
 procedure TForm2.drawQuad(const vertices : TQuadVertices; const color: TP32);
+var v :TP32Vertex;
 begin
   //Draw 2 triangles for the quad. (clockwise !)
   pixel.color_pen := color;
   //Note rasterization color depends of the current shader ! See OnPaint event.
-  pixel.rasterize( vertices[0].x, vertices[0].y, vertices[1].x, vertices[1].y, vertices[2].x, vertices[2].y);
-  pixel.rasterize( vertices[2].x, vertices[2].y, vertices[3].x, vertices[3].y, vertices[0].x, vertices[0].y);
+
+  pixel.rasterV[0] := vertices[0];
+  pixel.rasterV[1] := vertices[1];
+  pixel.rasterV[2] := vertices[2];
+  pixel.rasterize;
+  pixel.rasterV[0] := vertices[2];
+  pixel.rasterV[1] := vertices[3];
+  pixel.rasterV[2] := vertices[0];
+  pixel.rasterize;
 end;
 
 procedure TForm2.drawQuadBorder(const vertices: TQuadVertices;
@@ -163,8 +204,7 @@ begin
   for i := 0 to QUADS_COUNT-1 do
   begin
     //Draw stars with texture shader.
-    pixel.setDrawShader(textureShaderTest);
-    vv := buildQuad(quads[i].len,quads[i].coord.x,quads[i].coord.y,quads[i].startAngle + quads[i].angle);
+    vv := buildQuad(quads[i].len,quads[i].len,quads[i].coord.x,quads[i].coord.y,quads[i].startAngle + quads[i].angle);
     drawQuad(vv,pixel.ColorSetAValue(quads[i].col,100));
 //    pixel.ResetDrawShader;
 //    drawQuadBorder(vv,pixel.ColorSetAValue(quads[i].col,100));
@@ -185,29 +225,38 @@ begin
 end;
 
 procedure TForm2.FormPaint(Sender: TObject);
+const dicesize = 1.0; //0.5
 var vv : TQuadVertices;
     lx,ly : integer;
 begin
   pixel.clear;
 
+  pixel.setDrawShader(textureShaderTest);
   drawQuads;
 
   pixel.ResetDrawShader; //Back to classical shader (Color shader)
-  vv := buildQuad(100,120,120,mouse.y);
+  vv := buildQuad(100,100,120,120,mouse.y);
   drawQuad(vv,pixel.ColorSetAValue(gspGreen,100));
-  vv := buildQuad(100,120,140,mouse.y+10);
+  vv := buildQuad(100,100,120,140,mouse.y+10);
   drawQuad(vv,pixel.ColorSetAValue(gspRed,100));
-  vv := buildQuad(100,120,160,mouse.y+20);
+  vv := buildQuad(100,100,120,160,mouse.y+20);
   drawQuad(vv,pixel.ColorSetAValue(gspBlue,100));
-  vv := buildQuad(100,120,180,mouse.y+30);
+  vv := buildQuad(100,100,120,180,mouse.y+30);
   drawQuad(vv,pixel.ColorSetAValue(gspOrange,100));
-  vv := buildQuad(100,120,200,mouse.y+40);
+  vv := buildQuad(100,100,120,200,mouse.y+40);
+  drawQuad(vv,pixel.ColorSetAValue(gspAqua,100));
+
+  pixel.setDrawShader(dice);
+  //Build a bounding dice
+  vv := buildQuad( round(dice.Texture.width/dicesize*cos(GetTickCount/1000)),
+                   round(dice.Texture.height/dicesize*cos(GetTickCount/1000)),
+                   pixel.width-dice.Texture.width,dice.Texture.height,MOUSE.x);
   drawQuad(vv,pixel.ColorSetAValue(gspAqua,100));
 
   //Again scotish shader, with variance in color and alpha
   scotish.SetDataColor(pixel.ColorSetAValue(gspWhite,10),gspBlack,5);
   pixel.setDrawShader(scotish);
-  vv := buildQuad(100,120,220,mouse.y+50);
+  vv := buildQuad(100,100,120,220,mouse.y+50);
   drawQuad(vv);
 
   if mouseLeft then
@@ -216,14 +265,14 @@ begin
     pixel.setDrawShader(scotish);
     ///..And set alpha to basic color of the shader.
     scotish.SetDataColor(pixel.ColorSetAValue(gspBlue,200),pixel.ColorSetAValue(gspWhite,50),5);
-    vv := buildQuad(200,mouse.x,mouse.y,mouse.x);
+    vv := buildQuad(200,200,mouse.x,mouse.y,mouse.x);
     drawQuad(vv); //Color useless here, because of use of a special shader.
   end;
 
 
   //And a last one, with texture.
   pixel.setDrawShader(textureShaderTest);
-  vv := buildQuad(200,120,Pixel.height-200 ,mouse.x+50);
+  vv := buildQuad(200,200,120,Pixel.height-200 ,mouse.x+50);
   drawQuad(vv);
 
   //We draw a line... With the scotish shader (fun effect)

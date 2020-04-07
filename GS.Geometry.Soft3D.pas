@@ -41,9 +41,12 @@ uses SysUtils,
      GS.Pixel;
 
 Type
+  TCoord = record u,v : single; end;
+  TPoint2D = record x, y : single; end;
   TMeshData3D = Record
     vertices : array of TPoint3D;
     indices : array of Uint32;
+    UVMap : array of TCoord;
 
     procedure clear;
 
@@ -63,8 +66,8 @@ Type
   end;
 
   TBaseVertexArray = array of TPoint3D;
-  TBaseTriangle = record VertexIndiceA,VertexIndiceB,VertexIndiceC : integer; end;
-  TBaseTriangle3D = record VertexA,VertexB,VertexC : TPoint3D; end;
+  TBaseTriangle = record VertexIndiceA,VertexIndiceB,VertexIndiceC : integer; uvA, uvB, uvC : TCoord; end;
+  TBaseTriangle3D = record VertexA,VertexB,VertexC : TPoint3D; uvA, uvB, uvC : TCoord; end;
 
   TMesh3D = class(TBase3D)
   private
@@ -76,8 +79,8 @@ Type
 
     procedure addVertex(x,y,z : single); overload;  //todo Normal
     procedure addVertex(const map : TBaseVertexArray); overload; //todo Normal
-    procedure addTriangle(i1,i2,i3 : uint32); //todo UV
-    procedure addQuad(i1,i2,i3,i4 : uint32); //todo UV
+    procedure addTriangle(i1,i2,i3 : uint32; u,v,u1,v1,u2,v2 : integer);
+    procedure addQuad(i1,i2,i3,i4 : uint32);
 
     procedure meshScale(factor : single);
 
@@ -121,6 +124,7 @@ Type
 
     procedure addMesh(_mesh : TMesh3d);
     function addCube(x,y,z : single) : TCube;
+    function addPlane(x,y,z : single) : TPlane;
 
     procedure Execute;
 
@@ -153,11 +157,11 @@ end;
 
 procedure TMesh3D.addQuad(i1, i2, i3, i4: uint32);
 begin
-  addTriangle(i1,i2,i3);
-  addTriangle(i1,i4,i3);
+  addTriangle(i1,i2,i3,0,0,1,0,1,1);
+  addTriangle(i3,i4,i1,1,1,0,1,0,0);
 end;
 
-procedure TMesh3D.addTriangle(i1, i2, i3: uint32);
+procedure TMesh3D.addTriangle(i1, i2, i3: uint32; u,v,u1,v1,u2,v2 : integer);
 var l : uint32;
 begin
   assert(i1<fmeshData.verticesArraySize);
@@ -168,6 +172,12 @@ begin
   fmeshData.Indices[l] := i1;
   fmeshData.Indices[l+1] := i2;
   fmeshData.Indices[l+2] := i3;
+  fmeshData.UVMap[l].u := u;
+  fmeshData.UVMap[l].v := v;
+  fmeshData.UVMap[l+1].u := u1;
+  fmeshData.UVMap[l+1].v := v1;
+  fmeshData.UVMap[l+2].u := u2;
+  fmeshData.UVMap[l+2].v := v2;
 end;
 
 procedure TMesh3D.addVertex(x, y, z: single);
@@ -239,6 +249,9 @@ begin
   result.VertexIndiceA := fmeshData.indices[l];
   result.VertexIndiceB := fmeshData.indices[l+1];
   result.VertexIndiceC := fmeshData.indices[l+2];
+  Result.uvA := fmeshData.UVMap[l];
+  Result.uvB := fmeshData.UVMap[l+1];
+  Result.uvC := fmeshData.UVMap[l+2];
 end;
 
 function TMesh3D.triangles3D(TriIndice: integer): TBaseTriangle3D;
@@ -257,6 +270,11 @@ begin
   result.VertexC.x := ftransformed.vertices[l.VertexIndiceC].X;
   result.VertexC.y := ftransformed.vertices[l.VertexIndiceC].Y;
   result.VertexC.z := ftransformed.vertices[l.VertexIndiceC].Z;
+
+  Result.uvA := fmeshData.UVMap[l.VertexIndiceA];
+  Result.uvB := fmeshData.UVMap[l.VertexIndiceB];
+  Result.uvC := fmeshData.UVMap[l.VertexIndiceC];
+
 end;
 
 { TViewport }
@@ -274,6 +292,15 @@ procedure TViewport.addMesh(_mesh: TMesh3d);
 begin
   assert(assigned(_mesh));
   FList.Add(_mesh)
+end;
+
+function TViewport.addPlane(x, y, z: single): TPlane;
+begin
+  Result :=  TPlane.Create;
+  Result.fx := x;
+  Result.fy := y;
+  Result.fz := z;
+  addMesh(Result);
 end;
 
 constructor TViewport.Create;
@@ -332,6 +359,9 @@ var l : TMesh3D;
 
     Width : Integer;
     Height : Integer;
+
+
+    tw,th : Integer; //Texture size.
 
 begin
   Assert(Assigned(TargetCanvas));
@@ -436,7 +466,6 @@ begin
       t.VertexC.Y := (t.VertexC.Y * 0.5 + 0.5) * Height + 0;
       t.VertexC.Z := (1 + t.VertexC.Z) * 0.5;
 
-
 {     Denormalization Equivalence : (for info)
       t.VertexA.x := (1-t.VertexA.x) * TargetCanvas.Surface.Width/2;
       t.VertexA.y := (1-t.VertexA.y) * TargetCanvas.Surface.Height/2;
@@ -449,9 +478,12 @@ begin
 
       if Frasterframe then
       begin
-        TargetCanvas.rasterize( round(t.VertexA.x),round(t.VertexA.y),
-                                round(t.VertexB.x),round(t.VertexB.y),
-                                round(t.VertexC.x),round(t.VertexC.y));
+        tw := 320;
+        th := 240;
+        TargetCanvas.setVertex(0,round(t.VertexA.X),round(t.VertexA.Y),round(t.VertexA.Z),trunc(t.uvA.u*tw),trunc(t.uvA.v*th));
+        TargetCanvas.setVertex(1,round(t.VertexB.X),round(t.VertexB.Y),round(t.VertexB.Z),trunc(t.uvB.u*tw),trunc(t.uvB.v*th));
+        TargetCanvas.setVertex(2,round(t.VertexC.X),round(t.VertexC.Y),round(t.VertexC.Z),trunc(t.uvC.u*tw),trunc(t.uvC.v*th));
+        TargetCanvas.rasterize;
       end;
 
       if wireFrame then
@@ -474,22 +506,22 @@ end;
 constructor TCube.create;
 begin
   inherited;
-  addVertex(-0.5,-0.5,-0.5);
-  addVertex(0.5,-0.5,-0.5);
-  addVertex(0.5,0.5,-0.5);
-  addVertex(-0.5,0.5,-0.5);
+  addVertex(-0.5,-0.5,-0.5); //0
+  addVertex(0.5,-0.5,-0.5);  //1
+  addVertex(0.5,0.5,-0.5);   //2
+  addVertex(-0.5,0.5,-0.5);  //3
 
-  addVertex(-0.5,-0.5,0.5);
-  addVertex(0.5,-0.5,0.5);
-  addVertex(0.5,0.5,0.5);
-  addVertex(-0.5,0.5,0.5);
+  addVertex(-0.5,-0.5,0.5);  //4
+  addVertex(0.5,-0.5,0.5);   //5
+  addVertex(0.5,0.5,0.5);    //6
+  addVertex(-0.5,0.5,0.5);   //7
 
   addQuad(0,1,2,3);
-  addQuad(0,3,7,4);
-  addQuad(3,2,6,7);
-  addQuad(2,1,5,6);
-  addQuad(1,0,4,5);
   addQuad(4,5,6,7);
+  addQuad(0,4,5,1);
+  addQuad(3,1,6,2);
+  addQuad(1,5,6,2);
+  addQuad(0,4,1,3);
 end;
 
 
@@ -521,6 +553,7 @@ end;
 procedure TMeshData3D.setIndicesArraySize(newSize: Uint32);
 begin
   SetLength(Indices,newSize);
+  SetLength(UVMap,newSize);
 end;
 
 procedure TMeshData3D.setVerticesArraySize(newSize: Uint32);

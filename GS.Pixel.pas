@@ -91,7 +91,8 @@ iPixSurface = interface
   procedure lineTo(const x,y : Int32; const z : Int32 = 0);
   procedure pixel(const x,y : Int32; const z : Int32 = 0);
 
-  procedure rasterize(x,y,x1,y1,x2,y2 : Int32);
+  procedure setVertex(indice : uInt32; x,y,z,u,v : integer);
+  procedure rasterize;
 
 //  procedure invoke(service : iPixService);
 

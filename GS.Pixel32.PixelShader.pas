@@ -102,7 +102,7 @@ end;
 procedure TPixel32ShaderRandomizer.process;
 begin
 //  color := TPixel32(fsurface).colorP32Rec(Random(255),Random(255),Random(255),255).Color;
-  ColorData := TPixel32(fsurface).colorP32Rec(100+Random(155),0,0,fAlpha);
+  ColorData := TPixel32(fsurface).colorP32Rec(10+Random(245),10+Random(245),10+Random(245),fAlpha);
   inherited;
 end;
 

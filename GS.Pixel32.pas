@@ -53,6 +53,7 @@ TP32Array = array of TP32;
 
 TP32Vertex = record
   x,y,z : Int32;
+  u,v : Int32;
 end;
 
 TP32Rec = packed record
@@ -75,6 +76,7 @@ const
   gspNavy  : TP32 = $FF000080;
   gspOlive : TP32 = $FF7F7F00;
   gspYellow : TP32 = $FFFFFF00;
+
 
 Type
 TPixel32 = class;
@@ -100,12 +102,12 @@ public
   procedure process; override;
 end;
 
-//Starting from here, the rasterizer will be different.
-TCustomPixelChHeShader = class(TPixel32ColorShader)
+TPixel32TextureShader = class(TPixel32ColorShader)
+protected
 public
   Texture : TPixel32;
-  constructor create; virtual;
 end;
+
 
 TCustomPixel32SurfaceEffect = class(TPixel32InterfacedObject, iPixSurfaceEffect)
 protected
@@ -143,6 +145,9 @@ protected
   procedure InternalRasterize(const a, b, c: TP32Vertex);
 
 public
+  rasterV : Array[0..3] of TP32Vertex;
+
+
   constructor create(const width : uInt32 = 32; const Height : uInt32 = 32); virtual;
   destructor Destroy; override;
 
@@ -150,7 +155,7 @@ public
 
   procedure copyTo(target : iPixSurface);
   procedure alphaLayerReset(const value : byte = 255);
-  procedure alphaLayerResetByColor(ColorMask : TP32; const value : byte = 255);
+  procedure alphaLayerResetByColor(ColorMask : TP32; const value : byte = 255; const Tolerance : byte = 5);
 
   function colorGetRValue(c : TP32) : byte;
   function colorGetBValue(c : TP32) : byte;
@@ -174,7 +179,8 @@ public
   procedure moveTo(const x,y : Int32;const z : Int32 = 0);
   procedure lineTo(const x,y : Int32;const z : Int32 = 0);
 
-  procedure rasterize(x,y,x1,y1,x2,y2 : Int32);
+  procedure setVertex(indice : uInt32; x,y,z,u,v : integer);
+  procedure rasterize;
 
   procedure clear; overload;
   procedure fill(shader : TPixel32ColorShader); overload;
@@ -186,7 +192,7 @@ public
   property currentDrawShader : TPixel32ColorShader read FCurrentDrawShader;
 End;
 
-function P32Vertex(const x : integer = 0; const y : integer = 0; const z : integer = 0) : TP32Vertex;
+function P32Vertex(const x : integer = 0; const y : integer = 0; const z : integer = 0; u : integer =0; v : integer =0) : TP32Vertex;
 
 
 implementation
@@ -194,18 +200,14 @@ implementation
 Uses GS.Pixel32.Rasterize;
 
 
-function P32Vertex(const x : integer; const y : integer; const z : integer) : TP32Vertex;
+function P32Vertex(const x : integer; const y : integer; const z : integer; u : integer; v : integer) : TP32Vertex;
 begin
   result.x := x;
   result.y := y;
   result.z := z;
+  result.u := u;
+  result.v := v;
 end;
-
-function colorP32Rec(r,g,b,a : byte) : TP32rec;
-begin
-
-end;
-
 
 { TPixel32 }
 
@@ -221,14 +223,16 @@ begin
   end;
 end;
 
-procedure TPixel32.alphaLayerResetByColor(ColorMask: TP32; const value: byte);
+procedure TPixel32.alphaLayerResetByColor(ColorMask: TP32; const value: byte; const Tolerance : byte);
 var i : integer;
     b : pTP32;
 begin
   b := getSurfacePtr;
   for i := 0 to high(fsurface) do
   begin
-    if (TP32Rec(b^).Red = TP32Rec(ColorMask).Red) then
+    if ((Abs(TP32Rec(b^).Red - TP32Rec(ColorMask).Red)<Tolerance)) And
+       ((Abs(TP32Rec(b^).Green - TP32Rec(ColorMask).Green)<Tolerance)) And
+       ((Abs(TP32Rec(b^).Blue - TP32Rec(ColorMask).Blue)<Tolerance))  then
       TP32Rec(b^).AlphaChannel := value;
     inc(b);
   end;
@@ -319,26 +323,18 @@ end;
 
 
 procedure TPixel32.InternalRasterize(const a, b, c: TP32Vertex);
-var aai,bbi,cci : TVector3i;
-    w,h : integer;
+var  w,h : integer;
 begin
-  aai := Vector3i(a.x,a.y,a.z);
-  bbi := Vector3i(b.x,b.y,b.z);
-  cci := Vector3i(c.x,c.y,c.z);
 
-  if FCurrentDrawShader is TCustomPixelChHeShader then
+  if FCurrentDrawShader is TPixel32TextureShader then
   begin
-    w := TCustomPixelChHeShader(FCurrentDrawShader).Texture.width-1;
-    h := TCustomPixelChHeShader(FCurrentDrawShader).Texture.height-1;
+    w := TPixel32TextureShader(FCurrentDrawShader).Texture.width;
+    h := TPixel32TextureShader(FCurrentDrawShader).Texture.height;
     triangleRasterizeTexMap( Self,
-                             TCustomPixelChHeShader(FCurrentDrawShader),
-                             cci,bbi,aai,
-                             Point2i(0,0),
-                             Point2i(w,0),
-                             Point2i(w,h))
+                             a,b,c)
   end
   else
-    triangleRasterizeFlat(Self,cci, bbi, aai)
+    triangleRasterizeFlat(Self,a, b, c)
 end;
 
 procedure TPixel32.flipVertical;
@@ -465,14 +461,9 @@ begin
   FCurrentDrawShader.process;
 end;
 
-procedure TPixel32.rasterize(x, y, x1, y1, x2, y2: Int32);
-var a,b,c : TP32Vertex;
+procedure TPixel32.rasterize;
 begin
-  a := P32Vertex(x,y,0);
-  b := P32Vertex(x1,y1,0);
-  c := P32Vertex(x2,y2,0);
-
-  InternalRasterize(a,b,c);
+  InternalRasterize(rasterV[0],rasterV[1],rasterV[2]);
 end;
 
 procedure TPixel32.ResetDrawShader;
@@ -504,6 +495,16 @@ end;
 procedure TPixel32.SetPenColor(const Value: TP32);
 begin
   FDefaultColorDraw.ColorData := TP32Rec(Value);
+end;
+
+procedure TPixel32.setVertex(indice: uInt32; x, y, z, u, v: integer);
+begin
+  assert(indice<4);
+  rasterV[indice].x := x;
+  rasterV[indice].y := y;
+  rasterV[indice].z := z;
+  rasterV[indice].u := u;
+  rasterV[indice].v := v;
 end;
 
 function TPixel32.getSurfacePtr: pointer;
@@ -550,38 +551,6 @@ begin
   fcol.Green:=(fColorData.AlphaChannel * (fColorData.Green - sSurfaceColor.Green) shr 8) + (sSurfaceColor.Green);
   fbits^ := fcol.Color;
 end;
-
-
-{ TCustomPixelChHeShader }
-
-constructor TCustomPixelChHeShader.create;
-begin
-  inherited;
-  Texture := nil;
-end;
-
-
-
-
-
-
-
-
-
-
-////
-///
-///
-///
-///
-///
-///
-///
-///
-///
-///
-///
-
 
 
 

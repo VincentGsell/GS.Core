@@ -39,7 +39,7 @@ public
   procedure CopyToDc(dstDc: HDC; x: Integer = 0; y: Integer = 0;
     transparent: Boolean = true; bkColor: TP32 = 0);
 
-  procedure CopyFromDC(srcDc: HDC; const srcRect: TRect);
+  procedure CopyFromDC(srcDc: HDC; const srcRect: System.Types.TRect);
 
   procedure loadFromFile(filename : String);
   procedure SaveToFile(filename : String);
