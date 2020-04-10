@@ -1,0 +1,660 @@
+unit GS.Assets;
+
+interface
+
+uses Classes, SysUtils,
+     GS.Common,
+     GS.Stream,
+     GS.Geometry,
+     GS.Geometry.Mesh2D,
+     GS.Geometry.Mesh2D.Tools;
+
+
+Type
+
+TGSAssetType = (gsatText, gsatImage, gsatAtlas, gsatSound, gsatMesh2d, gsaComposed);
+
+TGSAssetString = String;
+TGSAssetInt = NativeInt;
+
+TGSAssetBase = class
+protected
+  FID : TGUID;
+  function GetAssetType: TGSAssetType; virtual; abstract;
+  function GetAssetHumanName: TGSAssetString; virtual; abstract;
+  function GetAssetID: TGSAssetString; virtual;
+  function GetAssetMemorySize: TGSAssetInt; virtual; abstract;
+public
+  Constructor Create; virtual;
+  procedure SaveToStream(aStream : TStream); virtual; abstract;
+  procedure LoadFormStream(aStream : TStream); virtual; abstract;
+
+  property AssetType : TGSAssetType read GetAssetType;
+  property AssetName : TGSAssetString read GetAssetHumanName;
+  property AssetId : TGSAssetString read GetAssetID;
+  property AssetMemorySize : TGSAssetInt read GetAssetMemorySize;
+end;
+
+
+TGSAssetObject = class(TGSAssetBase)
+end;
+
+TGSAssetComposedObject = Class(TGSAssetBase)
+End;
+
+
+TGSAssetText = class(TGSAssetObject)
+private
+protected
+  FText: String;
+  function GetAssetType: TGSAssetType; override;
+  function GetAssetHumanName: TGSAssetString; override;
+  function GetAssetMemorySize: TGSAssetInt; override;
+public
+  procedure SaveToStream(aStream : TStream); override;
+  procedure LoadFormStream(aStream : TStream); override;
+
+  property Text : String read FText Write FText;
+end;
+
+TGSAsset2DMeshedObject = class(TGSAssetObject)
+protected
+  fMesh : TGSRawMesh2D;
+  function GetAssetType: TGSAssetType; override;
+  function GetAssetHumanName: TGSAssetString; override;
+  function GetAssetMemorySize: TGSAssetInt; override;
+public
+  Constructor Create; override;
+  Destructor Destroy; override;
+  procedure SaveToStream(aStream : TStream); override;
+  procedure LoadFormStream(aStream : TStream); override;
+
+  property MeshData : TGSRawMesh2D read fMesh;
+end;
+
+TGSAssetSquareMesh = Class(TGSAsset2DMeshedObject)
+private
+  FSide: TVecType;
+  procedure SetSide(const Value: TVecType);
+protected
+public
+  Constructor Create; override;
+  property Side : TVecType read FSide write SetSide;
+end;
+
+TGSAssetShapeMesh = Class(TGSAsset2DMeshedObject)
+private
+  FRadius: TVecType;
+  FSubdi: Uint32;
+  FPreShapeModelEnabled: Boolean;
+  FPreShapedModel: TGSShape2dType;
+  procedure SetRadius(const Value: TVecType);
+  procedure SetSubdi(const Value: Uint32);
+  procedure InternalBuild;
+  procedure SetPreShapeModelEnabled(const Value: Boolean);
+    procedure SetPreShapedModel(const Value: TGSShape2dType);
+protected
+public
+  Constructor Create; override;
+
+  property PreShapedModelEnabled : Boolean read FPreShapeModelEnabled write SetPreShapeModelEnabled;
+  property PreShapedModel : TGSShape2dType read FPreShapedModel write SetPreShapedModel;
+  property Radius : TVecType read FRadius write SetRadius;
+  property Subdivision : Uint32 read FSubdi Write SetSubdi;
+end;
+
+
+TGSAssetAtlas = Class(TGSAssetObject)
+protected
+  names : TList_UTF8String;
+  zones : array of vec4;
+
+  function GetAssetType: TGSAssetType; override;
+  function GetAssetHumanName: TGSAssetString; override;
+  function GetAssetMemorySize: TGSAssetInt; override;
+public
+  procedure SaveToStream(aStream : TStream); override;
+  procedure LoadFormStream(aStream : TStream); override;
+
+  Constructor Create; override;
+  Destructor Destroy; override;
+
+  procedure clear;
+  procedure addZone(x,y,w,h : TVecType; name : TGSAssetString);
+End;
+
+TGSAssetImageFormat = (aifRawARGB32BitFormat, aifBitmap, aifJPG, aifPNG);
+TGSAssetImageContainer = class(TGSAssetObject)
+private
+protected
+  FImageDesc: TGSAssetString;
+  FImageSource: TGSAssetString;
+  FBinaryData: TStream;
+  FImageFormat: TGSAssetImageFormat;
+
+  function GetAssetType: TGSAssetType; override;
+  function GetAssetHumanName: TGSAssetString; override;
+  function GetAssetMemorySize: TGSAssetInt; override;
+public
+  procedure SaveToStream(aStream : TStream); override;
+  procedure LoadFormStream(aStream : TStream); override;
+
+  Constructor Create; override;
+  Destructor Destroy; override;
+  property ImageFormat : TGSAssetImageFormat read FImageFormat;
+  property BinaryData : TStream read FBinaryData;
+  property ImageDescription : TGSAssetString read FImageDesc write FImageDesc;
+  property AssetImageSource : TGSAssetString read FImageSource write FImageSource;
+end;
+
+//Composed based.
+TGSAssetComposed = class(TGSAssetComposedObject)
+  private
+    function GetAsset(Index: UInt32): TGSAssetObject;
+    function GetAssetCount: UInt32;
+    function GetAssetTotalMemory: TGSAssetInt;
+protected
+  FComposition : TList_ObjectArray;
+
+  function GetAssetType: TGSAssetType; override;
+  function GetAssetMemorySize: TGSAssetInt; override;
+public
+  procedure SaveToStream(aStream : TStream); override;
+  procedure LoadFormStream(aStream : TStream); override;
+  Constructor Create; override;
+  Destructor Destroy; override;
+
+  procedure addAsset(asset : TGSAssetObject);
+  property Assets[Index : UInt32] : TGSAssetObject read GetAsset;
+  property AssetsCount : UInt32 read GetAssetCount;
+  property AssetsTotalMemory : TGSAssetInt read GetAssetTotalMemory;
+end;
+
+///
+///
+///  COMPOSED OBJECT
+///
+///
+///
+
+
+///
+///  Atlas Image source.
+///
+TGSAssetAtlasImage = class(TGSAssetComposed)
+protected
+  FImage: TGSAssetImageContainer;
+  FAtlas: TGSAssetAtlas;
+  function GetAssetHumanName: TGSAssetString; override;
+public
+  Constructor Create; override;
+  property Image : TGSAssetImageContainer read FImage; //Original image.
+  property Atlas :TGSAssetAtlas read FAtlas; //Atlas
+end;
+
+///
+///  Image source.
+///
+
+TGSAssetImageSource = Class(TGSAssetAtlasImage)
+protected
+  FImageAtlas : TGSAssetAtlasImage;
+  FShape: TGSAssetSquareMesh;
+  function GetAssetHumanName: TGSAssetString; override;
+public
+  Constructor Create; override;
+  property Image : TGSAssetAtlasImage read FImageAtlas; //Original image.
+  property Shape : TGSAssetSquareMesh read FShape write FShape;
+End;
+
+
+var
+  GSAssetObjectClass : array of TClass;
+implementation
+
+procedure RegisterGSAssetObject(objectClass : TClass);
+var i : Integer;
+begin
+  i := length(GSAssetObjectClass);
+  setlength(GSAssetObjectClass,i+1);
+  GSAssetObjectClass[i] := objectClass;
+end;
+
+function getGSAssetObjectImplementationFromName(_Classname : String) : TGSAssetObject;
+var i : integer;
+    c : String;
+begin
+  result := nil;
+  c := UpperCase(_Classname);
+  for i:= 0 to Length(GSAssetObjectClass)-1 do
+    if UpperCase(GSAssetObjectClass[i].ClassName) = c then
+    begin
+      result := TGSAssetObject(GSAssetObjectClass[i].Create);
+      break
+    end;
+  assert(assigned(result));
+end;
+
+{ TGSAsset }
+
+
+{ TGSAssetBase }
+
+constructor TGSAssetBase.Create;
+begin
+  inherited Create;
+  CreateGUID(FID);
+end;
+
+function TGSAssetBase.GetAssetID: TGSAssetString;
+begin
+  result := FID.ToString;
+end;
+
+
+{ TGSAssetAtlas }
+
+procedure TGSAssetAtlas.addZone(x, y, w, h: TVecType; name: TGSAssetString);
+var l : int32;
+begin
+  l := length(zones);
+  SetLength(zones,l+1);
+  zones[l].Left := x;
+  zones[l].top := y;
+  zones[l].Width := w;
+  zones[l].height := h;
+  names.Add(UTF8String(name));
+end;
+
+procedure TGSAssetAtlas.clear;
+begin
+  SetLength(zones,0);
+  names.Clear;
+end;
+
+constructor TGSAssetAtlas.Create;
+begin
+  inherited create;
+  names :=TList_UTF8String.Create(false);
+  clear;
+end;
+
+destructor TGSAssetAtlas.Destroy;
+begin
+  clear;
+  freeAndNil(names);
+  inherited;
+end;
+
+function TGSAssetAtlas.GetAssetHumanName: TGSAssetString;
+begin
+  result := 'Atlas - rect geo location (zone)';
+end;
+
+function TGSAssetAtlas.GetAssetMemorySize: TGSAssetInt;
+begin
+  result := length(zones) * SizeOf(vec4);
+end;
+
+function TGSAssetAtlas.GetAssetType: TGSAssetType;
+begin
+  result := TGSAssetType.gsatAtlas;
+end;
+
+procedure TGSAssetAtlas.LoadFormStream(aStream: TStream);
+var i, fz : Int32;
+begin
+  fz := ReadInt32(aStream);
+  for i := 0 to fz-1 do
+    names.Add(UTF8String(ReadString(aStream)));
+  fz := ReadInt32(aStream);
+  SetLength(zones,fz);
+  for i := 0 to Length(zones)-1 do
+  begin
+    zones[i].x := ReadDouble(aStream);
+    zones[i].y := ReadDouble(aStream);
+    zones[i].z := ReadDouble(aStream);
+    zones[i].w := ReadDouble(aStream);
+  end;
+end;
+
+procedure TGSAssetAtlas.SaveToStream(aStream: TStream);
+var i : integer;
+begin
+  WriteInt32(aStream,names.Count);
+  for I := 0 to names.Count-1 do
+    WriteString(aStream,String(names[i]));
+  WriteInt32(aStream,Length(zones));
+  for i := 0 to length(zones)-1 do
+  begin
+    WriteDouble(aStream,zones[i].x);
+    WriteDouble(aStream,zones[i].y);
+    WriteDouble(aStream,zones[i].z);
+    WriteDouble(aStream,zones[i].w);
+  end;
+end;
+
+{ TGSAssetComposed }
+
+procedure TGSAssetComposed.addAsset(asset: TGSAssetObject);
+begin
+
+end;
+
+constructor TGSAssetComposed.Create;
+begin
+  inherited create;
+  FComposition := TList_ObjectArray.Create(True);
+end;
+
+destructor TGSAssetComposed.Destroy;
+begin
+  FreeAndNil(FComposition);
+  inherited;
+end;
+
+function TGSAssetComposed.GetAsset(Index: UInt32): TGSAssetObject;
+begin
+  Assert(Index<FComposition.Count);
+  result := TGSAssetObject(FComposition[Index]);
+end;
+
+function TGSAssetComposed.GetAssetCount: UInt32;
+begin
+  result := FComposition.Count;
+end;
+
+
+function TGSAssetComposed.GetAssetMemorySize: TGSAssetInt;
+begin
+  result := GetAssetTotalMemory;
+end;
+
+function TGSAssetComposed.GetAssetTotalMemory: TGSAssetInt;
+var i : integer;
+begin
+  result := 0;
+  for i := 0 to FComposition.Count-1 do
+    inc(result,TGSAssetObject(FComposition[i]).AssetMemorySize);
+end;
+
+function TGSAssetComposed.GetAssetType: TGSAssetType;
+begin
+  result := TGSAssetType.gsaComposed;
+end;
+
+procedure TGSAssetComposed.LoadFormStream(aStream: TStream);
+var i,l : Int32;
+    s : string;
+    o : TGSAssetObject;
+begin
+  l := ReadInt32(aStream);
+  for i := 0 to l-1 do
+  begin
+    s := ReadString(aStream);
+    o := getGSAssetObjectImplementationFromName(s);
+    o.LoadFormStream(aStream);
+  end;
+end;
+
+procedure TGSAssetComposed.SaveToStream(aStream: TStream);
+var i : integer;
+begin
+  WriteInt32(aStream,FComposition.Count);
+  for i := 0 to FComposition.Count-1 do
+  begin
+    WriteString(aStream,TGSAssetObject(FComposition[i]).ClassName);
+    TGSAssetObject(FComposition[i]).SaveToStream(aStream);
+  end;
+end;
+
+{ TGSAssetSquareMesh }
+
+constructor TGSAssetSquareMesh.Create;
+begin
+  inherited create;
+  Side := 2.0;
+end;
+
+procedure TGSAssetSquareMesh.SetSide(const Value: TVecType);
+begin
+  FSide := Value;
+  FMesh.SetUpQuad(FSide);
+end;
+
+{ TGSAssetText }
+
+function TGSAssetText.GetAssetHumanName: TGSAssetString;
+begin
+  result := 'Text (Pure UTF8 text data)'
+end;
+
+function TGSAssetText.GetAssetMemorySize: TGSAssetInt;
+begin
+  result := SizeOf(FText);
+end;
+
+function TGSAssetText.GetAssetType: TGSAssetType;
+begin
+  result := TGSAssetType.gsatText;
+end;
+
+
+procedure TGSAssetText.LoadFormStream(aStream: TStream);
+begin
+  FText := ReadString(aStream);
+end;
+
+procedure TGSAssetText.SaveToStream(aStream: TStream);
+begin
+  WriteString(aStream, FText);
+end;
+
+{ TGSAsset2DMeshedObject }
+
+constructor TGSAsset2DMeshedObject.Create;
+begin
+  inherited;
+  fMesh := TGSRawMesh2D.Create;
+end;
+
+destructor TGSAsset2DMeshedObject.Destroy;
+begin
+  FreeAndNil(fmesh);
+  inherited;
+end;
+
+function TGSAsset2DMeshedObject.GetAssetHumanName: TGSAssetString;
+begin
+  result := '2D Mesh - Raw data (vertices, UVs, indexes)';
+end;
+
+function TGSAsset2DMeshedObject.GetAssetMemorySize: TGSAssetInt;
+begin
+  result := length(fmesh.vertices) * sizeof(vec2) +
+            SizeOf(fmesh.indexes) * sizeof(uint32) +
+            SizeOf(fmesh.uvs) * sizeof(vec2);
+end;
+
+function TGSAsset2DMeshedObject.GetAssetType: TGSAssetType;
+begin
+  result := TGSAssetType.gsatMesh2d;
+end;
+
+procedure TGSAsset2DMeshedObject.LoadFormStream(aStream: TStream);
+var i : integer;
+    fv,fu,fi : Int32;
+begin
+  fv := ReadInt32(aStream);
+  fu := ReadInt32(aStream);
+  fi := ReadInt32(aStream);
+
+  SetLength(fMesh.vertices,fv);
+  SetLength(fMesh.uvs,fu);
+  SetLength(fMesh.indexes,fi);
+
+  for i := 0 to Length(fMesh.vertices)-1 do
+  begin
+    fmesh.vertices[i].x := ReadDouble(aStream);
+    fmesh.vertices[i].y := ReadDouble(aStream);
+  end;
+  for i := 0 to length(FMesh.uvs)-1 do
+  begin
+    fmesh.uvs[i].x := ReadDouble(aStream);
+    fmesh.uvs[i].y := ReadDouble(aStream);
+  end;
+  for i := 0 to length(FMesh.indexes)-1 do
+  begin
+    fmesh.indexes[i] := ReadInt32(aStream);
+    fmesh.indexes[i] := ReadInt32(aStream);
+  end;
+end;
+
+procedure TGSAsset2DMeshedObject.SaveToStream(aStream: TStream);
+var i : integer;
+begin
+  WriteInt32(aStream,Length(fMesh.vertices));
+  WriteInt32(aStream,Length(fMesh.uvs));
+  WriteInt32(aStream,Length(fMesh.indexes));
+  for i := 0 to length(FMesh.vertices)-1 do
+  begin
+    WriteDouble(aStream,FMesh.vertices[i].x);
+    WriteDouble(aStream,FMesh.vertices[i].y);
+  end;
+  for i := 0 to length(FMesh.uvs)-1 do
+  begin
+    WriteDouble(aStream,FMesh.uvs[i].x);
+    WriteDouble(aStream,FMesh.uvs[i].y);
+  end;
+  for i := 0 to length(FMesh.indexes)-1 do
+  begin
+    WriteInt32(aStream,FMesh.indexes[i]);
+    WriteInt32(aStream,FMesh.indexes[i]);
+  end;
+end;
+
+{ TGSAssetImageContainer }
+
+constructor TGSAssetImageContainer.Create;
+begin
+  inherited;
+  FBinaryData := TMemoryStream.Create;
+end;
+
+destructor TGSAssetImageContainer.Destroy;
+begin
+  freeAndNil(FBinaryData);
+  inherited;
+end;
+
+function TGSAssetImageContainer.GetAssetHumanName: TGSAssetString;
+begin
+  result := 'Image - Raw binary data of a image format';
+end;
+
+function TGSAssetImageContainer.GetAssetMemorySize: TGSAssetInt;
+begin
+  result := FBinaryData.Size;
+end;
+
+function TGSAssetImageContainer.GetAssetType: TGSAssetType;
+begin
+  result := TGSAssetType.gsatImage;
+end;
+
+procedure TGSAssetImageContainer.LoadFormStream(aStream: TStream);
+begin
+  FBinaryData.Position := 0;
+  WriteStream(aStream,FBinaryData);
+end;
+
+procedure TGSAssetImageContainer.SaveToStream(aStream: TStream);
+begin
+  ReadStream(aStream,FBinaryData);
+
+end;
+
+{ TGSAssetAtlasImage }
+
+constructor TGSAssetAtlasImage.Create;
+begin
+  inherited;
+  FImage:= TGSAssetImageContainer.Create;
+  FAtlas:= TGSAssetAtlas.Create;
+  FComposition.Add(FImage);
+  FComposition.Add(FAtlas);
+end;
+
+function TGSAssetAtlasImage.GetAssetHumanName: TGSAssetString;
+begin
+  result := 'Image (Image binary source, atlas mapping';
+end;
+
+
+{ TGSAssetImageSource }
+
+constructor TGSAssetImageSource.Create;
+begin
+  inherited Create;
+  FImageAtlas := TGSAssetAtlasImage.Create;
+  FImageAtlas.FImage := FImage;
+  FImageAtlas.FAtlas := FAtlas;
+  FShape := TGSAssetSquareMesh.Create;
+  FComposition.Add(FImageAtlas);
+  FComposition.Add(FShape);
+end;
+
+function TGSAssetImageSource.GetAssetHumanName: TGSAssetString;
+begin
+  result := 'Image (Image binary source, atlas mapping, uv';
+end;
+
+{ TGSAssetShapeMesh }
+
+constructor TGSAssetShapeMesh.Create;
+begin
+  inherited;
+  FPreShapedModel := TGSShape2dType.hexa;
+  FPreShapeModelEnabled := true;
+  FSubdi := 1;
+  FRadius := 1;
+  InternalBuild;
+end;
+
+procedure TGSAssetShapeMesh.InternalBuild;
+begin
+  if FPreShapeModelEnabled then
+    fMesh.SetShapeType(FPreShapedModel)
+  else
+  begin
+    fmesh.Build_SetRoundShape(FSubdi,FRadius);
+  end;
+end;
+
+procedure TGSAssetShapeMesh.SetPreShapedModel(const Value: TGSShape2dType);
+begin
+  FPreShapedModel := Value;
+  InternalBuild;
+end;
+
+procedure TGSAssetShapeMesh.SetPreShapeModelEnabled(const Value: Boolean);
+begin
+  FPreShapeModelEnabled := Value;
+  InternalBuild;
+end;
+
+procedure TGSAssetShapeMesh.SetRadius(const Value: TVecType);
+begin
+  FRadius := Value;
+  InternalBuild;
+end;
+
+procedure TGSAssetShapeMesh.SetSubdi(const Value: Uint32);
+begin
+  FSubdi := Value;
+  if  FSubdi<3 then
+    FSubdi := 3;
+  InternalBuild;
+end;
+
+end.

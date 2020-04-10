@@ -517,11 +517,11 @@ begin
   addVertex(-0.5,0.5,0.5);   //7
 
   addQuad(0,1,2,3);
+  addQuad(0,3,7,4);
+  addQuad(3,2,6,7);
+  addQuad(2,1,5,6);
+  addQuad(1,0,4,5);
   addQuad(4,5,6,7);
-  addQuad(0,4,5,1);
-  addQuad(3,1,6,2);
-  addQuad(1,5,6,2);
-  addQuad(0,4,1,3);
 end;
 
 

@@ -79,12 +79,12 @@ begin
   viewport.wireFrame := cbWireFrame.Checked;
   viewport.rasterFrame := cbRasterFrame.Checked;
 
-  viewport.addCube(0,0,0);
-//  viewport.addCube(-2,0,0);
-//  viewport.addCube(2,0,0);
+//  viewport.addCube(0,0,0);
+  viewport.addCube(-2,0,0);
+  viewport.addCube(2,0,0);
 
 //  viewport.addCube(0,0,0);
-  viewport.addPlane(-2,0,0);
+  viewport.addPlane(0,0,0);
 //  viewport.addPlane(2,0,0);
 
 
@@ -154,10 +154,11 @@ begin
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderPlasma.create(100));
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderRandomizer.create(100));
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TextureShader_ShaderToy);
-  TPixel32(viewport.TargetCanvas).setDrawShader(clatextureShader_imageDice);
+//  TPixel32(viewport.TargetCanvas).setDrawShader(clatextureShader_imageDice);
 //  TPixel32(viewport.TargetCanvas).setDrawShader(clatextureShader_imageGoldo);
-//  TPixel32(viewport.TargetCanvas).setDrawShader(colShader);
+  TPixel32(viewport.TargetCanvas).setDrawShader(colShader);
 
+  viewport.CameraZ := 7;
   Application.OnIdle := appIdle;
 end;
 

@@ -132,7 +132,6 @@ begin
   b := TBitmap.Create;
   try
     b.LoadFromFile(filename);
-    resize(b.Width,b.Height);
     CopyFromDC(b.Canvas.Handle,rect(0,0,b.Width,b.Height));
   finally
     freeandNil(b); //Free vcl ressources.

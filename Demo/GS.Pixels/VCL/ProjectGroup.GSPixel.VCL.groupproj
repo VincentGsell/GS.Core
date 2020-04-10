@@ -15,6 +15,9 @@
         <Projects Include="Pixel32\MinimalDelaunay\MiniDelau.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Pixel32\Assets\AssetsProject.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -59,14 +62,23 @@
     <Target Name="MiniDelau:Make">
         <MSBuild Projects="Pixel32\MinimalDelaunay\MiniDelau.dproj" Targets="Make"/>
     </Target>
+    <Target Name="AssetsProject">
+        <MSBuild Projects="Pixel32\Assets\AssetsProject.dproj"/>
+    </Target>
+    <Target Name="AssetsProject:Clean">
+        <MSBuild Projects="Pixel32\Assets\AssetsProject.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="AssetsProject:Make">
+        <MSBuild Projects="Pixel32\Assets\AssetsProject.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Minimal;Raster;D3DRaster;MiniDelau"/>
+        <CallTarget Targets="Minimal;Raster;D3DRaster;MiniDelau;AssetsProject"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Minimal:Clean;Raster:Clean;D3DRaster:Clean;MiniDelau:Clean"/>
+        <CallTarget Targets="Minimal:Clean;Raster:Clean;D3DRaster:Clean;MiniDelau:Clean;AssetsProject:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Minimal:Make;Raster:Make;D3DRaster:Make;MiniDelau:Make"/>
+        <CallTarget Targets="Minimal:Make;Raster:Make;D3DRaster:Make;MiniDelau:Make;AssetsProject:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

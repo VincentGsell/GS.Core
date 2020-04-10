@@ -61,6 +61,8 @@ protected
   Procedure ManagedAdd(aObject : TObject); Virtual;
   Procedure ManagedSet(Index : Uint32; aObject : TObject); Virtual;
   function GetCount: Uint32;
+  function GetItem(Index: Uint32): TObject; virtual;
+  procedure SetItem(Index: Uint32; const Value: TObject); virtual;
 public
   constructor Create(Const Owned : Boolean = false); Reintroduce; Virtual;
   Destructor Destroy; Override;
@@ -68,11 +70,13 @@ public
   Procedure Clear; Virtual;
   Procedure Delete(Index : Uint32);
   Procedure Remove(aObject : TObject);
+  procedure Add(aObject : TObject);
 
   Function IndexOf(aObject : TObject) : Int32;
 
   Property Owned : Boolean read FOwned Write FOwned;
   Property Count : Uint32 read GetCount;
+  Property Items[Index : Uint32] : TObject read GetItem Write SetItem; default;
 end;
 
 //Key Values (basic replacement for Generic Dictionnary key paired String/Object
@@ -354,6 +358,11 @@ end;
 
 { TList_ObjectArray }
 
+procedure TList_ObjectArray.Add(aObject: TObject);
+begin
+  ManagedAdd(aObject);
+end;
+
 procedure TList_ObjectArray.Clear;
 var i : Integer;
 begin
@@ -399,6 +408,12 @@ end;
 function TList_ObjectArray.GetCount: Uint32;
 begin
   result := FIndex;
+end;
+
+function TList_ObjectArray.GetItem(Index: Uint32): TObject;
+begin
+  assert(Index<Count);
+  result := FArray[Index];
 end;
 
 function TList_ObjectArray.IndexOf(aObject: TObject): Int32;
@@ -459,6 +474,11 @@ begin
     Delete(i);
 end;
 
+procedure TList_ObjectArray.SetItem(Index: Uint32; const Value: TObject);
+begin
+  ManagedSet(Index,Value);
+end;
+
 { TList_UTF8String }
 
 procedure TList_UTF8String.Add(aString: UTF8String);
@@ -500,6 +520,7 @@ end;
 
 function TList_UTF8String.GetUTF8String(Index: Uint32): UTF8String;
 begin
+  assert(Index<Count);
   result := FArray[Index];
 end;
 
@@ -511,6 +532,7 @@ end;
 procedure TList_UTF8String.SetUTF8String(Index: Uint32;
   const Value: UTF8String);
 begin
+  assert(Index<Count);
   FArray[Index] := Value;
 end;
 
@@ -567,6 +589,7 @@ end;
 function TKeysValues_UTF8StringToObject.GetItem(
   Index: UInt32): TKeyValueStringItem;
 begin
+  assert(Index<Count);
   result := FArray[Index];
 end;
 
@@ -608,6 +631,7 @@ end;
 procedure TKeysValues_UTF8StringToObject.SetItem(Index: UInt32;
   const Value: TKeyValueStringItem);
 begin
+  assert(Index<Count);
   FArray[Index] := Value;
 end;
 

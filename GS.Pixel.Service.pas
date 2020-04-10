@@ -74,9 +74,9 @@ begin
     try
       fcontent.Clear;
       freport.Clear;
-      ReadStream(l,fcontent);
+      ReadStream(l,TStream(fcontent));
       r := ReadBoolean(l);
-      ReadStream(l,freport);
+      ReadStream(l,TStream(freport));
       Answer(fcontent,r,freport);
     finally
       FreeAndNil(l);

@@ -176,11 +176,11 @@ begin
         u:=au*ux+bu*uy+v0.u;
         v:=av*ux+bv*uy+v0.v;
 
-        ll := TPixel32TextureShader(Dest.currentDrawShader).Texture.getSurfaceScanLinePtr(round(v));
+        ll := TPixel32TextureShader(Dest.currentDrawShader).Texture.getSurfaceScanLinePtr(trunc(v));
         //l[i]:=ll[round(u)]; //Fast : Direct memory access.
 
         //Shader methods : Much slower but very flexible in code.
-        Dest.currentDrawShader.ColorData := TP32Rec(longword(ll[round(u)]));
+        Dest.currentDrawShader.ColorData := TP32Rec(longword(ll[trunc(u)]));
         Dest.pixel(i,j);
       end;
       ux:=ux-dx;

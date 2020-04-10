@@ -1,0 +1,243 @@
+unit GS.Geometry.Mesh2D;
+
+interface
+
+uses SysUtils, Classes,
+     GS.Geometry;
+
+type
+
+
+TGSRawMesh2D = class
+private
+public
+  vertices : array of vec2;
+  uvs : array of vec2;       //...
+  indexes : array of Uint32; //... Synchro with indexes.
+
+  Constructor Create; virtual;
+
+  procedure reset;
+  procedure SetUpQuad(side : single);
+  procedure SetUpRect(width,height : single);
+  procedure Merge(from : TGSRawMesh2D);
+  //Setup....
+
+  //This modify the vertices ! No way to return exactly due to processing approx..
+  //to reverse a rotate exactly, we have to reset (setupxxx) the vertices before.
+  procedure Rotate(angle : single); //Todo : Specify a center ??
+  procedure Scale(x,y : single);
+  procedure Pan(x,y : single);
+  procedure Modify(xpos,ypos,angle : single); overload;
+  procedure Modify(xpos,ypos,angle,xscale,yscale : single); overload;
+
+  //procedure GetCenter(var pointf)...
+  procedure UpdateVertices(const matrix : Mat3);
+
+  function getBounding : vec4;
+  function getVerticeCount : Uint32;
+  function getIndicesCount : Uint32;
+
+  function getTriangleCount : Uint32;
+  procedure Triangle(const index : Uint32; out a,b,c, uva,uvb,uvc : vec2);
+
+  procedure copy(var destination : TGSRawMesh2D);
+
+end;
+
+
+implementation
+
+{ TGSRawMesh2D }
+
+procedure TGSRawMesh2D.Modify(xpos, ypos, angle: single);
+var fLocalMatrix : Mat3;
+begin
+  FLocalMatrix := Mat3Identity;
+  FLocalMatrix := FLocalMatrix * Mat3CreateRotation(angle);
+  FLocalMatrix := FLocalMatrix * Mat3CreateTranslation(xpos,ypos);
+  UpdateVertices(fLocalMatrix);
+end;
+
+procedure TGSRawMesh2D.copy(var destination: TGSRawMesh2D);
+begin
+  SetLength(destination.vertices,length(vertices));
+  SetLength(destination.indexes,length(indexes));
+  SetLength(destination.uvs,length(uvs));
+
+  Move(vertices[0],destination.vertices[0],length(vertices)*sizeOf(vec2));
+  Move(uvs[0],destination.uvs[0],length(uvs)*sizeOf(vec2));
+  Move(indexes[0],destination.indexes[0],length(indexes)*SizeOf(Uint32));
+end;
+
+constructor TGSRawMesh2D.create;
+begin
+  Inherited;
+  SetUpQuad(1);
+end;
+
+
+function TGSRawMesh2D.getBounding: vec4;
+var i : integer;
+    p : vec2;
+begin
+  result.create(0,0,0,0);
+  for i := 0 to length(vertices)-1 do
+  begin
+    p.create(vertices[i].x,vertices[i].y);
+    if result.left>p.X then
+      result.left := p.X;
+    if result.top>p.Y then
+      result.top := p.Y;
+    if result.right<p.X then
+      result.right := p.X;
+    if result.bottom<p.Y then
+      result.bottom := p.Y;
+  end;
+end;
+
+
+function TGSRawMesh2D.getIndicesCount: Uint32;
+begin
+  result := System.Length(indexes);
+end;
+
+function TGSRawMesh2D.getTriangleCount: Uint32;
+begin
+  result := Length(indexes) div 3;
+end;
+
+function TGSRawMesh2D.getVerticeCount: Uint32;
+begin
+  result := System.Length(vertices);
+end;
+
+
+procedure TGSRawMesh2D.Merge(from: TGSRawMesh2D);
+var cp : integer;
+  I: Integer;
+begin
+  if (from.getVerticeCount=0) or (from.getIndicesCount=0) then
+    exit;
+  //vetices copy.
+  cp := System.Length(vertices);
+  SetLength(vertices,Length(vertices)+length(from.vertices));
+  move(from.vertices[0],vertices[cp],length(from.vertices)*Sizeof(from.vertices[0]));
+
+  //uvs
+  cp := System.Length(uvs);
+  SetLength(uvs,Length(uvs)+length(from.uvs));
+  move(from.uvs[0],uvs[cp],length(from.uvs)*Sizeof(from.uvs[0]));
+
+  cp := System.Length(indexes);
+  SetLength(indexes,System.Length(indexes)+System.length(from.indexes));
+  move(from.indexes[0],indexes[cp],System.length(from.indexes)*Sizeof(from.indexes[0]));
+  if cp>0 then //index corrector.
+    for i := cp-1 to System.length(indexes)-1 do
+      indexes[i] := indexes[i] + cp;
+end;
+
+procedure TGSRawMesh2D.Modify(xpos, ypos, angle, xscale, yscale: single);
+var fLocalMatrix : Mat3;
+begin
+  FLocalMatrix := Mat3Identity;
+  FLocalMatrix := FLocalMatrix * Mat3CreateRotation(angle);
+  FLocalMatrix := FLocalMatrix * Mat3CreateScaling(xscale,yscale);
+  FLocalMatrix := FLocalMatrix * Mat3CreateTranslation(xpos,ypos);
+  UpdateVertices(fLocalMatrix);
+end;
+
+procedure TGSRawMesh2D.Pan(x, y: single);
+var fLocalMatrix : Mat3;
+begin
+  FLocalMatrix := Mat3Identity;
+  FLocalMatrix := FLocalMatrix * Mat3CreateTranslation(x,y);
+  UpdateVertices(fLocalMatrix);
+end;
+
+procedure TGSRawMesh2D.reset;
+begin
+  vertices := nil;
+  indexes := nil;
+  uvs := nil;
+end;
+
+procedure TGSRawMesh2D.Rotate(angle: single);
+var fLocalMatrix : Mat3;
+begin
+  FLocalMatrix := Mat3Identity;
+  FLocalMatrix := FLocalMatrix * Mat3CreateRotation(angle*Pi/180);
+  UpdateVertices(fLocalMatrix);
+end;
+
+procedure TGSRawMesh2D.Scale(x, y: single);
+var fLocalMatrix : Mat3;
+begin
+  FLocalMatrix := Mat3Identity;
+  FLocalMatrix := FLocalMatrix * Mat3CreateScaling(x,y);
+  UpdateVertices(fLocalMatrix);
+end;
+
+procedure TGSRawMesh2D.UpdateVertices(const matrix: Mat3);
+var i : integer;
+    p : vec2;
+begin
+  for i := 0 to length(vertices)-1 do
+  begin
+    p := vec2.create(vertices[i].x,vertices[i].y) * matrix;
+    vertices[i].x := p.x;
+    vertices[i].y := p.y;
+  end;
+end;
+
+
+procedure TGSRawMesh2D.SetUpQuad(side: single);
+begin
+  SetUpRect(side,side);
+end;
+
+procedure TGSRawMesh2D.SetUpRect(width, height: single);
+begin
+  setLength(vertices,4);
+  vertices[0].create(-width/2,-height/2);
+  vertices[1].create(width/2,-height/2);
+  vertices[2].create(width/2,height/2);
+  vertices[3].create(-width/2,height/2);
+
+//  uvs[0] := vec2.create(0,0);
+//  uvs[1] := vec2.create(1,0);
+//  uvs[2] := vec2.create(1,1);
+//  uvs[3] := vec2.create(0,1);
+
+  setLength(indexes,6);
+  setLength(uvs,6);
+  indexes[0] := 0;
+  indexes[1] := 1;
+  indexes[2] := 2;
+  indexes[3] := 2;
+  indexes[4] := 3;
+  indexes[5] := 0;
+
+  uvs[0] := vec2.create(0,0);
+  uvs[1] := vec2.create(1,0);
+  uvs[2] := vec2.create(1,1);
+  uvs[3] := vec2.create(1,1);
+  uvs[4] := vec2.create(0,1);
+  uvs[5] := vec2.create(0,0);
+end;
+
+
+procedure TGSRawMesh2D.Triangle(const index: Uint32; out a, b, c, uva,uvb,uvc : vec2);
+var baseIndex : Uint32;
+begin
+  assert(index<=getTriangleCount);
+  baseIndex := index*3;
+  a := vertices[indexes[baseIndex]];
+  b := vertices[indexes[baseIndex+1]];
+  c := vertices[indexes[baseIndex+2]];
+  uva := uvs[baseIndex];
+  uvb := uvs[baseIndex+1];
+  uvc := uvs[baseIndex+2];
+end;
+
+end.

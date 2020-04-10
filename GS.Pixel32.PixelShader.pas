@@ -5,7 +5,7 @@ unit GS.Pixel32.PixelShader;
 interface
 
 uses sysutils, classes, Windows, Math,
-     GS.Pixel, GS.Pixel32;
+     GS.Geometry, GS.Pixel, GS.Pixel32;
 
 Type
 TP32UVMap = record
@@ -23,30 +23,50 @@ public
   procedure process; override;
 end;
 
-TPixel32ShaderWithGlobalAlphaBlanding = Class(TPixel32ColorShader)
+TPixel32ShaderWithGlobalAlphaBlending = Class(TPixel32ColorShader)
 private
 protected
   fAlpha: byte;
 public
-  Constructor Create(const alphavalue : byte = 255); Reintroduce;
+  Constructor Create(const alphavalue : byte = 255); Reintroduce; virtual;
   property AlphaChannel : byte read fAlpha write fAlpha;
 End;
 
 
-TPixel32ShaderRandomizer = class(TPixel32ShaderWithGlobalAlphaBlanding)
+TPixel32ShaderRandomizer = class(TPixel32ShaderWithGlobalAlphaBlending)
 protected
 public
   procedure process; override;
 end;
 
-TPixel32ShaderColorTest = Class(TPixel32ShaderWithGlobalAlphaBlanding)
+TPixel32ShaderColorTest = Class(TPixel32ShaderWithGlobalAlphaBlending)
 private
 protected
 public
   procedure process; override;
 End;
 
-TPixel32ShaderPlasma = class(TPixel32ShaderWithGlobalAlphaBlanding)
+TPixel32ShaderPlasma = class(TPixel32ShaderWithGlobalAlphaBlending)
+public
+  procedure process; override;
+end;
+
+TPixel32ShaderStatidTexture = class(TPixel32ShaderWithGlobalAlphaBlending)
+private
+protected
+  FTileTexture: TPixel32;
+public
+  Constructor Create(TileTexture : TPixel32; const alphavalue : byte = 255); Reintroduce;
+  property Texture : TPixel32 read FTileTexture Write FTileTexture;
+end;
+
+
+TPixel32ShaderStaticTextureStretchOnSurface = class(TPixel32ShaderStatidTexture)
+public
+  procedure process; override;
+end;
+
+TPixel32ShaderStaticTextureTiledOnSurface = class(TPixel32ShaderStatidTexture)
 public
   procedure process; override;
 end;
@@ -88,9 +108,9 @@ begin
 end;
 
 
-{ TPixel32ShaderWithGlobalAlphaBlanding }
+{ TPixel32ShaderWithGlobalAlphaBlending }
 
-constructor TPixel32ShaderWithGlobalAlphaBlanding.Create(
+constructor TPixel32ShaderWithGlobalAlphaBlending.Create(
   const alphavalue: byte);
 begin
   inherited create;
@@ -111,35 +131,17 @@ end;
 //Inspired from fantastic delphi port of opencl shader :
 //https://github.com/WouterVanNifterick/delphi-shader
 procedure TPixel32ShaderColorTest.process;
-Type
-  TVec2 = record x,y : single end;
-
-function dot(a,b : single) : single;
-begin
-  result := a*b;
-end;
-
-function mix(x,y,a :single) : single;
-begin
-  result := x * (1 - a) + y * a;
-end;
-
-function sqrts(const a: single): single;
-begin
-  if a<0 then result := -1 else result := System.sqrt(a);
-end;
-
 var
-  uv :TVec2;
+  uv :Vec2;
   col:TP32Rec;
 
 begin
 	uv.x  := x / fsurface.width;
 	uv.y  := y / fsurface.height;
 
-	col.Red    := trunc( (sqrts(mix(-0.20,2,dot(uv.x*2,uv.y*0.5)))+0.2) * 255);
-	col.green  := trunc( (sqrts(mix(-0.20,2,dot(1-uv.y,1-uv.x)))+0.2) * 255);
-	col.blue   := trunc( (sqrts(mix(-0.20,2,dot(1-uv.x,uv.y)))+0.2) * 255);
+	col.Red    := trunc( (_sqrts(_mix(-0.20,2,_dot(uv.x*2,uv.y*0.5)))+0.2) * 255);
+	col.green  := trunc( (_sqrts(_mix(-0.20,2,_dot(1-uv.y,1-uv.x)))+0.2) * 255);
+	col.blue   := trunc( (_sqrts(_mix(-0.20,2,_dot(1-uv.x,uv.y)))+0.2) * 255);
   col.alphachannel := fAlpha;
 
   ColorData:= col;
@@ -192,6 +194,57 @@ begin
 
   inherited;
 end;
+
+{ TPixel32ShaderStatidTexture }
+
+constructor TPixel32ShaderStatidTexture.Create(TileTexture: TPixel32;
+  const alphavalue: byte);
+begin
+  assert(assigned(TileTexture));
+  assert((TileTexture.width>1) and (TileTexture.height>1));
+  inherited Create(alphavalue);
+  FTileTexture :=  TileTexture;
+end;
+
+
+{ TPixel32ShaderStaticTextureStretchOnSurface }
+
+procedure TPixel32ShaderStaticTextureStretchOnSurface.process;
+var b : pTP32;
+    tx,ty : integer;
+    xscale,yscale : single;
+begin
+  b := FTileTexture.getSurfacePtr;
+  //Texture is like stretching in surface size.
+  xscale := FTileTexture.width/fsurface.width;
+  yscale := FTileTexture.height/fsurface.height;
+  tx := trunc(x*xscale);
+  ty := trunc(y*yscale);
+
+  inc(b,ty*FTileTexture.width+tx);
+  ColorData := TP32Rec(b^);
+  fColorData.AlphaChannel := fAlpha;
+  inherited;
+end;
+
+
+{ TPixel32ShaderStaticTextureTiledOnSurface }
+
+procedure TPixel32ShaderStaticTextureTiledOnSurface.process;
+var b : pTP32;
+    tx,ty : integer;
+begin
+  b := FTileTexture.getSurfacePtr;
+  //Texture is untouched in size, and display tiled on surface size.
+  tx := x mod FTileTexture.width;
+  ty := y mod FTileTexture.height;
+
+  inc(b,ty*FTileTexture.width+tx);
+  ColorData := TP32Rec(b^);
+  fColorData.AlphaChannel := fAlpha;
+  inherited;
+end;
+
 
 
 end.

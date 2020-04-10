@@ -49,8 +49,8 @@ procedure WriteBytes(stream : TStream; const aBytes : TBytes);
 function StreamToBytes(Stream : TStream) : TBytes; //Pure conversion
 procedure BytesToStream(stream : TStream; const aBytes : TBytes);
 
-Procedure WriteStream(Stream : TStream; const SourceStream : TMemoryStream);
-Procedure ReadStream(Stream : TStream; var DestinationStream : TMemoryStream);
+Procedure WriteStream(Stream : TStream; const SourceStream : TStream);
+Procedure ReadStream(Stream : TStream; var DestinationStream : TStream);
 
 //Write without prefixed size by default.
 procedure WriteRAWStringUTF8(Stream : TStream; Const Data : String; Const ByteLenPrefix : Boolean = false);
@@ -345,7 +345,7 @@ begin
    stream.Write(pointer(aBytes)^, length(aBytes));
 end;
 
-Procedure WriteStream(Stream : TStream; const SourceStream : TMemoryStream);
+Procedure WriteStream(Stream : TStream; const SourceStream : TStream);
 var l : Uint32;
 begin
   l := SourceStream.Size-SourceStream.Position;
@@ -354,7 +354,7 @@ begin
     Stream.CopyFrom(SourceStream,SourceStream.Size-SourceStream.Position);
 end;
 
-Procedure ReadStream(Stream : TStream; var DestinationStream : TMemoryStream);
+Procedure ReadStream(Stream : TStream; var DestinationStream : TStream);
 var il : Int64;
 begin
   il := ReadInt64(Stream);

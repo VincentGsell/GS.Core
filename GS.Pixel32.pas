@@ -324,14 +324,25 @@ end;
 
 procedure TPixel32.InternalRasterize(const a, b, c: TP32Vertex);
 var  w,h : integer;
+    aa,bb,cc : TP32Vertex;
 begin
 
   if FCurrentDrawShader is TPixel32TextureShader then
   begin
     w := TPixel32TextureShader(FCurrentDrawShader).Texture.width;
     h := TPixel32TextureShader(FCurrentDrawShader).Texture.height;
+    aa := a;
+    bb := b;
+    cc := c;
+
+    aa.u := aa.u * w;
+    aa.v := aa.v * h;
+    bb.u := bb.u * w;
+    bb.v := bb.v * h;
+    cc.u := cc.u * w;
+    cc.v := cc.v * h;
     triangleRasterizeTexMap( Self,
-                             a,b,c)
+                             aa,bb,cc)
   end
   else
     triangleRasterizeFlat(Self,a, b, c)
@@ -499,7 +510,6 @@ end;
 
 procedure TPixel32.setVertex(indice: uInt32; x, y, z, u, v: integer);
 begin
-  assert(indice<4);
   rasterV[indice].x := x;
   rasterV[indice].y := y;
   rasterV[indice].z := z;
@@ -579,11 +589,7 @@ var bits : pTP32;
 begin
   bits := fSurface.getSurfacePtr;
   c := TPixel32CustomShader(fshader).ColorData.Color;
-  for i := 0 to ((fsurface.width*fsurface.height)-SizeOf(TP32)) do
-  begin
-   bits^:= c;
-   inc(bits);
-  end;
+  FillChar(bits^,(fsurface.width*fsurface.height)*SizeOf(TP32),c);
 end;
 
 end.
