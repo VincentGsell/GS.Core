@@ -1,0 +1,3 @@
+_clipper is original version - from clipper 6.42+
+One used is from Image32 from the same author of clipper. 
+It split original is 3 part, and change the API. (?)

@@ -44,7 +44,8 @@ interface
 Uses Classes,
      SysUtils,
      Math,
-     GS.Pixel;
+     GS.Pixel,
+     GS.Pixel.Draw;
 
 Type
 TP32 = int32;
@@ -82,7 +83,7 @@ Type
 TPixel32 = class;
 
 
-TPixel32CustomShader = class(TPixel32InterfacedObject, iPixShader)
+TPixel32CustomShader = class(TPixelInterfacedObject, iPixShader)
 protected
   fsurface : iPixSurface;
   fBits : pTP32;
@@ -109,7 +110,7 @@ public
 end;
 
 
-TCustomPixel32SurfaceEffect = class(TPixel32InterfacedObject, iPixSurfaceEffect)
+TCustomPixel32SurfaceEffect = class(TPixelInterfacedObject, iPixSurfaceEffect)
 protected
   fsurface : TPixel32;
   fshader : TPixel32CustomShader;
@@ -124,7 +125,7 @@ public
   procedure process; override;
 end;
 
-TPixel32 = Class(TPixel32InterfacedObject, iPixSurface)
+TPixel32 = Class(TPixelInterfacedObject, iPixSurface)
 private
   function GetFillColor: TP32;
   procedure SetFillColor(const Value: TP32);
@@ -165,8 +166,10 @@ public
   function colorP32Rec(r,g,b,a : byte) : TP32rec;
 
 
+
+
   //Shader
-  procedure setDrawShader(shader : TPixel32ColorShader);
+  procedure setDrawShader(shader : iPixShader);
   procedure resetDrawShader;
 
   //iPixSurface impl.
@@ -181,6 +184,10 @@ public
 
   procedure setVertex(indice : uInt32; x,y,z,u,v : integer);
   procedure rasterize;
+  procedure beginDraw;
+  procedure endDraw;
+
+  procedure draw(objToRender : iPixDrawable);
 
   procedure clear; overload;
   procedure fill(shader : TPixel32ColorShader); overload;
@@ -236,6 +243,11 @@ begin
       TP32Rec(b^).AlphaChannel := value;
     inc(b);
   end;
+end;
+
+procedure TPixel32.beginDraw;
+begin
+  rasterBackBufferInit(self);
 end;
 
 procedure TPixel32.clear;
@@ -477,6 +489,16 @@ begin
   InternalRasterize(rasterV[0],rasterV[1],rasterV[2]);
 end;
 
+procedure TPixel32.draw(objToRender: iPixDrawable);
+begin
+  TPixelDrawTools.Draw(Self,objToRender);
+end;
+
+procedure TPixel32.endDraw;
+begin
+  //-)
+end;
+
 procedure TPixel32.ResetDrawShader;
 begin
   FCurrentDrawShader := FDefaultColorDraw;
@@ -491,11 +513,12 @@ begin
 end;
 
 
-procedure TPixel32.setDrawShader(shader: TPixel32ColorShader);
+procedure TPixel32.setDrawShader(shader: iPixShader);
 begin
   assert(Assigned(shader));
+  assert(shader is TPixel32ColorShader);
   shader.init(Self);
-  FCurrentDrawShader := shader;
+  FCurrentDrawShader := TPixel32ColorShader(shader);
 end;
 
 procedure TPixel32.SetFillColor(const Value: TP32);

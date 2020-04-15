@@ -30,7 +30,8 @@ unit GS.Pixel;
 
 interface
 
-Uses Classes, SysUtils;
+Uses Classes, SysUtils,
+     GS.Geometry.Mesh2d;
 
 
 Type
@@ -55,6 +56,11 @@ iPixShader = interface;
 iPixService = interface;
 
 ///
+///  this interface is reserved to advanced "drawable" object.
+///
+iPixDrawable = interface;
+
+///
 ///  All full effect on surface (blur, disolve, matrix will pass throught this
 ///  interface.
 ///
@@ -62,7 +68,7 @@ iPixSurfaceEffect = interface;
 
 //Using graphics stuff, friend class, fine memory tuning needed :
 //Desactivate attached memory management.
-TPixel32InterfacedObject = class(TInterfacedObject)
+TPixelInterfacedObject = class(TInterfacedObject)
 public
   function _AddRef: Integer; stdcall;
   function _Release: Integer; stdcall;
@@ -91,8 +97,13 @@ iPixSurface = interface
   procedure lineTo(const x,y : Int32; const z : Int32 = 0);
   procedure pixel(const x,y : Int32; const z : Int32 = 0);
 
-  procedure setVertex(indice : uInt32; x,y,z,u,v : integer);
-  procedure rasterize;
+  procedure setDrawShader(shader : iPixShader); //set a pixel draw shader.
+  procedure draw(objToRender : iPixDrawable); //draw a "drawable"
+
+  procedure setVertex(indice : uInt32; x,y,z,u,v : integer); //load vertex data.
+  procedure rasterize;  //Make a raster triangle using given vertex data.
+  procedure beginDraw;  //Perform technical/logical operation and setting before drawing.
+  procedure endDraw;    //Indicate the end logical drawing operation.
 
 //  procedure invoke(service : iPixService);
 
@@ -102,12 +113,19 @@ iPixSurface = interface
   function height : uInt32;
 end;
 
+iPixDrawable = interface
+  function mesh : TGSRawMesh2D;
+  function getShader : iPixShader;
+end;
+
+
 iPixService = interface
   function uri : string;
   function id : string;
   procedure Ask(param : TStream);
   procedure Answer(content : TStream; success : boolean; report : TStream);
 end;
+
 
 ///
 ///
@@ -118,18 +136,19 @@ end;
 
 TPixel = class
 //  procedure ActiveBackend(backName : string);
+
 end;
 
 implementation
 
-{ TPixel32InterfacedObject }
+{ TPixelInterfacedObject }
 
-function TPixel32InterfacedObject._AddRef: Integer;
+function TPixelInterfacedObject._AddRef: Integer;
 begin
   result := -1;
 end;
 
-function TPixel32InterfacedObject._Release: Integer;
+function TPixelInterfacedObject._Release: Integer;
 begin
   result := -1;
 end;

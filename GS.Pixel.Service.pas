@@ -9,7 +9,7 @@ uses classes, sysutils, GS.Pixel, GS.Bus, GS.Stream;
 
 Type
 
-TPixelCustomService = class(TPixel32InterfacedObject,iPixService)
+TPixelCustomService = class(TPixelInterfacedObject,iPixService)
 protected
   furi : string;
   fcli : TBusClientReader;

@@ -27,7 +27,7 @@ protected
 public
   Constructor Create; virtual;
   procedure SaveToStream(aStream : TStream); virtual; abstract;
-  procedure LoadFormStream(aStream : TStream); virtual; abstract;
+  procedure LoadFromStream(aStream : TStream); virtual; abstract;
 
   property AssetType : TGSAssetType read GetAssetType;
   property AssetName : TGSAssetString read GetAssetHumanName;
@@ -52,7 +52,7 @@ protected
   function GetAssetMemorySize: TGSAssetInt; override;
 public
   procedure SaveToStream(aStream : TStream); override;
-  procedure LoadFormStream(aStream : TStream); override;
+  procedure LoadFromStream(aStream : TStream); override;
 
   property Text : String read FText Write FText;
 end;
@@ -67,7 +67,7 @@ public
   Constructor Create; override;
   Destructor Destroy; override;
   procedure SaveToStream(aStream : TStream); override;
-  procedure LoadFormStream(aStream : TStream); override;
+  procedure LoadFromStream(aStream : TStream); override;
 
   property MeshData : TGSRawMesh2D read fMesh;
 end;
@@ -114,7 +114,7 @@ protected
   function GetAssetMemorySize: TGSAssetInt; override;
 public
   procedure SaveToStream(aStream : TStream); override;
-  procedure LoadFormStream(aStream : TStream); override;
+  procedure LoadFromStream(aStream : TStream); override;
 
   Constructor Create; override;
   Destructor Destroy; override;
@@ -137,11 +137,11 @@ protected
   function GetAssetMemorySize: TGSAssetInt; override;
 public
   procedure SaveToStream(aStream : TStream); override;
-  procedure LoadFormStream(aStream : TStream); override;
+  procedure LoadFromStream(aStream : TStream); override;
 
   Constructor Create; override;
   Destructor Destroy; override;
-  property ImageFormat : TGSAssetImageFormat read FImageFormat;
+  property ImageFormat : TGSAssetImageFormat read FImageFormat write FImageFormat;
   property BinaryData : TStream read FBinaryData;
   property ImageDescription : TGSAssetString read FImageDesc write FImageDesc;
   property AssetImageSource : TGSAssetString read FImageSource write FImageSource;
@@ -160,7 +160,7 @@ protected
   function GetAssetMemorySize: TGSAssetInt; override;
 public
   procedure SaveToStream(aStream : TStream); override;
-  procedure LoadFormStream(aStream : TStream); override;
+  procedure LoadFromStream(aStream : TStream); override;
   Constructor Create; override;
   Destructor Destroy; override;
 
@@ -198,12 +198,10 @@ end;
 
 TGSAssetImageSource = Class(TGSAssetAtlasImage)
 protected
-  FImageAtlas : TGSAssetAtlasImage;
   FShape: TGSAssetSquareMesh;
   function GetAssetHumanName: TGSAssetString; override;
 public
   Constructor Create; override;
-  property Image : TGSAssetAtlasImage read FImageAtlas; //Original image.
   property Shape : TGSAssetSquareMesh read FShape write FShape;
 End;
 
@@ -301,7 +299,7 @@ begin
   result := TGSAssetType.gsatAtlas;
 end;
 
-procedure TGSAssetAtlas.LoadFormStream(aStream: TStream);
+procedure TGSAssetAtlas.LoadFromStream(aStream: TStream);
 var i, fz : Int32;
 begin
   fz := ReadInt32(aStream);
@@ -383,7 +381,7 @@ begin
   result := TGSAssetType.gsaComposed;
 end;
 
-procedure TGSAssetComposed.LoadFormStream(aStream: TStream);
+procedure TGSAssetComposed.LoadFromStream(aStream: TStream);
 var i,l : Int32;
     s : string;
     o : TGSAssetObject;
@@ -393,7 +391,7 @@ begin
   begin
     s := ReadString(aStream);
     o := getGSAssetObjectImplementationFromName(s);
-    o.LoadFormStream(aStream);
+    o.LoadFromStream(aStream);
   end;
 end;
 
@@ -440,7 +438,7 @@ begin
 end;
 
 
-procedure TGSAssetText.LoadFormStream(aStream: TStream);
+procedure TGSAssetText.LoadFromStream(aStream: TStream);
 begin
   FText := ReadString(aStream);
 end;
@@ -481,7 +479,7 @@ begin
   result := TGSAssetType.gsatMesh2d;
 end;
 
-procedure TGSAsset2DMeshedObject.LoadFormStream(aStream: TStream);
+procedure TGSAsset2DMeshedObject.LoadFromStream(aStream: TStream);
 var i : integer;
     fv,fu,fi : Int32;
 begin
@@ -562,16 +560,20 @@ begin
   result := TGSAssetType.gsatImage;
 end;
 
-procedure TGSAssetImageContainer.LoadFormStream(aStream: TStream);
+procedure TGSAssetImageContainer.LoadFromStream(aStream: TStream);
 begin
-  FBinaryData.Position := 0;
-  WriteStream(aStream,FBinaryData);
+  FImageDesc := ReadString(aStream);
+  FImageSource := ReadString(aStream);
+  FImageFormat := TGSAssetImageFormat(Readbyte(aStream));
+  ReadStream(aStream,FBinaryData);
 end;
 
 procedure TGSAssetImageContainer.SaveToStream(aStream: TStream);
 begin
-  ReadStream(aStream,FBinaryData);
-
+  WriteString(aStream,FImageDesc);
+  WriteString(aStream,FImageSource);
+  Writebyte(aStream,Byte(FImageFormat));
+  WriteStream(aStream,FBinaryData);
 end;
 
 { TGSAssetAtlasImage }
@@ -596,11 +598,7 @@ end;
 constructor TGSAssetImageSource.Create;
 begin
   inherited Create;
-  FImageAtlas := TGSAssetAtlasImage.Create;
-  FImageAtlas.FImage := FImage;
-  FImageAtlas.FAtlas := FAtlas;
   FShape := TGSAssetSquareMesh.Create;
-  FComposition.Add(FImageAtlas);
   FComposition.Add(FShape);
 end;
 

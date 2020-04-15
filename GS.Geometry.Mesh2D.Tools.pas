@@ -6,12 +6,11 @@ uses System.Types,
      System.Classes,
      System.SysUtils,
      System.Math,
+     Clipper,
+     ClipperCore,
      GS.Geometry.Direction,
      GS.Geometry,
-     Gs.Geometry.Mesh2D,
-     clippercore,
-     clipper;
-
+     Gs.Geometry.Mesh2D;
 type
 TGSTriangle = Record
   P1,P2,P3 : TPointf;

@@ -153,9 +153,13 @@ begin
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderColorTest.create(100));
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderPlasma.create(100));
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TPixel32ShaderRandomizer.create(100));
+
+//WARNING : TEMPORARY WORK IN PROGRESS : Texture shader currently cannotwork.
 //  TPixel32(viewport.TargetCanvas).setDrawShader(TextureShader_ShaderToy);
 //  TPixel32(viewport.TargetCanvas).setDrawShader(clatextureShader_imageDice);
 //  TPixel32(viewport.TargetCanvas).setDrawShader(clatextureShader_imageGoldo);
+//  TPixel32(viewport.TargetCanvas).setDrawShader(clatextureShader_computed);
+
   TPixel32(viewport.TargetCanvas).setDrawShader(colShader);
 
   viewport.CameraZ := 7;

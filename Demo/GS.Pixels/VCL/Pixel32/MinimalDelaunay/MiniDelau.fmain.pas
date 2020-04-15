@@ -49,7 +49,7 @@ begin
   pixel := TPixel32.create;
   Delaunay := TDelaunay.Create;
 //  currentShader := TPixel32ShaderSquaredMotif.create;
-  currentShader := TPixel32ShaderRandomizer.create;
+//  currentShader := TPixel32ShaderRandomizer.create;
 //  currentShader := TPixel32ShaderColorTest.create;
 //  currentShader := TPixel32ShaderPlasma.create; //!
 end;
@@ -88,8 +88,8 @@ var i : integer;
     x2,y2 : integer;
     x3,y3 : integer;
 begin
+  pixel.beginDraw;
   pixel.clear;
-  pixel.color_pen := gspBlue;
   for i:= 1 to Delaunay.HowMany do
   begin
     x1 := Round(Delaunay.Vertex^[Delaunay.Triangle^[i].vv0].x);
@@ -98,8 +98,10 @@ begin
     y2 := Round(Delaunay.Vertex^[Delaunay.Triangle^[i].vv1].y);
     x3 := Round(Delaunay.Vertex^[Delaunay.Triangle^[i].vv2].x);
     y3 := Round(Delaunay.Vertex^[Delaunay.Triangle^[i].vv2].y);
-    pixel.color_pen := pixel.ColorSetAValue(gspGreen,255);
-    pixel.setDrawShader(currentShader);
+    pixel.resetDrawShader;
+    pixel.color_pen := pixel.colorSetAValue(gspBlue,100);
+    if Assigned(currentShader) then
+      pixel.setDrawShader(currentShader);
     pixel.setVertex(0,x1,y1,0,0,0);
     pixel.setVertex(1,x2,y2,0,0,0);
     pixel.setVertex(2,x3,y3,0,0,0);
@@ -107,13 +109,14 @@ begin
     pixel.resetDrawShader;
     if  CheckBox1.Checked then
     begin
-      pixel.color_pen := gspBlack;
+      pixel.color_pen := pixel.colorSetAValue(gspBlack,10);
       pixel.moveTo(x1,y1);
       pixel.lineTo(x2,y2);
       pixel.lineTo(x3,y3);
       pixel.lineTo(x1,y1);
     end;
   end;
+  pixel.endDraw;
   pixel.CopyToDc(Canvas.handle);
 end;
 

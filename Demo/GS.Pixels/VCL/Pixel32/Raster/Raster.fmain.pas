@@ -102,7 +102,7 @@ begin
     grad.RorateGradient := 0;
     grad.process;
   finally
-    FreeAndNil(grad); //No more need generator.
+    FreeAndNil(grad); //Generator not needed anymore.
   end;
 
   //Assign this texture a texture shader.
@@ -150,17 +150,17 @@ begin
 //    a.TurnBy(90); //...And so on.
     a.SetPointedCoord(Point(result[1].x,result[1].Y,0));
     a.TurnBy(angleInDegree);
-    Result[1] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,tw,0);
+    Result[1] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,1,0);
 
 //    a.TurnBy(90);
     a.SetPointedCoord(Point(result[2].x,result[2].Y,0));
     a.TurnBy(angleInDegree);
-    Result[2] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,tw,th);
+    Result[2] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,1,1);
 
 //    a.TurnBy(90);
     a.SetPointedCoord(Point(result[3].x,result[3].Y,0));
     a.TurnBy(angleInDegree);
-    Result[3] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,0,th);
+    Result[3] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,0,1);
   finally
     FreeandNil(a);
   end;
@@ -169,12 +169,12 @@ end;
 
 
 procedure TForm2.drawQuad(const vertices : TQuadVertices; const color: TP32);
-var v :TP32Vertex;
 begin
   //Draw 2 triangles for the quad. (clockwise !)
   pixel.color_pen := color;
   //Note rasterization color depends of the current shader ! See OnPaint event.
 
+  pixel.beginDraw;
   pixel.rasterV[0] := vertices[0];
   pixel.rasterV[1] := vertices[1];
   pixel.rasterV[2] := vertices[2];
@@ -183,6 +183,7 @@ begin
   pixel.rasterV[1] := vertices[3];
   pixel.rasterV[2] := vertices[0];
   pixel.rasterize;
+  pixel.endDraw;
 end;
 
 procedure TForm2.drawQuadBorder(const vertices: TQuadVertices;

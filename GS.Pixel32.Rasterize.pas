@@ -37,22 +37,45 @@ interface
 uses
  GS.Pixel, GS.Pixel32, sysutils;
 
+
 procedure triangleRasterizeTexMap(Dest : TPixel32; const v0, v1, v2: TP32Vertex);
 procedure triangleRasterizeFlat( Dest : TPixel32; const v0, v1, v2: TP32Vertex);
 
 //---------------------------------------------------------------------------
+
+//BackBuffer's aiming is to draw correctly triangles batches.
+//i.e. when drawing polygone (many triangle) edge and border could be overlap.
+//the backe buffer avoid that.
+var BackBuffer :  TPixel32;
+    BackBuffercol : TP32;
+
+//Must be call before each batch drawing.
+procedure rasterBackBufferInit(surface : iPixSurface);
+
 implementation
 
 uses math;
 
 
+procedure rasterBackBufferInit(surface : iPixSurface);
+begin
+  if surface.width<>BackBuffer.width then
+    BackBuffer.resize(surface.width,surface.height);
+  Inc(BackBuffercol);
+  BackBuffer.color_pen := BackBuffercol;
+end;
+
+
+
 function InternaltriangleRasterizeFlat( Dest : TPixel32;
                    const v0, v1, v2: TP32Vertex) : boolean;
 var
-  i,j,x,y:integer;
+  i,j,x,y,z:integer;
   minx,miny,maxx,maxy:integer;
   ax,ay,bx,by,cx,cy,diviseur:integer;
   temp : integer;
+
+  bb,cc : pTP32;
 begin
   result := false;
   assert(assigned(Dest));
@@ -73,7 +96,6 @@ begin
   by:=v2.y-v0.y;
   cy:=v2.y-v1.y;
 
-
   // flat triangle, or reverse
   if ax*by-ay*bx<=0 then exit;
   if ax*cy-ay*cx<=0 then exit;
@@ -85,13 +107,31 @@ begin
   for j:=miny to maxy do
   begin
     x:=minx-v0.x;
+    bb := BackBuffer.getSurfacePtr;
+    inc(bb,j*BackBuffer.width);
+    inc(bb,minx);
+
+    cc := Dest.getSurfacePtr;
+    inc(cc,j*Dest.width);
+    inc(cc,minx);
+
     for i:=minx to maxx do
     begin
       if (x*ay-y*ax<=0) and (x*by-y*bx>=0)  and ((i-v1.x)*cy-(j-v1.y)*cx<=0) then
       begin
-        dest.pixel(i,j);
+
+        if bb^ <> BackBuffercol then
+        begin
+//          cc^:= Dest.currentDrawShader.ColorData.Color;
+          z := trunc(( v0.z + v1.z + v2.z ) / 3);
+          dest.pixel(i,j,z);
+        end;
+
+        bb^:= BackBuffercol;
       end;
       inc(x);
+      inc(bb);
+      inc(cc);
     end;
     inc(y);
   end;
@@ -177,7 +217,7 @@ begin
         v:=av*ux+bv*uy+v0.v;
 
         ll := TPixel32TextureShader(Dest.currentDrawShader).Texture.getSurfaceScanLinePtr(trunc(v));
-        //l[i]:=ll[round(u)]; //Fast : Direct memory access.
+//        l[i]:=ll[round(u)]; //Fast : Direct memory access.
 
         //Shader methods : Much slower but very flexible in code.
         Dest.currentDrawShader.ColorData := TP32Rec(longword(ll[trunc(u)]));
@@ -201,6 +241,13 @@ begin
     internalTriangleRasterizeTexMap(Dest,v2,v0,v1);
 end;
 
+Initialization
 
+BackBuffer :=  TPixel32.create;
+BackBufferCol := $00000000;
+
+Finalization
+
+FreeAndNil(BackBuffer);
 
 end.

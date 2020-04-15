@@ -12,6 +12,7 @@ uses
   GS.Geometry.Mesh2d,
   GS.Geometry.Mesh2d.Tools,
   GS.Assets,
+  GS.Pixel.Draw,
   GS.Pixel32,
   GS.Pixel32.PixelShader,
   GS.Pixel32.Draw,
@@ -34,11 +35,12 @@ type
     { Public declarations }
     mesh : TGSRawMesh2D;
     imageAsset : TGSAssetImageSource;
-
+    image : TPixel32Image;
 
     //shape
     shapeAsset : TGSAssetShapeMesh;
-    shape : TPixel32Shape;
+    shape : TPixelShape;
+    shape2 : TPixelShape; //Same assets !
 
     //fun shader.
     shaderFun1,shaderFun2 : TPixel32ColorShader;
@@ -56,15 +58,28 @@ implementation
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   mesh := TGSRawMesh2D.create;
-  imageAsset := TGSAssetImageSource.Create;
   pixel := TPixel32.create;
+
   te := TPixel32TextureShader.Create;
   te.Texture := TPixel32.create;
   te.Texture.loadFromFile('../../../../../assets/avatar.bmp');
+  te.Texture.alphaLayerResetByColor(gspWhite,0); //delete background of texture.
 
 //  te.Texture.loadFromFile('plasma.bmp');
 //  te.Texture.loadFromFile('alpha-dice.bmp');
 //  te.Texture.alphaLayerResetByColor(gspBlack,0);
+
+  imageAsset := TGSAssetImageSource.Create;
+
+  TMemoryStream(imageAsset.Image.BinaryData).LoadFromFile('../../../../../assets/avatar.bmp');
+  imageAsset.Image.ImageFormat := TGSAssetImageFormat.aifBitmap;
+  imageAsset.Image.AssetImageSource := '';
+  imageAsset.Image.ImageDescription := 'an avatar with an axes.';
+  imageAsset.Atlas.addZone(0,0,te.Texture.width,te.Texture.height,'*');
+  imageAsset.Atlas.addZone(60,0,150,100,'Head');
+  //imageAsset.shape ?
+
+  image := TPixel32Image.Create(imageAsset);
 
   //A shape...
   //-> the asset, reprensenting a shape and its data.
@@ -72,7 +87,10 @@ begin
   //shapeAsset.PreShapedModel := TGSShape2dType.circle50; //circle.
   shapeAsset.PreShapedModel := TGSShape2dType.octo; //octogone based.
   shapeAsset.MeshData.Scale(10,10);
-  shape := TPixel32Shape.Create(shapeAsset);
+
+  shape := TPixelShape.Create(shapeAsset);
+  shape2 := TPixelShape.Create(shapeAsset);
+
 
   //Some shaders.
   shaderFun1 := TPixel32ShaderSquaredMotif.Create;
@@ -95,7 +113,10 @@ begin
   FreeAndNil(te);
 
   FreeAndNil(shapeAsset);
+  freeAndNil(image);
+
   FreeAndNil(shape);
+  FreeAndNil(shape2);
 
   FreeAndNil(shaderFun1);
   FreeAndNil(shaderFun2);
@@ -103,7 +124,8 @@ end;
 
 
 procedure TForm1.appIdle(sender: TObject; var Done: Boolean);
-var i : integer;
+var i,j : integer;
+    r : single;
     c : vec2;
     a : single;
 
@@ -119,6 +141,29 @@ begin
   mesh.Rotate(a);
   mesh.Pan(0,-(c.y-M.y));
 
+  //Draw a background.
+  r := GetTickCount/1000;
+  pixel.resetDrawShader;
+  pixel.color_pen := gspNavy;
+  pixel.color_pen := pixel.colorSetAValue(gspOlive,50);
+  j := 0;
+  i := 0;
+  while j*40<pixel.height do
+  begin
+    while i*40<pixel.width do
+    begin
+      shape2.ResetMeshFromAsset;
+      shape2.Mesh.Rotate(r);
+      shape2.Mesh.Scale(2+1*cos(r),2+1*sin(r));
+      shape2.Mesh.Pan(i*40,j*40);
+      pixel.draw(shape2);
+      inc(i);
+    end;
+    inc(j);
+    i := 0;
+  end;
+
+
   //draw mesh
   pixel.color_pen := pixel.colorSetAValue(gspNavy,150);
   pixel.setDrawShader(te);
@@ -131,8 +176,6 @@ begin
     pixel.rasterize;
   end;
 
-  //Change API format.
-  //--> pixel.draw(shape);
   pixel.resetDrawShader;
 
   shape.ResetMeshFromAsset;
@@ -140,11 +183,16 @@ begin
   shape.Mesh.Rotate(-a);
   shape.Mesh.Pan(M.X,M.Y);
 
+  shape2.ResetMeshFromAsset;
+  shape2.Mesh.Scale(5,5);
+  shape2.Mesh.Pan(100,100);
+  pixel.draw(shape2);
+
   //Shading composition : 2 draw call.
   pixel.setDrawShader(shaderFun1);
-  shape.Draw(pixel);
+  pixel.draw(shape);
   pixel.setDrawShader(shaderFun2);
-  shape.Draw(pixel);
+  pixel.draw(shape);
 
   pixel.CopyToDc(Image1.Picture.Bitmap.Canvas.Handle);
   Image1.Repaint;

@@ -476,6 +476,7 @@ begin
 }
 
 
+      TargetCanvas.beginDraw;
       if Frasterframe then
       begin
         tw := 320;
@@ -493,6 +494,7 @@ begin
         TargetCanvas.lineTo(round(t.VertexC.x),round(t.VertexC.y));
         TargetCanvas.lineTo(round(t.VertexA.x),round(t.VertexA.y));
       end;
+      TargetCanvas.endDraw;
 
     end;
 
