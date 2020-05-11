@@ -59,7 +59,8 @@ For your conveniance and for easy integration, those libs are availables on this
 
 # Demo
 
-  GS.Pixel derivated : ![Alt text](/../master/Ressources/Pixel32Tease.png?raw=true "Pixel32 demos")
+  GS.Pixel derivated : 
+ ![Alt text](/../master/Ressources/Pixel32Tease.png?raw=true "Pixel32 Demos")
   
   - 3D Raster demo, all in one unit, for teaching purpose
   https://github.com/VincentGsell/GS.Demos.3DRasterStandAlone
@@ -77,10 +78,4 @@ For your conveniance and for easy integration, those libs are availables on this
   ![Alt text](/../master/Ressources/glacify.png?raw=true "Glacify RnD project")
   
   GS.ReferenceDB : A little console app to experiment Reference capability.
-  
-  
-  
-  
-  
-  
   
