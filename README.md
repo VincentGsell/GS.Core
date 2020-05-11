@@ -10,6 +10,9 @@
 - GS.Pixel
   Raster graphics system. Design to be simple, and build upon simple "software shader" technics.
   
+- GS.Language
+  Common compiler technique - Work In progress.
+  
 - GS.JSON
   Another JSON lib. this one permit JsonToObject and ObjectToJson
   Based upon [this work](https://github.com/rilyu/json4delphi) 
@@ -17,7 +20,7 @@
   Simple "periodic element" added.
   
 - GS.Reference
-  It implement a persistance layer muddleware for Key<>Value database.
+  It implement a persistance layer middleware for Key<>Value database.
   you will find *an exemple* of persister to, to build a fine  fast key<>value database : Just very usefull for setting, parameter, and even huge static data (or not)
   It can be used too to build message system, and so on : Please see GS.Bus Repo for a full Key Value working exemple implementation.
   
@@ -41,7 +44,13 @@ As this Core fundation class is dedicated to Bus and GRID app, dependancy with a
 - [the nice BasNCondingPascal](https://github.com/Xor-el/BaseNcodingPascal)
 
 For your conveniance and for easy integration, those libs are availables on this repo as ThirdPart directory.
-  
+
+# history
+
+20200511 - 3DRasterStandAloneDemos - The Raster part is powered by Pixel32
+20200401 - Introduce Language domain.
+20200301 - Introduce Pixels domain, with Pixel32 as implemenation (32Bits raster pixel libs).
+
 # Demo
 
   GS.Json : 
