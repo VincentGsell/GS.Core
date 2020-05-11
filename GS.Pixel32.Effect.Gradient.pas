@@ -12,7 +12,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -----------------------------------------------------------------------------
- Unit Name : GS.Pixel32.Effect.Generator.Gradient
+ Unit Name : GS.Pixel32.Effect.Gradient
  Author    : Vincent Gsell (vincent dot gsell at gmail dot com)
  Purpose   : basic Pxel class.
  Date:     : 20200324

@@ -75,7 +75,7 @@ begin
   flatColorFragment.Color := pixel.colorP32Rec(255,255,255,100).Color;
 
   textureColorFragment.Texture := TPixel32.create;
-  textureColorFragment.Texture.loadFromFile('E:\DATA\2020_GRIDSYSTEM\Codes\GS.Core\Demo\GS.Pixels\assets\avatar.bmp');
+  textureColorFragment.Texture.loadFromFile('..\..\..\..\..\assets\avatar.bmp');
   textureColorFragment.Texture.alphaLayerReset(220);
 
   verticeColorFragment := TPixel32FragmentShaderVerticeColor.Create;

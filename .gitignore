@@ -78,6 +78,7 @@ Binaries/Win32/Debug/TestHuge.data
 Binaries/Win32/Debug/PeriodicTableJSON.json..GSJsonDemoSaved.json
 R&D/
 
+*.pdn
 *.identcache
 *.stat
 *.ppu
