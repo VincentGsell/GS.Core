@@ -59,6 +59,12 @@ For your conveniance and for easy integration, those libs are availables on this
 
 # Demo
 
+  GS.Pixel derivated : ![Alt text](/../master/Ressources/Pixel32Tease.png?raw=true "Pixel32 demos")
+  
+  - 3D Raster demo, all in one unit, for teaching purpose
+  https://github.com/VincentGsell/GS.Demos.3DRasterStandAlone
+  
+
   GS.Json : 
   
   Periodic element read and write demo.
