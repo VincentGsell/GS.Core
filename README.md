@@ -36,21 +36,26 @@
   Glacify is an full R&D project, witch aim to reach the fellowing features : 
   - in one file archiving (=a "glacier"), versioning capability, archiving by provide cyphering and compression, get clear file version   on demand, capabity to scan directory and only process changed files.
 
-# Dependancy
-
-As this Core fundation class is dedicated to Bus and GRID app, dependancy with a lot of features coverage is needed : 
-
-- [cool Json lib](https://github.com/rilyu/json4delphi)     
-- [the nice BasNCondingPascal](https://github.com/Xor-el/BaseNcodingPascal)
-
-For your conveniance and for easy integration, those libs are availables on this repo as ThirdPart directory.
-
 # history
 
 - 20200511 - 3DRasterStandAloneDemos - The Raster part is powered by Pixel32
 - 20200425 - Introducing 3D capabilities throught GS.Soft3D.Pipeline domain : Work in progress.
 - 20200401 - Introduce Language domain.
 - 20200301 - Introduce Pixels domain, with Pixel32 as implemenation (32Bits raster pixel libs).
+
+# Dependancy
+
+- graphics (Pixel's sub domain) (directly used) : 
+  - the *awesome* Clipper lib (by Angus Johnson - http://www.angusj.com/delphi/clipper.php)
+  - Bero's magic with its polygon's triangulation stuffs build upon Clipper (https://github.com/BeRo1985)
+  - Pixels unit : shine by its simplicity (https://github.com/sysrpl/ImageShop)
+  - Delaunay unit, an old one, initialy by Paul Bourke (pbourke@swin.edu.au)
+  - FastGeo, by Arash Partow (http://fastgeo.partow.net)
+- other domain : 
+  - [cool Json lib](https://github.com/rilyu/json4delphi)     
+  - [the nice BasNCondingPascal](https://github.com/Xor-el/BaseNcodingPascal)
+
+For your conveniance and for easy integration, those libs are availables on this repo as ThirdPart directory.
 
 # Demo
 
