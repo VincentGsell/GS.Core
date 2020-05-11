@@ -5,7 +5,7 @@
 [![](https://tokei.rs/b1/github/VincentGsell/GS.Core?category=comments)](https://github.com//VincentGsell/GS.Core)
 
 # GS.Core
-  Core functions shared by several projects 
+  Core functions shared by my projects 
 
 - GS.Pixel
   Raster graphics system. Design to be simple, and build upon simple "software shader" technics.
@@ -47,9 +47,10 @@ For your conveniance and for easy integration, those libs are availables on this
 
 # history
 
-20200511 - 3DRasterStandAloneDemos - The Raster part is powered by Pixel32
-20200401 - Introduce Language domain.
-20200301 - Introduce Pixels domain, with Pixel32 as implemenation (32Bits raster pixel libs).
+- 20200511 - 3DRasterStandAloneDemos - The Raster part is powered by Pixel32
+- 20200425 - Introducing 3D capabilities throught GS.Soft3D.Pipeline domain : Work in progress.
+- 20200401 - Introduce Language domain.
+- 20200301 - Introduce Pixels domain, with Pixel32 as implemenation (32Bits raster pixel libs).
 
 # Demo
 
