@@ -44,7 +44,6 @@ var i,j : integer;
 begin
 
   pixel := TPixel32.create;     //surface for drwaing 3d stuff
-  pixel.rasterMode := TSoftwareRasterizeOption.roZBuffer;
   viewport := TView3d.Create; //virtual window on 3d world.
   viewport.TargetCanvas := pixel;
   viewport.CameraZ := -15;

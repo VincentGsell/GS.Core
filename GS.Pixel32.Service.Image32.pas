@@ -3,7 +3,12 @@ unit GS.Pixel32.Service.Image32;
 
 interface
 
-uses classes, sysutils, GS.Pixel32, GS.Pixel.Service, GS.Stream;
+uses classes,
+     sysutils,
+     GS.Pixel32,
+     GS.Pixel32.Types,
+     GS.Pixel.Service,
+     GS.Stream;
 
 Type
 

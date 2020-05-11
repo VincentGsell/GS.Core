@@ -31,7 +31,7 @@ Type
   end;
   pTP32Rec = ^TP32Rec;
 
-  TSoftwareRasterizeOption = (roDirectMode, robasic, roBackBuffer, roZBufferView, roZBuffer);
+  TSoftwareRasterizeOption = (roDirectMode, robasic, roBackBuffer);
 
 const
   gspColorNone : TP32 = $00000000;

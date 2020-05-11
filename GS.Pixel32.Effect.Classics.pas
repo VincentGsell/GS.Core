@@ -5,6 +5,7 @@ interface
 uses classes,
      sysutils,
      GS.Pixel32,
+     GS.Pixel32.Types,
      GS.Pixel32.Effect,
      Pixels;
 
