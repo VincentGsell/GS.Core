@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{EBF50A3A-F949-4F3C-B214-A3DE9F7E3417}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="..\..\..\..\..\Tests\GS.Language\ProjectGSLangTests.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\..\..\GS.PasCode\Delphi\VCL\PascalTests\ProjectPascalTest.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="ProjectGSLangTests">
+        <MSBuild Projects="..\..\..\..\..\Tests\GS.Language\ProjectGSLangTests.dproj"/>
+    </Target>
+    <Target Name="ProjectGSLangTests:Clean">
+        <MSBuild Projects="..\..\..\..\..\Tests\GS.Language\ProjectGSLangTests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProjectGSLangTests:Make">
+        <MSBuild Projects="..\..\..\..\..\Tests\GS.Language\ProjectGSLangTests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ProjectPascalTest">
+        <MSBuild Projects="..\..\..\GS.PasCode\Delphi\VCL\PascalTests\ProjectPascalTest.dproj"/>
+    </Target>
+    <Target Name="ProjectPascalTest:Clean">
+        <MSBuild Projects="..\..\..\GS.PasCode\Delphi\VCL\PascalTests\ProjectPascalTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProjectPascalTest:Make">
+        <MSBuild Projects="..\..\..\GS.PasCode\Delphi\VCL\PascalTests\ProjectPascalTest.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="ProjectGSLangTests;ProjectPascalTest"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="ProjectGSLangTests:Clean;ProjectPascalTest:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="ProjectGSLangTests:Make;ProjectPascalTest:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
