@@ -12,39 +12,54 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -----------------------------------------------------------------------------
- Unit Name : GS.Pixel
+ Unit Name : GS.SoftwareRaster3D.ExempleStandAlone
  Author    : Vincent Gsell (vincent dot gsell at gmail dot com)
- Purpose   : basic Pixel class introduced by interface.
+ Purpose   : 3D software raster unit.
  Date:     : 2020031
  History   :
  20200301 - Creating unit.
+ 20200424 - Change Math vector library (vendor-specific math lib free)
 
 Credits :
 https://learnopengl.com/Getting-started/Coordinate-Systems
 https://www.scratchapixel.com/lessons/3d-basic-rendering/computing-pixel-coordinates-of-3d-point/mathematics-computing-2d-coordinates-of-3d-points
 
 Description :
-3D standalone software 3D system. Mainly for learning purpose, this unit
-is volountary kept simple.
-
+- All-In-One unit 3d Software raster app. (appart 2d canvas)
+  - All matric calculus, and major "pipeline" step is present in only one unit (vertexshader, tesselator, raster preparation, fragment)
+- Mainly for learning purpose.
+- This unit is volountary kept simple.
+- Large optimization is always possible, but I do not want to break the understandability.
+- Must be cross platform. No Asm.
+- This is a "gentle" ref, just for documentation, for  more strength, see "pipeline" series.
 -----------------------------------------------------------------------------}
 {$I GSCore.Inc}
 
-unit GS.Geometry.Soft3D;
+unit GS.SoftwareRaster3D.ExempleStandAlone;
 interface
 
 uses SysUtils,
      classes,
      contNrs,
-     System.Math,
-     System.Math.Vectors,
-     GS.Pixel;
+     Math,
+     GS.Geometry,
+     GS.Pixel32,
+     GS.Pixel32.Rasterize,
+     GS.Pixel32.Types;
 
 Type
   TCoord = record u,v : single; end;
   TPoint2D = record x, y : single; end;
+
+  TVertice = record
+    x,y,z : TVecType; //Coord.
+    rgba : vec4;      //vertice color.
+    u,v : TVecType;   //UV Map (texture, ref., etc.)
+  end;
+  TTriVertices = array of TVertice;
+
   TMeshData3D = Record
-    vertices : array of TPoint3D;
+    vertices : array of vec3;
     indices : array of Uint32;
     UVMap : array of TCoord;
 
@@ -65,9 +80,9 @@ Type
     constructor Create; virtual;
   end;
 
-  TBaseVertexArray = array of TPoint3D;
+  TBaseVertexArray = array of vec3;
   TBaseTriangle = record VertexIndiceA,VertexIndiceB,VertexIndiceC : integer; uvA, uvB, uvC : TCoord; end;
-  TBaseTriangle3D = record VertexA,VertexB,VertexC : TPoint3D; uvA, uvB, uvC : TCoord; end;
+  TBaseTriangle3D = record VertexA,VertexB,VertexC : vec3; uvA, uvB, uvC : TCoord; end;
 
   TMesh3D = class(TBase3D)
   private
@@ -79,16 +94,18 @@ Type
 
     procedure addVertex(x,y,z : single); overload;  //todo Normal
     procedure addVertex(const map : TBaseVertexArray); overload; //todo Normal
-    procedure addTriangle(i1,i2,i3 : uint32; u,v,u1,v1,u2,v2 : integer);
+    procedure addTriangle(i1,i2,i3 : uint32; u,v,u1,v1,u2,v2 : integer); overload;
     procedure addQuad(i1,i2,i3,i4 : uint32);
 
     procedure meshScale(factor : single);
 
+    //Tesselation stage.
     function triangleCount : Integer;
     function triangles(TriIndice : integer) : TBaseTriangle;
     function triangles3D(TriIndice : integer) : TBaseTriangle3D;
 
-    procedure transform(_matrix : TMatrix3D);
+    //VertexShader stage
+    procedure transform(_matrix : mat4);
   end;
 
   TPlane = class(TMesh3d)
@@ -105,19 +122,20 @@ Type
   public
   end;
 
-  TViewportProjectionType = (Perspective, PerspectiveIsometric, OrthographicIsometric);
+  TView3dProjectionType = (Perspective, OrthographicIsometric);
 
-  TViewport = class
+  TView3d = class
   private
-    FList : TObjectList; //To do : Separate list form viewport.
+    FList : TObjectList; //Normsaly, better to Separate list form viewport ;)
     GTest : single;
     FCamZ: single;
     FWireframe: boolean;
     Frasterframe: boolean;
-    FProjection: TViewportProjectionType;
+    FProjection: TView3dProjectionType;
 
+    procedure InternalDrawTri(const v : TTriVertices);
   public
-    TargetCanvas : iPixSurface;
+    TargetCanvas : TPixel32;
 
     constructor Create; virtual;
     destructor Destroy; override;
@@ -133,12 +151,8 @@ Type
     property rasterFrame : boolean read Frasterframe write fRasterframe;
     property wireFrame : boolean read FWireframe write FWireframe;
 
-    property Projection : TViewportProjectionType read FProjection write FProjection;
-
+    property Projection : TView3dProjectionType read FProjection write FProjection;
   end;
-
-
-
 
 implementation
 
@@ -158,7 +172,7 @@ end;
 procedure TMesh3D.addQuad(i1, i2, i3, i4: uint32);
 begin
   addTriangle(i1,i2,i3,0,0,1,0,1,1);
-  addTriangle(i3,i4,i1,1,1,0,1,0,0);
+  addTriangle(i4,i1,i3,0,1,0,0,1,1);
 end;
 
 procedure TMesh3D.addTriangle(i1, i2, i3: uint32; u,v,u1,v1,u2,v2 : integer);
@@ -185,7 +199,7 @@ var l : integeR;
 begin
   l := fmeshData.verticesArraySize;
   fmeshData.setVerticesArraySize(l+1);
-  fmeshData.vertices[l] := Point3d(x,y,z);
+  fmeshData.vertices[l] := vec3.create(x,y,z);
 end;
 
 procedure TMesh3D.addVertex(const map: TBaseVertexArray);
@@ -195,7 +209,7 @@ begin
   l := fmeshData.verticesArraySize-1;
   fmeshData.setVerticesArraySize(fmeshData.verticesArraySize + length(map));
   for i := l to fmeshData.verticesArraySize-1 do
-    fmeshData.Vertices[i] := Point3d(map[i-l].x,map[i-l].y,map[i-l].z);
+    fmeshData.Vertices[i] := vec3.create(map[i-l].x,map[i-l].y,map[i-l].z);
 end;
 
 constructor TMesh3D.create;
@@ -217,23 +231,13 @@ begin
 end;
 
 
-procedure TMesh3D.transform(_matrix: TMatrix3D);
+procedure TMesh3D.transform(_matrix: mat4);
 var i : integer;
 begin
   ftransformed.setVerticesArraySize(fmeshData.verticesArraySize);
   ftransformed.setIndicesArraySize(fmeshData.indicesArraySize);
   for i := 0 to fmeshData.verticesArraySize-1 do
-  begin
     ftransformed.Vertices[i] := fmeshData.Vertices[i] * _matrix;
-
-    //normalized device coordinates
-    ftransformed.Vertices[i].x := ftransformed.Vertices[i].x / _matrix.m43;
-    ftransformed.Vertices[i].y := ftransformed.Vertices[i].y / _matrix.m43;
-    ftransformed.Vertices[i].z := ftransformed.Vertices[i].z / _matrix.m43;
-
-    //ftransformed.IndexBuffer.Indices[i] := fmeshData.IndexBuffer.Indices[i]; //need for calcNormal.
-  end;
-//  ftransformed.CalcFaceNormals;
 end;
 
 function TMesh3D.triangleCount: Integer;
@@ -271,15 +275,15 @@ begin
   result.VertexC.y := ftransformed.vertices[l.VertexIndiceC].Y;
   result.VertexC.z := ftransformed.vertices[l.VertexIndiceC].Z;
 
-  Result.uvA := fmeshData.UVMap[l.VertexIndiceA];
-  Result.uvB := fmeshData.UVMap[l.VertexIndiceB];
-  Result.uvC := fmeshData.UVMap[l.VertexIndiceC];
+  Result.uvA := l.uvA; //  fmeshData.UVMap[l.VertexIndiceA];
+  Result.uvB := l.uvB; //  fmeshData.UVMap[l.VertexIndiceB];
+  Result.uvC := l.uvC; //  fmeshData.UVMap[l.VertexIndiceC];
 
 end;
 
-{ TViewport }
+{ TView3d }
 
-function TViewport.addCube(x, y, z :  single) : TCube;
+function TView3d.addCube(x, y, z :  single) : TCube;
 begin
   Result :=  TCube.Create;
   Result.fx := x;
@@ -288,13 +292,13 @@ begin
   addMesh(Result);
 end;
 
-procedure TViewport.addMesh(_mesh: TMesh3d);
+procedure TView3d.addMesh(_mesh: TMesh3d);
 begin
   assert(assigned(_mesh));
   FList.Add(_mesh)
 end;
 
-function TViewport.addPlane(x, y, z: single): TPlane;
+function TView3d.addPlane(x, y, z: single): TPlane;
 begin
   Result :=  TPlane.Create;
   Result.fx := x;
@@ -303,17 +307,17 @@ begin
   addMesh(Result);
 end;
 
-constructor TViewport.Create;
+constructor TView3d.Create;
 begin
   FList := TObjectList.Create;
   GTest := 0;
   FCamZ := -15;
   FWireframe := false;
   Frasterframe := true;
-  FProjection := TViewportProjectionType.Perspective;
+  FProjection := TView3dProjectionType.Perspective;
 end;
 
-destructor TViewport.Destroy;
+destructor TView3d.Destroy;
 begin
   freeAndNil(FList);
   inherited;
@@ -322,9 +326,9 @@ end;
 
 
 function CalculateSurfaceNormal(AVecA, AVecB,
-  AVecC: TVector3D) : TVector3D;
+  AVecC: vec3) : vec3;
 var
-  LVecU, LVecV: TPoint3d;
+  LVecU, LVecV: vec3;
 begin
   LVecU := AVecB;
   LVecU := LVecU - AVecA;
@@ -337,21 +341,22 @@ begin
   Result.Z := (LVecU.X*LVecV.Y) - (LVecU.Y*LVecV.X);
 end;
 
-procedure TViewport.Execute;
+procedure TView3d.Execute;
 var l : TMesh3D;
     i,j : integer;
     t : TBaseTriangle3D;
+    ca,cb,cc : vec4; //Colors.
 
-    FTranslationMatrix : TMatrix3D;
-    FRotationX : TMatrix3D;
-    FRotationY: TMatrix3D;
-    FRotationZ : TMatrix3D;
-    FObjectMatrix : TMatrix3D;
-    FViewMatrix : TMatrix3D;
-    FCameraMatrix : TMatrix3D;
+    FTranslationMatrix : mat4;
+    FRotationX : mat4;
+    FRotationY: mat4;
+    FRotationZ : mat4;
+    FObjectMatrix : mat4;
+    FViewMatrix : mat4;
+    FCameraMatrix : mat4;
 
-    FProjectionMatrix : TMatrix3D;
-    FFinalProjection : TMatrix3D;
+    FProjectionMatrix : mat4;
+    FFinalProjection : mat4;
 
     AspectRatio : Single;
     ZFar, ZNear : single;
@@ -360,131 +365,152 @@ var l : TMesh3D;
     Width : Integer;
     Height : Integer;
 
-
-    tw,th : Integer; //Texture size.
-
+    tri : TTriVertices;
 begin
+  SetLength(tri,2);
   Assert(Assigned(TargetCanvas));
   Width := TargetCanvas.Width;
   Height := TargetCanvas.Height;
 
-  FCameraMatrix := TMatrix3d.Identity;
-  FProjectionMatrix := TMatrix3d.Identity;
+  FCameraMatrix := mat4Identity;
+  FProjectionMatrix := mat4Identity;
 
-  FCameraMatrix := TMatrix3D.CreateLookAtDirLH(point3d(0,0,FCamZ),point3d(0,0,1),point3d(0,1,0));
+  FCameraMatrix := mat4CreateLookAtDirLH(vec3.create(0,0,FCamZ),vec3.create(0,0,1),vec3.create(0,1,0));
 
   Case FProjection of
-    TViewportProjectionType.Perspective,
-    TViewportProjectionType.PerspectiveIsometric :
+    TView3dProjectionType.Perspective :
     begin
       AspectRatio := Width/Height;
-      ZFar := 100;
-      ZNear := 1;
-      FOV := DegToRad(45.0);
+      ZFar := 1000;
+      ZNear := 0;
+      FOV := DegToRad(90.0);
 
       FProjectionMatrix :=
-        TMatrix3D.CreatePerspectiveFovLH(
+        mat4CreatePerspectiveFovLH(
             FOV,
             AspectRatio,ZNear,ZFar);
     end;
-    TViewportProjectionType.OrthographicIsometric :
+    TView3dProjectionType.OrthographicIsometric :
     begin
       //ORTHOGRAPHIC PROJECTION.
       // 45° rotation on Y
       FProjectionMatrix :=
-          TMatrix3D.CreateRotationY(-45*PI/180)
+//          Mat4CreateRotationY(-45*PI/180)
       // 20° rotation on X
-        * TMatrix3D.CreateRotationX(-20*PI/180)
+//        * Mat4CreateRotationX(-20*PI/180)
       // move the scene to the back to avoid Z Clipping
-        * TMatrix3D.CreateTranslation(TPoint3D.Create(0, 0, -500))
+//        Mat4CreateTranslation(vec3.Create(0, 0, -500))
       // create an iometric projection
-        * TMatrix3D.CreateOrthoOffCenterRH(
-            -Width/50, -Height/50,
-            +Width/50, +Height/50,
-            1, 1000
+          Mat4CreateOrthoOffCenterRH(
+            -Width, -Height,
+            +Width, +Height,
+            0, 1000
           );
     end;
   End;
 
 
 
+  //View
+  FViewMatrix := FCameraMatrix * FProjectionMatrix;
 
-//  TargetCanvas.SetLine(0,0,30,30); //,$FFAABBFF);
-//  TargetCanvas.SetLine(30,0,0,30); //,$FFAABBFF);
+// :(
+  FViewMatrix := mat4CreateRotationY(DegToRad(GTest)) * FViewMatrix;
+
+
+  TargetCanvas.beginDraw;
   for i := 0 to FList.Count-1 do
   begin
     l := TMesh3D(FList[i]);
 
     //Object.
-    FTranslationMatrix := TMatrix3D.CreateTranslation(point3d(l.fx,l.fy,l.fz));
-    FRotationX := TMatrix3D.CreateRotationX(DegToRad(GTest*i));
-    FRotationY := TMatrix3D.CreateRotationY(DegToRad(GTest));
-    FRotationZ := TMatrix3D.CreateRotationZ(DegToRad(GTest/3));
+    FTranslationMatrix := mat4CreateTranslation(vec3.create(l.fx,l.fy,l.fz));
+    FRotationX := Mat4Identity;
+    FRotationY := Mat4Identity;
+    FRotationZ := Mat4Identity;
+    FRotationX := mat4CreateRotationX(DegToRad(GTest*(i+1)));
+    FRotationY := mat4CreateRotationY(DegToRad(GTest*(i+1)));
+    FRotationZ := mat4CreateRotationZ(DegToRad(GTest*(i+1)));
 
     FObjectMatrix := FRotationX;
-    FObjectMatrix := FObjectMatrix * TMatrix3d.CreateTranslation(Point3D(0,0,0));
+    FObjectMatrix := FObjectMatrix * mat4CreateTranslation(vec3.create(0,0,0));
     FObjectMatrix := FObjectMatrix * FRotationY;
-    FObjectMatrix := FObjectMatrix * TMatrix3d.CreateTranslation(Point3D(0,0,0));
+    FObjectMatrix := FObjectMatrix * mat4CreateTranslation(vec3.create(0,0,0));
     FObjectMatrix := FObjectMatrix * FRotationZ;
-    FObjectMatrix := FObjectMatrix * TMatrix3d.CreateTranslation(Point3D(0,0,0));
+    FObjectMatrix := FObjectMatrix * mat4CreateTranslation(vec3.create(0,0,0));
     FObjectMatrix := FObjectMatrix * FTranslationMatrix;
 
-    //View
-    FViewMatrix := TMatrix3D.Identity * FCameraMatrix.Inverse;
 
     //Projection.
-    FFinalProjection := FObjectMatrix * FViewMatrix * FProjectionMatrix;
+    FFinalProjection := FObjectMatrix * FViewMatrix;
 
     l.transform(FFinalProjection);
+//    TargetCanvas.beginDraw;
     for j := 0 to l.triangleCount-1 do
     begin
       t := l.triangles3D(j);
 
-      //Perspective : Applying Z.
+      ///
+      ///
+      ///  RASTERING PHASE
+      ///
+      ///
+      ///
 
-      if FProjection = TViewportProjectionType.Perspective then
-      begin
-        t.VertexA.X := t.VertexA.X * t.VertexA.Z;
-        t.VertexA.Y := t.VertexA.Y * t.VertexA.Z;
-        t.VertexB.X := t.VertexB.X * t.VertexB.Z;
-        t.VertexB.Y := t.VertexB.Y * t.VertexB.Z;
-        t.VertexC.X := t.VertexC.X * t.VertexC.Z;
-        t.VertexC.Y := t.VertexC.Y * t.VertexC.Z;
-      end;
+      //Applying Z.
+      t.VertexA.X := t.VertexA.X / t.VertexA.Z;
+      t.VertexA.Y := t.VertexA.Y / t.VertexA.Z;
+      t.VertexB.X := t.VertexB.X / t.VertexB.Z;
+      t.VertexB.Y := t.VertexB.Y / t.VertexB.Z;
+      t.VertexC.X := t.VertexC.X / t.VertexC.Z;
+      t.VertexC.Y := t.VertexC.Y / t.VertexC.Z;
 
+      //https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/perspective-correct-interpolation-vertex-attributes
       //https://www.khronos.org/opengl/wiki/Vertex_Transformation
       //viewport = (0,0,Width, Height) | Formula = windowCoordinate[0] = (x * 0.5 + 0.5) * viewport[2] + viewport[0];
 
       //Denormalization.
-      t.VertexA.X := (t.VertexA.X * 0.5 + 0.5) * Width + 0;
-      t.VertexA.Y := (t.VertexA.Y * 0.5 + 0.5) * Height + 0;
-      t.VertexA.Z := (1 + t.VertexA.Z) * 0.5;
-      t.VertexB.X := (t.VertexB.X * 0.5 + 0.5) * Width + 0;
-      t.VertexB.Y := (t.VertexB.Y * 0.5 + 0.5) * Height + 0;
-      t.VertexB.Z := (1 + t.VertexB.Z) * 0.5;
-      t.VertexC.X := (t.VertexC.X * 0.5 + 0.5) * Width + 0;
-      t.VertexC.Y := (t.VertexC.Y * 0.5 + 0.5) * Height + 0;
-      t.VertexC.Z := (1 + t.VertexC.Z) * 0.5;
+      t.VertexA.X := (1 + t.VertexA.X) * 0.5 * Width;
+      t.VertexA.Y := (1 + t.VertexA.Y) * 0.5 * Height;
+      t.VertexB.X := (1 + t.VertexB.X) * 0.5 * Width;
+      t.VertexB.Y := (1 + t.VertexB.Y) * 0.5 * Height;
+      t.VertexC.X := (1 + t.VertexC.X) * 0.5 * Width;
+      t.VertexC.Y := (1 + t.VertexC.Y) * 0.5 * Height;
 
-{     Denormalization Equivalence : (for info)
-      t.VertexA.x := (1-t.VertexA.x) * TargetCanvas.Surface.Width/2;
-      t.VertexA.y := (1-t.VertexA.y) * TargetCanvas.Surface.Height/2;
-      t.VertexB.x := (1-t.VertexB.x) * TargetCanvas.Surface.Width/2;
-      t.VertexB.y := (1-t.VertexB.y) * TargetCanvas.Surface.Height/2;
-      t.VertexC.x := (1-t.VertexC.x) * TargetCanvas.Surface.Width/2;
-      t.VertexC.y := (1-t.VertexC.y) * TargetCanvas.Surface.Height/2;
+//     Denormalization Equivalence : (for info - vector dir display inverse.)
+{
+      t.VertexA.x := (1-t.VertexA.x) * Width/2;
+      t.VertexA.y := (1-t.VertexA.y) * Height/2;
+      t.VertexB.x := (1-t.VertexB.x) * Width/2;
+      t.VertexB.y := (1-t.VertexB.y) * Height/2;
+      t.VertexC.x := (1-t.VertexC.x) * Width/2;
+      t.VertexC.y := (1-t.VertexC.y) * Height/2;
 }
+//
 
 
-      TargetCanvas.beginDraw;
+//      TargetCanvas.beginDraw;
       if Frasterframe then
       begin
-        tw := 320;
-        th := 240;
-        TargetCanvas.setVertex(0,round(t.VertexA.X),round(t.VertexA.Y),round(t.VertexA.Z),trunc(t.uvA.u*tw),trunc(t.uvA.v*th));
-        TargetCanvas.setVertex(1,round(t.VertexB.X),round(t.VertexB.Y),round(t.VertexB.Z),trunc(t.uvB.u*tw),trunc(t.uvB.v*th));
-        TargetCanvas.setVertex(2,round(t.VertexC.X),round(t.VertexC.Y),round(t.VertexC.Z),trunc(t.uvC.u*tw),trunc(t.uvC.v*th));
-        TargetCanvas.rasterize;
+        tri[0].x := t.VertexA.x;
+        tri[0].y := t.VertexA.y;
+        tri[0].z := t.VertexA.z;
+        tri[0].u := t.uvA.u;
+        tri[0].v := t.uvA.v;
+
+        tri[1].x := t.VertexB.x;
+        tri[1].y := t.VertexB.y;
+        tri[1].z := t.VertexB.z;
+        tri[1].u := t.uvB.u;
+        tri[1].v := t.uvB.v;
+
+        tri[2].x := t.VertexC.x;
+        tri[2].y := t.VertexC.y;
+        tri[2].z := t.VertexC.z;
+        tri[2].u := t.uvC.u;
+        tri[2].v := t.uvC.v;
+
+        InternalDrawTri(tri);
       end;
 
       if wireFrame then
@@ -494,14 +520,17 @@ begin
         TargetCanvas.lineTo(round(t.VertexC.x),round(t.VertexC.y));
         TargetCanvas.lineTo(round(t.VertexA.x),round(t.VertexA.y));
       end;
-      TargetCanvas.endDraw;
-
+//      TargetCanvas.endDraw;
     end;
+//    TargetCanvas.endDraw;
 
   end;
+  TargetCanvas.endDraw;
 
-  GTest := GTest + 1.5;
+//  GTest := GTest + 0.2;
+  GTest := GTest + 0.35;
 end;
+
 
 { TCube }
 
@@ -519,11 +548,11 @@ begin
   addVertex(-0.5,0.5,0.5);   //7
 
   addQuad(0,1,2,3);
-  addQuad(0,3,7,4);
-  addQuad(3,2,6,7);
-  addQuad(2,1,5,6);
-  addQuad(1,0,4,5);
   addQuad(4,5,6,7);
+  addQuad(0,4,7,3);
+  addQuad(5,1,2,6);
+  addQuad(0,4,5,1);
+  addQuad(3,7,6,2);
 end;
 
 
@@ -568,4 +597,125 @@ begin
   result := Length(vertices);
 end;
 
+function edgeFunctionLocal(var a,b,c : TVertice) : TVecType; {$IFNDEF DEBUG} inline; {$ENDIF}
+begin
+  result := (a.x - c.x) * (b.y - a.y) - (a.y - c.y) * (b.x - a.x);
+end;
+
+procedure TView3d.InternalDrawTri(const v : TTriVertices);
+var w,h : Uint32;
+
+    sv : TVertice;
+
+    area,w0,w1,w2 : TVecType;
+    p : TVertice;
+    minx, maxx, miny, maxy : integer;
+    vi0x,vi0y,vi1x,vi1y,vi2x,vi2y : integer;
+
+    bits : pTP32; //frontbuffer.
+    bbBits : pTP32; //backbuffer
+    zbits : pTP32; //ZBuffer.
+
+    //ZBuffer gray level display.
+    procedure ZBufferDisplayRaster;
+    var i,j : integer;
+        holyZ : TVecType;
+        ZCol,ZDef : single;
+    begin
+      for j := miny to maxy do
+      begin
+        bits := TargetCanvas.getSurfaceScanLinePtr(j);
+        inc(bits,minx);
+
+        bbBits := BackBuffer.getSurfaceScanLinePtr(j);
+        inc(bbBits,minx);
+
+        zBits := DepthBuffer.getSurfaceScanLinePtr(j);
+        inc(zbits,minx);
+
+        for i := minx to maxx do
+        begin
+          p.x := i; p.y := j;
+          w0 := edgeFunctionLocal(v[1], v[2], p);
+          w1 := edgeFunctionLocal(v[2], v[0], p);
+          w2 := edgeFunctionLocal(v[0], v[1], p);
+          if (w0>=0) and (w1>=0) and (w2>=0) then
+          begin
+            w0 := w0 / area;
+            w1 := w1 / area;
+            w2 := w2 / area;
+
+            holyZ := (w0*v[0].z + w1*v[1].z + w2*v[2].z);
+            ZDef := 0;
+            if holyZ<>0 then
+              ZDef := abs(1 / holyZ);
+            ZCol := _clamp(ZDef,0,1);
+
+            if bbBits^ <> BackBuffercol then
+            begin
+              bits^ := TargetCanvas.colorP32Rec(trunc(ZCol*255),trunc(ZCol*255),trunc(ZCol*255),255).Color;
+              bbBits^ := BackBuffercol;
+              TP32rec(zBits^).Valuef := ZDef;
+            end
+            else
+            begin
+              if ZDef > TP32rec(zBits^).Valuef  then
+              begin
+                bits^ := TargetCanvas.colorP32Rec(trunc(ZCol*255),trunc(ZCol*255),trunc(ZCol*255),255).Color;
+                TP32rec(zBits^).Valuef := ZDef;
+              end;
+            end;
+
+          end;
+          inc(bits);
+          inc(bbBits);
+          inc(zbits);
+        end;
+      end;
+    end;
+
+
+
+
+begin
+  Assert(BackBuffer.width = TargetCanvas.width);
+  Assert(BackBuffer.height = TargetCanvas.height);
+
+  area := edgeFunctionLocal(v[0],v[1],v[2]);
+  if area<=0 then
+  begin
+    //swap (rev. triangle.)
+    sv := v[0];
+    v[0] := v[2];
+    v[2] := sv;
+    area := edgeFunctionLocal(v[0],v[1],v[2]);
+    if area<=0 then
+      Exit;
+  end;
+
+  w := TargetCanvas.width;
+  h := TargetCanvas.height;
+
+  vi0x := round(v[0].x);
+  vi0y := round(v[0].y);
+  vi1x := round(v[1].x);
+  vi1y := round(v[1].y);
+  vi2x := round(v[2].x);
+  vi2y := round(v[2].y);
+
+  minx:=max(min(min(vi0x,vi1x),vi2x),0);
+  miny:=max(min(min(vi0y,vi1y),vi2y),0);
+
+  maxx:=min(max(max(vi0x,vi1x),vi2x),w-1);
+  maxy:=min(max(max(vi0y,vi1y),vi2y),h-1);
+
+  if maxx-minx=0 then exit;
+  if maxy-miny=0 then exit;
+
+  ZBufferDisplayRaster;
+end;
+
+
+
 end.
+

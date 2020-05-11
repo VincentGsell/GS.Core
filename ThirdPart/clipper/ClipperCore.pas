@@ -11,6 +11,36 @@ unit ClipperCore;
 * License   :  http://www.boost.org/LICENSE_1_0.txt                            *
 *******************************************************************************)
 
+{$ifdef fpc}
+ {$mode delphi}
+ {$warnings off}
+ {$hints off}
+ {$ifdef cpui386}
+  {$define cpu386}
+  {$asmmode intel}
+ {$endif}
+ {$ifdef fpc_little_endian}
+  {$define little_endian}
+ {$else}
+  {$ifdef fpc_big_endian}
+   {$define big_endian}
+  {$endif}
+ {$endif}
+ {$ifdef fpc_has_internal_sar}
+  {$define HasSAR}
+ {$endif}
+{$else}
+ {$define little_endian}
+ {$ifndef cpu64}
+  {$define cpu64}
+ {$endif}
+ {$optimization on}
+ {$undef HasSAR}
+ {$define UseDIV}
+{$endif}
+{$overflowchecks off}
+{$rangechecks off}
+
 {$IFDEF FPC}
   {$DEFINE INLINING}
 {$ELSE}
@@ -141,7 +171,7 @@ function OffsetPath(const path: TPathD; dx, dy: double): TPathD; overload;
 function OffsetPaths(const paths: TPaths; dx, dy: Int64): TPaths; overload;
 function OffsetPaths(const paths: TPathsD; dx, dy: double): TPathsD; overload;
 
-function Paths(const paths: TPathsD): TPaths;
+function Paths(const _paths: TPathsD): TPaths;
 function PathsD(const paths: TPaths): TPathsD;
 
 procedure StripDuplicates(var path: TPath); overload;
@@ -441,20 +471,20 @@ begin
 end;
 //------------------------------------------------------------------------------
 
-function Paths(const paths: TPathsD): TPaths;
+function Paths(const _paths: TPathsD): TPaths;
 var
   i,j,len,len2: integer;
 begin
-  len := Length(paths);
+  len := Length(_paths);
   setLength(Result, len);
   for i := 0 to len -1 do
   begin
-    len2 := Length(paths[i]);
+    len2 := Length(_paths[i]);
     setLength(Result[i], len2);
     for j := 0 to len2 -1 do
     begin
-      Result[i][j].X := Round(paths[i][j].X);
-      Result[i][j].Y := Round(paths[i][j].Y);
+      Result[i][j].X := Round(_paths[i][j].X);
+      Result[i][j].Y := Round(_paths[i][j].Y);
     end;
   end;
 end;

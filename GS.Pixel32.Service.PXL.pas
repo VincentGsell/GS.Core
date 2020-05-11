@@ -4,7 +4,6 @@ unit GS.Pixel32.Service.PXL;
 interface
 
 uses classes, sysutils, GS.Pixel32, GS.Pixel.Service, GS.Stream;
-
 Type
 
 TPixel32CustomPXLService = class(TPixelCustomService)
@@ -14,14 +13,12 @@ public
   Constructor Create(_uri : string); reintroduce;
 end;
 
-
 TPixel32PXLService = Class(TPixel32CustomPXLService)
 protected
 public
   //RnD exemple....
   procedure Line(x,y,xx,yy : integer; color : TP32);
 End;
-
 
 implementation
 

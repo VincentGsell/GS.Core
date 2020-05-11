@@ -1,11 +1,14 @@
 unit GS.Geometry.Mesh2D.Tools;
+{$I GSCore.Inc}
 
 interface
 
-uses System.Types,
-     System.Classes,
-     System.SysUtils,
-     System.Math,
+
+uses Types,
+     Classes,
+     SysUtils,
+     Math,
+     FastGeo,
      Clipper,
      ClipperCore,
      GS.Geometry.Direction,
@@ -46,8 +49,9 @@ private
 public
   procedure Build_SetRoundShape(subdivision : UInt32; len : single);
   procedure SetShapeType(shapetype : TGSShape2dType);
-  function isPointInside(x, y: single): boolean;
+  function isPointInside(x, y: single; var TriangleIndice : Uint32): boolean;
   procedure addTriangle(a,b,c : vec2);
+//  procedure triangulate(poly : array of vec2); ?
 end;
 
 TGSMeshMatrixProcessing = class
@@ -100,9 +104,6 @@ Public
   Procedure Translate(xAmount, yAmount : Single);
 
   function GetMesh : TGSRawMesh2D;
-
-//  Function ToClipperPaths : TPaths;
-//  Procedure FromClipperPaths(aClipperPaths : TPaths); //Use Delaunay for Mesh rebuild.
 End;
 
 TGSGeometryGenerator = Class
@@ -162,6 +163,15 @@ End;
 
 
 implementation
+
+{$IFDEF FPC}
+function Pointf(x,y : single) : TPointf;
+begin
+  result.X := x;
+  result.Y := y;
+end;
+
+{$ENDIF}
 
 { TGSMeshTurtle }
 
@@ -236,18 +246,25 @@ begin
   l := Length(vertices);
   SetLength(vertices,l+3);
   SetLength(uvs,l+3);
+  SetLength(cols,l+3);
   SetLength(indexes,l+3);
   vertices[l] := a;
   indexes[l] := l;
   uvs[l].create(0,0);
+  cols[l].create(1,0,0,1);
   inc(l);
   vertices[l] := b;
   indexes[l] := l;
   uvs[l].create(1,0);
+  cols[l].create(0,1,0,1);
   inc(l);
   vertices[l] := c;
   indexes[l] := l;
   uvs[l].create(1,1);
+  cols[l].create(0,0,1,1);
+  ProgressiveRefreshBounding(a);
+  ProgressiveRefreshBounding(b);
+  ProgressiveRefreshBounding(c);
 end;
 
 procedure TGSMesh2dHelper.SetShapeType(shapetype: TGSShape2dType);
@@ -255,21 +272,21 @@ begin
   vertices := nil;
   indexes := nil;
   case shapetype of
-    triangleOneOneOne: SetUpQuad(1);
-    quadOneOne: SetUpQuad(1);
-    rectOneTwo: SetUpRect(1,2);
-    rectTwoOne: SetUpRect(2,1);
-    penta: Build_SetRoundShape(5,1);
-    hexa: Build_SetRoundShape(6,1);
-    hepta: Build_SetRoundShape(7,1);
-    octo: Build_SetRoundShape(8,1);
-    circle20: Build_SetRoundShape(20,1);
-    circle50: Build_SetRoundShape(50,1);
-    circle100: Build_SetRoundShape(100,1);
-    halfmoon: ;
-    gear: ;
-    star5: ;
-    sun: ;
+    TGSShape2dType.triangleOneOneOne: SetUpQuad(1);
+    TGSShape2dType.quadOneOne: SetUpQuad(1);
+    TGSShape2dType.rectOneTwo: SetUpRect(1,2);
+    TGSShape2dType.rectTwoOne: SetUpRect(2,1);
+    TGSShape2dType.penta: Build_SetRoundShape(5,1);
+    TGSShape2dType.hexa: Build_SetRoundShape(6,1);
+    TGSShape2dType.hepta: Build_SetRoundShape(7,1);
+    TGSShape2dType.octo: Build_SetRoundShape(8,1);
+    TGSShape2dType.circle20: Build_SetRoundShape(20,1);
+    TGSShape2dType.circle50: Build_SetRoundShape(50,1);
+    TGSShape2dType.circle100: Build_SetRoundShape(100,1);
+    TGSShape2dType.halfmoon: ;
+    TGSShape2dType.gear: ;
+    TGSShape2dType.star5: ;
+    TGSShape2dType.sun: ;
   end;
 end;
 
@@ -302,17 +319,59 @@ begin
   end;
 end;
 
-function TGSMesh2dHelper.isPointInside(x, y: single): boolean;
-var i,j : integer;
+
+//------------------------------------------------------------------------------
+function Interpolate(position, iTargetStart,
+  iTargetEnd, iSourceStart, iSourceEnd: single): single;
+
+var
+  iTargetWidth, iSourceWidth: single;
+  rPercent: single;
+  rMoveMent: single;
+begin
+  iSourceWidth := iSourceEnd-(iSourceStart);
+  iTargetWidth := iTargetEnd-(iTargetStart);
+
+  if iSourceWidth = 0 then
+    result := 0
+  else begin
+    rPercent := (position - iSourceStart)/(iSourceEnd-iSourceStart);
+    rMovement := rPercent*iTargetWidth;
+    result := rMoveMent + iTargetStart;
+
+//    result := (((position-iSourceStart))/iSourceWidth)*((iTargetWidth))+iTargetStart;
+  end;
+
+end;
+
+
+procedure GetCenterOfTriangle(x1,y1,x2,y2,x3,y3: single; out rx,ry: single);
+begin
+  rx := ((((x1+x2)/2)+((x1+x3)/2)+((x2+x3)/2))/3);
+  ry := ((((y1+y2)/2)+((y1+y3)/2)+((y2+y3)/2))/3);
+end;
+
+
+
+function TGSMesh2dHelper.isPointInside(x, y: single; var TriangleIndice : UInt32): boolean;
+var i,t : integer;
+    a,b,c,au,bu,cu : vec2;
+    ca : vec4;
+
 Begin
   result := false;
-  j := High(vertices);
-  For i := Low(vertices) to High(vertices) do begin
-    if (
-     ( ((vertices[i].y <= y) and (y < vertices[j].y)) or ((vertices[j].y <= y) and (y < vertices[i].y)) ) and
-     (x < ((vertices[j].x - vertices[i].x) * (y - vertices[i].y) / (vertices[j].y - vertices[i].y) + vertices[i].x))
-    ) then result := not result;
-    j := i
+  if (X >= BoundingBox.Left) and (X < BoundingBox.Right) and (Y >= BoundingBox.Top) and (Y < BoundingBox.Bottom) then
+  begin
+    for i := 0 to getTriangleCount-1 do
+    begin
+      Triangle(i,a,b,c,au,bu,cu,ca,ca,ca);
+      if PointInTriangle(x,y,a.x,a.y,b.x,b.y,c.x,c.y) then
+      begin
+        result := true;
+        TriangleIndice := i;
+        break;
+      end;
+    end;
   end;
 end;
 
@@ -340,14 +399,18 @@ var i : Integer;
 begin
   for i := Low(Mesh) to High(Mesh) do
   begin
-    Mesh[i].P1:= PointF(0,0);
-    Mesh[i].P2:= PointF(0,0);
-    Mesh[i].P3:= PointF(0,0);
+    Mesh[i].P1.X:= 0;
+    Mesh[i].P1.y:= 0;
+    Mesh[i].P2.X:= 0;
+    Mesh[i].P2.y:= 0;
+    Mesh[i].P3.X:= 0;
+    Mesh[i].P3.y:= 0;
   end;
   for i := Low(Border) to High(Border) do
   begin
-    Border[i].P1:= PointF(0,0);
-    Border[i].Code := fecDraw;
+    Border[i].P1.X:= 0;
+    Border[i].P1.y:= 0;
+    Border[i].Code := TGSEdgeCode.fecDraw;
   end;
 end;
 
@@ -486,7 +549,7 @@ begin
   j := 0;
   for i := 0 to FSubdivision-1 do
   begin
-    aData.Border[j].Code := fecDraw;
+    aData.Border[j].Code := TGSEdgeCode.fecDraw;
     aData.Border[j].P1 := Pointf(LocalGeometryTool.GetPointedCoord.X,LocalGeometryTool.GetPointedCoord.Y);
     LocalGeometryTool.TurnBy(FStepAngle);
     inc(j);
@@ -494,14 +557,14 @@ begin
 
   //Jump !
   aData.Border[j].P1 := Pointf(FSecondaryGeometryTool.GetPointedCoord.X,FSecondaryGeometryTool.GetPointedCoord.Y);
-  aData.Border[j].Code := fecIgnore;
+  aData.Border[j].Code := TGSEdgeCode.fecIgnore;
   FSecondaryGeometryTool.TurnBy(FStepAngle);
   inc(j);
 
   //Inner circle.
   for i := 0 to FSubdivision-1 do
   begin
-    aData.Border[j].Code := fecDraw;
+    aData.Border[j].Code := TGSEdgeCode.fecDraw;
     aData.Border[j].P1 := Pointf(FSecondaryGeometryTool.GetPointedCoord.X,FSecondaryGeometryTool.GetPointedCoord.Y);
     FSecondaryGeometryTool.TurnBy(FStepAngle);
     inc(j);

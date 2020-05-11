@@ -1,6 +1,8 @@
 //Bus based service access.
-// Allow to have full multithreading capabilities (throught bus)
-// Allow easy move to a full C/S (GRID or other) system.
+// - Allow to have easy, transparent, and full multithreading capabilities (throught bus)
+// - Allow easy move to a full C/S (GRID or other) system.
+// - Allow to not blow your project with dozen of units, which their own geometry/logic system.
+// - Allow to use powerfull third part lib, to give acces to their magic, with no technical hassle.
 unit GS.Pixel.Service;
 
 interface

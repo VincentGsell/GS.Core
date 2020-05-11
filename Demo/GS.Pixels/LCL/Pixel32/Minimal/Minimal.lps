@@ -2,14 +2,15 @@
 <CONFIG>
   <ProjectSession>
     <PathDelim Value="\"/>
-    <Version Value="11"/>
+    <Version Value="10"/>
     <BuildModes Active="Default"/>
-    <Units Count="9">
+    <Units Count="10">
       <Unit0>
         <Filename Value="Minimal.lpr"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="3"/>
-        <CursorPos X="14" Y="3"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="4"/>
+        <CursorPos Y="3"/>
         <UsageCount Value="20"/>
         <Loaded Value="True"/>
       </Unit0>
@@ -17,10 +18,12 @@
         <Filename Value="fmain.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="Form1"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
         <CursorPos X="26" Y="11"/>
         <UsageCount Value="20"/>
         <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
       </Unit1>
       <Unit2>
         <Filename Value="..\..\..\..\..\GS.Pixel.pas"/>
@@ -44,7 +47,6 @@
       </Unit4>
       <Unit5>
         <Filename Value="..\..\..\..\..\GS.Pixel32.Rasterize.pas"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="2"/>
         <TopLine Value="90"/>
         <CursorPos Y="104"/>
@@ -73,8 +75,15 @@
         <UsageCount Value="10"/>
         <Loaded Value="True"/>
       </Unit8>
+      <Unit9>
+        <Filename Value="..\..\..\..\..\GS.Geometry.Mesh2D.Tools.pas"/>
+        <EditorIndex Value="3"/>
+        <CursorPos X="2" Y="12"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit9>
     </Units>
-    <JumpHistory Count="4" HistoryIndex="3">
+    <JumpHistory Count="6" HistoryIndex="5">
       <Position1>
         <Filename Value="fmain.pas"/>
         <Caret Line="31" Column="20" TopLine="16"/>
@@ -91,10 +100,14 @@
         <Filename Value="..\..\..\..\..\GS.Pixel32.Win.pas"/>
         <Caret Line="27" Column="21" TopLine="14"/>
       </Position4>
+      <Position5>
+        <Filename Value="..\..\..\..\..\GS.Pixel32.Rasterize.pas"/>
+        <Caret Line="104" TopLine="90"/>
+      </Position5>
+      <Position6>
+        <Filename Value="..\..\..\..\..\GS.Geometry.Mesh2D.Tools.pas"/>
+        <Caret Line="11"/>
+      </Position6>
     </JumpHistory>
-    <RunParams>
-      <FormatVersion Value="2"/>
-      <Modes Count="0" ActiveMode=""/>
-    </RunParams>
   </ProjectSession>
 </CONFIG>

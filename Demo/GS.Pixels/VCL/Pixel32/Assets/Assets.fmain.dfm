@@ -1,9 +1,9 @@
 object Form1: TForm1
   Left = 0
   Top = 0
-  Caption = 'Form1'
-  ClientHeight = 513
-  ClientWidth = 944
+  Caption = 'Assets usage'
+  ClientHeight = 596
+  ClientWidth = 994
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,13 +19,18 @@ object Form1: TForm1
   object Image1: TImage
     Left = 0
     Top = 0
-    Width = 944
-    Height = 513
+    Width = 994
+    Height = 596
     Align = alClient
     OnMouseMove = Image1MouseMove
     ExplicitLeft = 432
     ExplicitTop = 224
     ExplicitWidth = 105
     ExplicitHeight = 105
+  end
+  object TimerFPS: TTimer
+    OnTimer = TimerFPSTimer
+    Left = 488
+    Top = 304
   end
 end

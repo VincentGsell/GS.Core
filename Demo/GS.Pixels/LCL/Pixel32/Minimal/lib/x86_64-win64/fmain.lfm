@@ -1,0 +1,13 @@
+object Form1: TForm1
+  Left = 85
+  Height = 427
+  Top = 121
+  Width = 570
+  Caption = 'Form1'
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnMouseDown = FormMouseDown
+  OnMouseMove = FormMouseMove
+  OnResize = FormResize
+  LCLVersion = '2.0.6.0'
+end

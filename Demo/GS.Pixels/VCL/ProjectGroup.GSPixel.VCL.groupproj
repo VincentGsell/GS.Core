@@ -18,6 +18,27 @@
         <Projects Include="Pixel32\Assets\AssetsProject.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Pixel32\AssetsMesh\ProjectAssetsMesh.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\Euler\ProjectEuler.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\Services\StandAlone\ServiceStandAlone.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\Effects\effectsDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\PolyRaster\PolyRaster.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\3DRasterPipeLine\ProjectRasterPipeLine.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\css\HTMLViewProject.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -71,14 +92,77 @@
     <Target Name="AssetsProject:Make">
         <MSBuild Projects="Pixel32\Assets\AssetsProject.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ProjectAssetsMesh">
+        <MSBuild Projects="Pixel32\AssetsMesh\ProjectAssetsMesh.dproj"/>
+    </Target>
+    <Target Name="ProjectAssetsMesh:Clean">
+        <MSBuild Projects="Pixel32\AssetsMesh\ProjectAssetsMesh.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProjectAssetsMesh:Make">
+        <MSBuild Projects="Pixel32\AssetsMesh\ProjectAssetsMesh.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ProjectEuler">
+        <MSBuild Projects="Pixel32\Euler\ProjectEuler.dproj"/>
+    </Target>
+    <Target Name="ProjectEuler:Clean">
+        <MSBuild Projects="Pixel32\Euler\ProjectEuler.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProjectEuler:Make">
+        <MSBuild Projects="Pixel32\Euler\ProjectEuler.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ServiceStandAlone">
+        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj"/>
+    </Target>
+    <Target Name="ServiceStandAlone:Clean">
+        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ServiceStandAlone:Make">
+        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="effectsDemo">
+        <MSBuild Projects="Pixel32\Effects\effectsDemo.dproj"/>
+    </Target>
+    <Target Name="effectsDemo:Clean">
+        <MSBuild Projects="Pixel32\Effects\effectsDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="effectsDemo:Make">
+        <MSBuild Projects="Pixel32\Effects\effectsDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="PolyRaster">
+        <MSBuild Projects="Pixel32\PolyRaster\PolyRaster.dproj"/>
+    </Target>
+    <Target Name="PolyRaster:Clean">
+        <MSBuild Projects="Pixel32\PolyRaster\PolyRaster.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="PolyRaster:Make">
+        <MSBuild Projects="Pixel32\PolyRaster\PolyRaster.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ProjectRasterPipeLine">
+        <MSBuild Projects="Pixel32\3DRasterPipeLine\ProjectRasterPipeLine.dproj"/>
+    </Target>
+    <Target Name="ProjectRasterPipeLine:Clean">
+        <MSBuild Projects="Pixel32\3DRasterPipeLine\ProjectRasterPipeLine.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProjectRasterPipeLine:Make">
+        <MSBuild Projects="Pixel32\3DRasterPipeLine\ProjectRasterPipeLine.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="HTMLViewProject">
+        <MSBuild Projects="Pixel32\css\HTMLViewProject.dproj"/>
+    </Target>
+    <Target Name="HTMLViewProject:Clean">
+        <MSBuild Projects="Pixel32\css\HTMLViewProject.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="HTMLViewProject:Make">
+        <MSBuild Projects="Pixel32\css\HTMLViewProject.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Minimal;Raster;D3DRaster;MiniDelau;AssetsProject"/>
+        <CallTarget Targets="Minimal;Raster;D3DRaster;MiniDelau;AssetsProject;ProjectAssetsMesh;ProjectEuler;ServiceStandAlone;effectsDemo;PolyRaster;ProjectRasterPipeLine;HTMLViewProject"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Minimal:Clean;Raster:Clean;D3DRaster:Clean;MiniDelau:Clean;AssetsProject:Clean"/>
+        <CallTarget Targets="Minimal:Clean;Raster:Clean;D3DRaster:Clean;MiniDelau:Clean;AssetsProject:Clean;ProjectAssetsMesh:Clean;ProjectEuler:Clean;ServiceStandAlone:Clean;effectsDemo:Clean;PolyRaster:Clean;ProjectRasterPipeLine:Clean;HTMLViewProject:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Minimal:Make;Raster:Make;D3DRaster:Make;MiniDelau:Make;AssetsProject:Make"/>
+        <CallTarget Targets="Minimal:Make;Raster:Make;D3DRaster:Make;MiniDelau:Make;AssetsProject:Make;ProjectAssetsMesh:Make;ProjectEuler:Make;ServiceStandAlone:Make;effectsDemo:Make;PolyRaster:Make;ProjectRasterPipeLine:Make;HTMLViewProject:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

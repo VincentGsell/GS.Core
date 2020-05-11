@@ -2,7 +2,8 @@ program D3DRaster;
 
 uses
   Vcl.Forms,
-  D3DRaster.fmain in 'D3DRaster.fmain.pas' {Form1};
+  D3DRaster.fmain in 'D3DRaster.fmain.pas' {Form1},
+  GS.SoftwareRaster3D.ExempleStandAlone in '..\..\..\..\..\GS.SoftwareRaster3D.ExempleStandAlone.pas';
 
 {$R *.res}
 

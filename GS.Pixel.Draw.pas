@@ -14,17 +14,15 @@ protected
   FAsset : TGSAsset2DMeshedObject; //Pointer !
   fCurrentProcessedMesh : TGSRawMesh2D;
 
-  //Called by constructor, must be override by tech. provider.
-  procedure Init; virtual; abstract;
 public
   Constructor Create(asset :  TGSAsset2DMeshedObject); reintroduce;
   Destructor Destroy; override;
   procedure ResetMeshFromAsset; virtual;
 
-
   //iPixDrawable;
   function Mesh : TGSRawMesh2D; virtual;
   function getShader : iPixShader; virtual;
+
 end;
 
 TPixelDrawTools = class
@@ -36,15 +34,14 @@ TPixelShape = class(TPixelDrawable)
 private
   FAssetAsShape : TGSAssetShapeMesh; //Pointer !
 public
-  Constructor Create(asset :  TGSAssetShapeMesh); reintroduce;
-  procedure Init; override;
+  Constructor Create(asset :  TGSAssetShapeMesh); reintroduce; virtual;
 end;
 
 TPixelImage = class(TPixelDrawable)
 private
   FAssetAsImageSource : TGSAssetImageSource; //Pointer !;
 public
-  Constructor Create(asset :  TGSAssetImageSource); reintroduce;
+  Constructor Create(asset :  TGSAssetImageSource); reintroduce; virtual;
   property ImageSourceAsset : TGSAssetImageSource read FassetAsImagesource;
 end;
 
@@ -62,7 +59,6 @@ begin
   FAsset := asset; //Original asset. Do not touch.
   fCurrentProcessedMesh := TGSRawMesh2D.Create;  //Mesh for display.
   ResetMeshFromAsset;
-  Init;
 end;
 
 destructor TPixelDrawable.Destroy;
@@ -96,11 +92,6 @@ begin
   inherited create(FAssetAsShape);
 end;
 
-procedure TPixelShape.Init;
-begin
-  //..
-end;
-
 { TPixelImage }
 
 constructor TPixelImage.Create(asset: TGSAssetImageSource);
@@ -114,7 +105,9 @@ end;
 
 class procedure TPixelDrawTools.Draw(surface : iPixSurface; drawObject : iPixDrawable);
 var i : integer;
-    va,vb,vc,vua,vub,vuc : vec2;
+    va,vb,vc,
+    vua,vub,vuc : vec2;
+    ca,cb,cc : vec4;
     l : iPixShader;
 begin
   assert(assigned(drawObject));
@@ -122,13 +115,19 @@ begin
   surface.beginDraw;
   l := drawObject.getShader;
   if assigned(l) then
-    surface.setDrawShader(l);
+    surface.setFragmentShader(l);
   for i := 0 to drawObject.Mesh.getTriangleCount-1 do
   begin
-    drawObject.Mesh.Triangle(i,va,vb,vc,vua,vub,vuc);
-    surface.setVertex(0,trunc(va.x),trunc(va.y),0,trunc(vua.x),trunc(vua.y));
-    surface.setVertex(1,trunc(vb.x),trunc(vb.y),0,trunc(vub.x),trunc(vub.y));
-    surface.setVertex(2,trunc(vc.x),trunc(vc.y),0,trunc(vuc.x),trunc(vuc.y));
+    drawObject.Mesh.Triangle(i,va,vb,vc,vua,vub,vuc,ca,cb,cc);
+    surface.setVertice(0,va.x,va.y);
+    surface.setVerticeUV(0,vua.x,vua.y);
+    surface.setVerticeColor(0,ca.r,ca.g,ca.b,ca.a);
+    surface.setVertice(1,vb.x,vb.y);
+    surface.setVerticeUV(1,vub.x,vub.y);
+    surface.setVerticeColor(1,cb.r,cb.g,cb.b,cb.a);
+    surface.setVertice(2,vc.x,vc.y);
+    surface.setVerticeUV(2,vuc.x,vuc.y);
+    surface.setVerticeColor(2,cc.r,cc.g,cc.b,cc.a);
     surface.rasterize;
   end;
   surface.endDraw;

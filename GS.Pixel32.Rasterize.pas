@@ -35,11 +35,22 @@ interface
 
 
 uses
- GS.Pixel, GS.Pixel32, sysutils;
+ sysutils,
+ GS.Pixel,
+ GS.Pixel32,
+ GS.Pixel32.Types,
+ GS.Pixel32.Fragments,
+ GS.Geometry;
 
 
-procedure triangleRasterizeTexMap(Dest : TPixel32; const v0, v1, v2: TP32Vertex);
-procedure triangleRasterizeFlat( Dest : TPixel32; const v0, v1, v2: TP32Vertex);
+
+//procedure triangleRasterizeTexMap(Dest : TPixel32; const v[0], v[1], v[2]: TP32Vertice);
+//procedure triangleRasterizeFlat( Dest : TPixel32; const v[0], v[1], v[2]: TP32Vertice);
+
+procedure triangleRasterize( Dest : TPixel32;
+                   var v : TP32triVertices;
+                   const rasterMode : TSoftwareRasterizeOption = TSoftwareRasterizeOption.roBackBuffer);
+
 
 //---------------------------------------------------------------------------
 
@@ -47,207 +58,416 @@ procedure triangleRasterizeFlat( Dest : TPixel32; const v0, v1, v2: TP32Vertex);
 //i.e. when drawing polygone (many triangle) edge and border could be overlap.
 //the backe buffer avoid that.
 var BackBuffer :  TPixel32;
+    DepthBuffer : TPixel32;
     BackBuffercol : TP32;
 
 //Must be call before each batch drawing.
 procedure rasterBackBufferInit(surface : iPixSurface);
 
+//Main interpolation function.
+function edgeFunction(var a,b,c : TP32Vertice) : TVecType; {$IFNDEF DEBUG} inline; {$ENDIF}
+
 implementation
 
-uses math;
+uses math,
+     GS.Pixel32.DirectRasterizer;
+
+
+procedure RnDtriangleRasterize( Dest : TPixel32;
+                               const v : TP32triVertices;
+                               fragment : TPixel32FragmentShader;
+                               options : TSoftwareRasterizeOption); forward;
+
 
 
 procedure rasterBackBufferInit(surface : iPixSurface);
 begin
-  if surface.width<>BackBuffer.width then
+  if (surface.width<>BackBuffer.width) Or
+     (surface.height<>BackBuffer.height) then
+  begin
     BackBuffer.resize(surface.width,surface.height);
+    DepthBuffer.resize(surface.width,surface.height);
+  end;
   Inc(BackBuffercol);
   BackBuffer.color_pen := BackBuffercol;
 end;
 
-
-
-function InternaltriangleRasterizeFlat( Dest : TPixel32;
-                   const v0, v1, v2: TP32Vertex) : boolean;
-var
-  i,j,x,y,z:integer;
-  minx,miny,maxx,maxy:integer;
-  ax,ay,bx,by,cx,cy,diviseur:integer;
-  temp : integer;
-
-  bb,cc : pTP32;
+procedure triangleRasterize( Dest : TPixel32;
+                   var v : TP32triVertices;
+                   const rasterMode : TSoftwareRasterizeOption = TSoftwareRasterizeOption.roBackBuffer);
 begin
-  result := false;
-  assert(assigned(Dest));
+  ///
+  ///  WELCOME to the Rasterizer Factory :)
+  ///
+  ///  Here, you have the fallowing process :
+  ///  If DirectMode :
+  ///  - will automaticaly determine, with the entry fragshader (ie. dest.currentFragment)
+  ///  what TPixel32DirectMode.xxx methodswill be called in replacement.
+  ///  As a result
+  ///  - No client app change (just directMode switch.)
+  ///  - for simple shader, and simple use case (2d, game) you will get extra speed.
+  ///  - for complex shader, you'll get FlatColor shader. :/
+  ///  - It is a manner to see the gap between FragShader coding, and direct call. (degug stuff)
+  ///
 
-  minx:=max(min(min(v0.x,v1.x),v2.x),0);
-  miny:=max(min(min(v0.y,v1.y),v2.y),0);
 
-  maxx:=min(max(max(v0.x,v1.x),v2.x),dest.Width-1);
-  maxy:=min(max(max(v0.y,v1.y),v2.y),dest.Height-1);
-
-  if maxx-minx=0 then exit;
-  if maxy-miny=0 then exit;
-
-  ax:=v1.x-v0.x;
-  bx:=v2.x-v0.x;
-  cx:=v2.x-v1.x;
-  ay:=v1.y-v0.y;
-  by:=v2.y-v0.y;
-  cy:=v2.y-v1.y;
-
-  // flat triangle, or reverse
-  if ax*by-ay*bx<=0 then exit;
-  if ax*cy-ay*cx<=0 then exit;
-
-  diviseur:=ay*bx-ax*by;
-
-  y:=miny-v0.y;
-
-  for j:=miny to maxy do
-  begin
-    x:=minx-v0.x;
-    bb := BackBuffer.getSurfacePtr;
-    inc(bb,j*BackBuffer.width);
-    inc(bb,minx);
-
-    cc := Dest.getSurfacePtr;
-    inc(cc,j*Dest.width);
-    inc(cc,minx);
-
-    for i:=minx to maxx do
+  case rasterMode of
+    TSoftwareRasterizeOption.roDirectMode :
     begin
-      if (x*ay-y*ax<=0) and (x*by-y*bx>=0)  and ((i-v1.x)*cy-(j-v1.y)*cx<=0) then
-      begin
+      ///
+      ///  Direct Mode part.
+      ///
 
-        if bb^ <> BackBuffercol then
+      //try to find equivalent proc. from given fragment.
+      if Dest.currentFragment is TPixel32FragmentShaderTextureColor then
+      begin
+        TPixel32DirectMode.TextureColor_drawTri(Dest,v,TPixel32FragmentShaderTextureColor(Dest.currentFragment).Texture);
+      end
+      else
+      if Dest.currentFragment is TPixel32FragmentShaderVerticeColor then
+      begin
+        TPixel32DirectMode.FlatColor3_drawTri( Dest,v);
+      end
+      else
+      if Dest.currentFragment is TPixel32FragmentShaderFlatColor then
+      begin
+        TPixel32DirectMode.FlatColor1_drawTri(Dest,v,TPixel32FragmentShaderFlatColor(Dest.currentFragment).Color);
+      end
+      else //all other.
+      begin
+        TPixel32DirectMode.FlatColor1_drawTri(Dest,v,gspRed);
+      end;
+    end;
+
+    else
+    begin
+      RnDtriangleRasterize(Dest,v,Dest.currentFragment,rasterMode);
+    end;
+  end;
+
+end;
+
+
+function edgeFunction(var a,b,c : TP32Vertice) : TVecType; {$IFNDEF DEBUG} inline; {$ENDIF}
+begin
+  result := (a.x - c.x) * (b.y - a.y) - (a.y - c.y) * (b.x - a.x);
+end;
+
+
+procedure RnDtriangleRasterize( Dest : TPixel32;
+                               const v : TP32triVertices;
+                               fragment : TPixel32FragmentShader;
+                               options : TSoftwareRasterizeOption);
+var w,h : Uint32;
+
+    sv : TP32Vertice;
+
+    area,w0,w1,w2 : TVecType;
+    p : TP32Vertice;
+    minx, maxx, miny, maxy : integer;
+    vi0x,vi0y,vi1x,vi1y,vi2x,vi2y : integer;
+
+    bits : pTP32; //frontbuffer.
+    bbBits : pTP32; //backbuffer
+    zbits : pTP32; //ZBuffer.
+
+    //Only BackBuffer raster (2d, alpha channel pixel perfect poly.)
+    procedure BackBufferRaster;
+    var i,j : integer;
+        //Optimization (replace edgefunction)
+        v2xmv1x,v0xmv2x,v1xmv0x : TVecType;
+        v2ymv1y,v0ymv2y,v1ymv0y : TVecType;
+        v1ympyMulv2xmv1x, v2ympyMulv0xmv2x, v0ympyMulv1xmv0x : TVecType;
+    begin
+      v2xmv1x := v[2].x - v[1].x;
+      v0xmv2x := v[0].x - v[2].x;
+      v1xmv0x := v[1].x - v[0].x;
+      v2ymv1y := v[2].y - v[1].y;
+      v0ymv2y := v[0].y - v[2].y;
+      v1ymv0y := v[1].y - v[0].y;
+
+      for j := miny to maxy do
+      begin
+        bits := Dest.getSurfaceScanLinePtr(j);
+        inc(bits,minx);
+
+        bbBits := BackBuffer.getSurfaceScanLinePtr(j);
+        inc(bbBits,minx);
+
+        v1ympyMulv2xmv1x := (v[1].y - j) * (v2xmv1x);
+        v2ympyMulv0xmv2x := (v[2].y - j) * (v0xmv2x);
+        v0ympyMulv1xmv0x := (v[0].y - j) * (v1xmv0x);
+        for i := minx to maxx do
         begin
-//          cc^:= Dest.currentDrawShader.ColorData.Color;
-          z := trunc(( v0.z + v1.z + v2.z ) / 3);
-          dest.pixel(i,j,z);
+          //w0 := edgeFunction(v[1], v[2], p); //inlining is good, but calculus is optimized by col/row.
+          w0 := (v[1].x - i) * (v2ymv1y) - v1ympyMulv2xmv1x;
+          //w1 := edgeFunction(v[2], v[0], p);
+          w1 := (v[2].x - i) * (v0ymv2y) - v2ympyMulv0xmv2x;
+          //w2 := edgeFunction(v[0], v[1], p);
+          w2 := (v[0].x - i) * (v1ymv0y) - v0ympyMulv1xmv0x;
+
+          if (w0>=0) and (w1>=0) and (w2>=0) then
+          begin
+            if bbBits^ <> BackBuffercol then
+            begin
+              w0 := w0 / area;
+              w1 := w1 / area;
+              w2 := w2 / area;
+
+              fragment.x := i;
+              fragment.y := j;
+              fragment.interpolationVerticeA := w0;
+              fragment.interpolationVerticeB := w1;
+              fragment.interpolationVerticeC := w2;
+              fragment.sourceSurfaceBits := bits;
+              fragment.process;
+
+              if fragment.processedColor.AlphaChannel>0 then
+                bits^ := fragment.processedColor.Color;
+            end;
+            bbBits^ := BackBuffercol;
+          end;
+          inc(bits);
+          inc(bbBits);
         end;
-
-        bb^:= BackBuffercol;
       end;
-      inc(x);
-      inc(bb);
-      inc(cc);
     end;
-    inc(y);
+
+    //Basic rastering, no backebuffer, no zbuffer. Graphic glitch on 2dalpha, no z order on 3d.
+    procedure BasicRaster;
+    var i,j : integer;
+    begin
+      for j := miny to maxy do
+      begin
+        bits := Dest.getSurfaceScanLinePtr(j);
+        inc(bits,minx);
+
+        for i := minx to maxx do
+        begin
+          p.x := i; p.y := j;
+          w0 := edgeFunction(v[1], v[2], p);
+          w1 := edgeFunction(v[2], v[0], p);
+          w2 := edgeFunction(v[0], v[1], p);
+          if (w0>=0) and (w1>=0) and (w2>=0) then
+          begin
+            w0 := w0 / area;
+            w1 := w1 / area;
+            w2 := w2 / area;
+
+            fragment.x := i;
+            fragment.y := j;
+            fragment.interpolationVerticeA := w0;
+            fragment.interpolationVerticeB := w1;
+            fragment.interpolationVerticeC := w2;
+            fragment.sourceSurfaceBits := bits;
+            fragment.process;
+
+            if fragment.processedColor.AlphaChannel>0 then
+              bits^ := fragment.processedColor.Color;
+          end;
+          inc(bits);
+        end;
+      end;
+    end;
+
+    //ZBuffer gray level display.
+    procedure ZBufferDisplayRaster;
+    var i,j : integer;
+        holyZ : TVecType;
+        ZCol,ZDef : single;
+    begin
+      for j := miny to maxy do
+      begin
+        bits := Dest.getSurfaceScanLinePtr(j);
+        inc(bits,minx);
+
+        bbBits := BackBuffer.getSurfaceScanLinePtr(j);
+        inc(bbBits,minx);
+
+        zBits := DepthBuffer.getSurfaceScanLinePtr(j);
+        inc(zbits,minx);
+
+        for i := minx to maxx do
+        begin
+          p.x := i; p.y := j;
+          w0 := edgeFunction(v[1], v[2], p);
+          w1 := edgeFunction(v[2], v[0], p);
+          w2 := edgeFunction(v[0], v[1], p);
+          if (w0>=0) and (w1>=0) and (w2>=0) then
+          begin
+            w0 := w0 / area;
+            w1 := w1 / area;
+            w2 := w2 / area;
+
+//            holyZ := (w0*v[0].z + w1*v[1].z + w2*v[2].z);
+            ZDef := 0;
+            if holyZ<>0 then
+              ZDef := abs(1 / holyZ);
+            ZCol := _clamp(ZDef,0,1);
+
+            if bbBits^ <> BackBuffercol then
+            begin
+              if fragment.processedColor.AlphaChannel>0 then
+              begin
+                bits^ := Dest.colorP32Rec(trunc(ZCol*255),trunc(ZCol*255),trunc(ZCol*255),255).Color;
+                bbBits^ := BackBuffercol;
+                TP32rec(zBits^).Valuef := ZDef;
+              end;
+            end
+            else
+            begin
+              if ZDef > TP32rec(zBits^).Valuef  then
+              begin
+                if fragment.processedColor.AlphaChannel>0 then
+                begin
+                  bits^ := Dest.colorP32Rec(trunc(ZCol*255),trunc(ZCol*255),trunc(ZCol*255),255).Color;
+                  TP32rec(zBits^).Valuef := ZDef;
+                end;
+              end;
+            end;
+
+          end;
+          inc(bits);
+          inc(bbBits);
+          inc(zbits);
+        end;
+      end;
+    end;
+
+    //ZBuffer technic : 3d display with texture.
+    procedure ZBufferRaster(const PerspectiveCorrection : boolean = false);
+    var i,j : integer;
+        holyZ : TVecType;
+    begin
+      for j := miny to maxy do
+      begin
+        bits := Dest.getSurfaceScanLinePtr(j);
+        inc(bits,minx);
+
+        bbBits := BackBuffer.getSurfaceScanLinePtr(j);
+        inc(bbBits,minx);
+
+        zBits := DepthBuffer.getSurfaceScanLinePtr(j);
+        inc(zbits,minx);
+
+        for i := minx to maxx do
+        begin
+          p.x := i; p.y := j;
+          w0 := edgeFunction(v[1], v[2], p);
+          w1 := edgeFunction(v[2], v[0], p);
+          w2 := edgeFunction(v[0], v[1], p);
+          if (w0>=0) and (w1>=0) and (w2>=0) then
+          begin
+            w0 := w0 / area;
+            w1 := w1 / area;
+            w2 := w2 / area;
+
+            fragment.x := i;
+            fragment.y := j;
+//            holyZ := (w0*v[0].z + w1*v[1].z + w2*v[2].z);
+
+            fragment.zProc := 0;
+            if holyZ<>0 then
+              fragment.zProc := abs(1 / holyZ);
+
+            fragment.interpolationVerticeA := w0;
+            fragment.interpolationVerticeB := w1;
+            fragment.interpolationVerticeC := w2;
+            fragment.sourceSurfaceBits := bits;
+            fragment.process;
+
+            if bbBits^ <> BackBuffercol then
+            begin
+              if fragment.processedColor.AlphaChannel>0 then
+              begin
+                bits^ := fragment.processedColor.Color;
+                bbBits^ := BackBuffercol;
+                TP32rec(zBits^).Valuef := fragment.zProc;
+              end;
+            end
+            else
+            begin
+              if fragment.zProc > TP32rec(zBits^).Valuef  then
+              begin
+                if fragment.processedColor.AlphaChannel>0 then
+                begin
+                  bits^ := fragment.processedColor.Color;
+                  TP32rec(zBits^).Valuef := fragment.zProc;
+                end;
+              end;
+            end;
+          end;
+          inc(bits);
+          inc(bbBits);
+          inc(zbits);
+        end;
+      end;
+    end;
+
+
+
+begin
+  assert(Assigned(fragment));
+  Assert(BackBuffer.width = Dest.width);
+  Assert(BackBuffer.height = Dest.height);
+
+  area := edgeFunction(v[0],v[1],v[2]);
+  if area<=0 then
+  begin
+    //swap (rev. triangle.)
+    sv := v[0];
+    v[0] := v[2];
+    v[2] := sv;
+    area := edgeFunction(v[0],v[1],v[2]);
+    if area<=0 then
+      Exit;
   end;
-  result := true;
-end;
 
-procedure triangleRasterizeFlat( Dest : TPixel32;
-                   const v0, v1, v2: TP32Vertex);
-begin
-  if not(InternaltriangleRasterizeFlat(Dest, v0,v1,v2)) then
-    InternaltriangleRasterizeFlat(Dest, v2,v1,v0);
-end;
+  w := Dest.width;
+  h := Dest.height;
 
+  vi0x := round(v[0].x);
+  vi0y := round(v[0].y);
+  vi1x := round(v[1].x);
+  vi1y := round(v[1].y);
+  vi2x := round(v[2].x);
+  vi2y := round(v[2].y);
 
-function internalTriangleRasterizeTexMap( Dest : TPixel32;
-                   const v0, v1, v2: TP32Vertex) : boolean;
-type
- tlongarray=array[0..0] of longint;
- plongarray=^tlongarray;
-var
-  i,j,x,y:integer;
-  minx,miny,maxx,maxy:integer;
-  ax,ay,bx,by,cx,cy,au,av,bu,bv,diviseur:integer;
-  ux,uy,u,v,dx,dy:single;
-  l,ll:plongarray;
-begin
-  result := false;
-  assert(assigned(Dest));
-  assert(assigned(Dest.currentDrawShader));
-  assert(Dest.currentDrawShader is TPixel32TextureShader);
+  minx:=max(min(min(vi0x,vi1x),vi2x),0);
+  miny:=max(min(min(vi0y,vi1y),vi2y),0);
 
-  minx:=max(min(min(v0.x,v1.x),v2.x),0);
-  miny:=max(min(min(v0.y,v1.y),v2.y),0);
-
-  maxx:=min(max(max(v0.x,v1.x),v2.x),dest.Width-1);
-  maxy:=min(max(max(v0.y,v1.y),v2.y),dest.Height-1);
+  maxx:=min(max(max(vi0x,vi1x),vi2x),w-1);
+  maxy:=min(max(max(vi0y,vi1y),vi2y),h-1);
 
   if maxx-minx=0 then exit;
   if maxy-miny=0 then exit;
 
-  ax:=v1.x-v0.x;
-  bx:=v2.x-v0.x;
-  cx:=v2.x-v1.x;
-  ay:=v1.y-v0.y;
-  by:=v2.y-v0.y;
-  cy:=v2.y-v1.y;
+  fragment.sourceSurface := Dest;
+  fragment.resetColor;
+  fragment.VerticeA := @v[0];
+  fragment.VerticeB := @v[1];
+  fragment.VerticeC := @v[2];
+  fragment.zProc := 0;
 
-  au:=v1.u-v0.u;
-  bu:=v2.u-v0.u;
-  av:=v1.v-v0.v;
-  bv:=v2.v-v0.v;
-
-//  au:=uv1.x-uv0.x;
-//  bu:=uv2.x-uv0.x;
-//  av:=uv1.y-uv0.y;
-//  bv:=uv2.y-uv0.y;
-
-  // flat triangle, or reverse
-  if ax*by-ay*bx<=0 then exit;
-  if ax*cy-ay*cx<=0 then exit;
-
-  diviseur:=ay*bx-ax*by;
-
-  dx:=by/diviseur;
-  dy:=ay/diviseur;
-
-  y:=miny-v0.y;
-
-  for j:=miny to maxy do
-  begin
-    l:=dest.getSurfaceScanLinePtr(j);
-
-    x:=minx-v0.x;
-
-    ux:=(y*bx-x*by)/diviseur;
-    uy:=(x*ay-y*ax)/diviseur;
-
-    for i:=minx to maxx do
-    begin
-      if (x*ay-y*ax<=0) and (x*by-y*bx>=0)  and ((i-v1.x)*cy-(j-v1.y)*cx<=0) then
-      begin
-        u:=au*ux+bu*uy+v0.u;
-        v:=av*ux+bv*uy+v0.v;
-
-        ll := TPixel32TextureShader(Dest.currentDrawShader).Texture.getSurfaceScanLinePtr(trunc(v));
-//        l[i]:=ll[round(u)]; //Fast : Direct memory access.
-
-        //Shader methods : Much slower but very flexible in code.
-        Dest.currentDrawShader.ColorData := TP32Rec(longword(ll[trunc(u)]));
-        Dest.pixel(i,j);
-      end;
-      ux:=ux-dx;
-      uy:=uy+dy;
-
-      inc(x);
-    end;
-
-    inc(y);
+  case options of
+    TSoftwareRasterizeOption.robasic: BasicRaster;
+    TSoftwareRasterizeOption.roBackBuffer: BackBufferRaster;
+    TSoftwareRasterizeOption.roZBufferView: ZBufferDisplayRaster;
+    TSoftwareRasterizeOption.roZBuffer: ZBufferRaster;
   end;
-  result := true;
 end;
 
-procedure TriangleRasterizeTexMap( Dest : TPixel32;
-                   const v0, v1, v2: TP32Vertex);
-begin
-  if not(internalTriangleRasterizeTexMap(Dest,v0,v1,v2)) then
-    internalTriangleRasterizeTexMap(Dest,v2,v0,v1);
-end;
+
 
 Initialization
 
 BackBuffer :=  TPixel32.create;
+DepthBuffer :=  TPixel32.create;
 BackBufferCol := $00000000;
 
 Finalization
 
 FreeAndNil(BackBuffer);
+FreeAndNil(DepthBuffer);
 
 end.

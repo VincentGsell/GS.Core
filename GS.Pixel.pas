@@ -23,10 +23,9 @@ Credits :
 
 Description :
 -----------------------------------------------------------------------------}
-{$I GSCore.Inc}
-
 unit GS.Pixel;
 
+{$I GSCore.Inc}
 
 interface
 
@@ -76,13 +75,12 @@ End;
 
 //Pixel shader. (per pixel work)
 iPixShader = interface
-  procedure init(surface : iPixSurface);
   procedure process;
 end;
 
 //Whole surface, use shader in a more direct way.
 iPixSurfaceEffect = interface
-  procedure init(surface : iPixSurface; shader : iPixShader);
+  procedure init(surface : iPixSurface);
   procedure process;
 end;
 
@@ -93,14 +91,18 @@ iPixSurface = interface
   procedure copyTo(targetPixel32 : iPixSurface);
   function isEmpty : boolean;
 
-  procedure moveTo(const x,y : Int32; const z : Int32 = 0);
-  procedure lineTo(const x,y : Int32; const z : Int32 = 0);
-  procedure pixel(const x,y : Int32; const z : Int32 = 0);
+  procedure moveTo(const x,y : Int32);
+  procedure lineTo(const x,y : Int32);
+  procedure pixel(const x,y : Int32);
+  procedure rectangle(const x,y,xx,yy : Int32);
 
-  procedure setDrawShader(shader : iPixShader); //set a pixel draw shader.
+  procedure setFragmentShader(shader : iPixShader); //set a pixel draw shader.
+
   procedure draw(objToRender : iPixDrawable); //draw a "drawable"
 
-  procedure setVertex(indice : uInt32; x,y,z,u,v : integer); //load vertex data.
+  procedure setVertice(indice : uInt32; x,y : single); //load vertex data.
+  procedure setVerticeUV(indice : uint32; u,v : single);
+  procedure setVerticeColor(indice: uint32; r,g,b,a : single);
   procedure rasterize;  //Make a raster triangle using given vertex data.
   procedure beginDraw;  //Perform technical/logical operation and setting before drawing.
   procedure endDraw;    //Indicate the end logical drawing operation.
@@ -112,6 +114,7 @@ iPixSurface = interface
   function width : uInt32;
   function height : uInt32;
 end;
+
 
 iPixDrawable = interface
   function mesh : TGSRawMesh2D;

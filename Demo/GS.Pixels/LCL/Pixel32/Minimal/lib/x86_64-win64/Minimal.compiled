@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="E:\fpcupdeluxe\FPCStable\fpc\bin\x86_64-win64\fpc.exe" Date="1316120182"/>
+  <Params Value=" -MObjFPC -Scghi -O1 -g -gl -WG -l -vewnhibq -FiE:\DATA\2020_GRIDSYSTEM\Codes\GS.Core\Demo\GS.Pixels\LCL\Pixel32\Minimal\lib\x86_64-win64 -FuE:\DATA\2020_GRIDSYSTEM\Codes\GS.Core -FuE:\DATA\2020_GRIDSYSTEM\Codes\GS.Core\ThirdPart\FastGEO -FuE:\DATA\2020_GRIDSYSTEM\Codes\GS.Core\ThirdPart\BeRo -FuE:\DATA\2020_GRIDSYSTEM\Codes\GS.Core\ThirdPart\clipper -FuE:\DATA\2020_GRIDSYSTEM\Codes\GS.Core\ThirdPart\Delaunay -FuE:\fpcupdeluxe\FPCStable\lazarus\lcl\units\x86_64-win64\win32 -FuE:\fpcupdeluxe\FPCStable\lazarus\lcl\units\x86_64-win64 -FuE:\fpcupdeluxe\FPCStable\lazarus\components\lazutils\lib\x86_64-win64 -FuE:\fpcupdeluxe\FPCStable\lazarus\packager\units\x86_64-win64 -FuE:\DATA\2020_GRIDSYSTEM\Codes\GS.Core\Demo\GS.Pixels\LCL\Pixel32\Minimal\ -FUE:\DATA\2020_GRIDSYSTEM\Codes\GS.Core\Demo\GS.Pixels\LCL\Pixel32\Minimal\lib\x86_64-win64\ -dLCL -dLCLwin32 Minimal.lpr"/>
+</CONFIG>

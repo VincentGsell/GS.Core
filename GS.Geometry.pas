@@ -4,26 +4,40 @@
 //So, all original texture and shader stuff has been removed, as well as dependancies.
 unit GS.Geometry;
 
+{$I GSCore.Inc}
 interface
 
-uses Classes, SysUtils, types, Math;
+uses Classes,
+     SysUtils,
+     types,
+     Math;
+
 
 {$R-}
 
-{$DEFINE DO_INLINE}
+{$IFNDEF CPUx64}
+  {$DEFINE DO_INLINE}
+{$ENDIF}
 {$IFDEF DEBUG}
   {.$DEFINE DO_INLINE}
 {$ENDIF}
 
 const
   M_LN2 = 0.693147180559945309417;
+  _EPSILON_ = 4.9406564584124654418e-324;
 
 type
 {$IFDEF CPUx64}
   TVecType = type Double;
+const
+  M_MXVT =  MaxDouble;
 {$ELSE}
   TVecType = type Single;
+const
+  M_MXVT =  MaxSingle;
 {$ENDIF}
+
+Type
 
   int      = type Integer;
   bool     = type Boolean;
@@ -170,10 +184,17 @@ type
   end;
 
   Mat4 = record
+  public
     r1,r2,r3,r4:Vec4;
     constructor Create(a1,a2,a3,a4,b1,b2,b3,b4,c1,c2,c3,c4,d1,d2,d3,d4:TVecType);
     class operator Multiply(const a,b:Mat4):Mat4;{$IFDEF DO_INLINE} inline;{$ENDIF}
-    class operator Multiply(const a:Mat4;const b:Vec4):Vec4;{$IFDEF DO_INLINE} inline;{$ENDIF}
+    class operator Multiply(const b: Vec4; const a: Mat4): Vec4;{$IFDEF DO_INLINE} inline;{$ENDIF}
+    class operator Multiply(const b:Vec3;const a:Mat4):Vec3;{$IFDEF DO_INLINE} inline;{$ENDIF} //Graphics one. (vec3*Mat4)
+//    class operator Multiply(const a:Mat4;const b:Vec4):Vec4;{$IFDEF DO_INLINE} inline;{$ENDIF}
+    function Determinant : TVecType;
+    function Adjoint : Mat4;
+    function Scale(factor : TVecType) : Mat4;
+    function Inverse : Mat4;
   end;
 
 
@@ -183,6 +204,20 @@ function Mat3Identity : Mat3;
 function Mat3CreateRotation(angle : single) : Mat3;
 function Mat3CreateTranslation(deltax, deltay : TvecType) : Mat3;
 function Mat3CreateScaling(scalex, scaley : TVecType) : Mat3;
+
+///Mat4 related.
+function Mat4Identity : Mat4;
+function Mat4CreateTranslation(translation : vec3) : Mat4;
+function Mat4CreateRotationX(angle : single): Mat4;
+function Mat4CreateRotationY(angle : single): Mat4;
+function Mat4CreateRotationZ(angle : single): Mat4;
+
+function Mat4CreateOrthoOffCenterRH(Left, Top, Right, Bottom, ZNear, ZFar: Single): Mat4;
+
+function Mat4CreateLookAtDirLH(source,direction,ceiling : Vec3) : Mat4;
+function Mat4CreatePerspectiveFovLH(const FOV, Aspect, ZNear, ZFar: Single;
+  const HorizontalFOV: Boolean = False): Mat4;
+
 
 
 function _abs(x: Single) : Single;inline;overload;
@@ -422,8 +457,130 @@ implementation
 
 function Mat3Identity : Mat3;
 begin
-  result := Mat3.Create(1,0,0,0,1,0,0,0,1);
+  result := Mat3.Create( 1,0,0,
+                         0,1,0,
+                         0,0,1
+                         );
 end;
+
+function Mat4Identity : Mat4;
+begin
+  result := Mat4.Create( 1,0,0,0,
+                         0,1,0,0,
+                         0,0,1,0,
+                         0,0,0,1
+                         );
+end;
+
+function Mat4CreateLookAtDirLH(source,direction,ceiling : Vec3) : Mat4;
+var
+  ZAxis, XAxis, YAxis: vec3;
+begin
+  ZAxis := - direction.Normalize^;
+  XAxis := Ceiling.Cross(ZAxis).Normalize^;
+  YAxis := ZAxis.Cross(XAxis);
+
+  Result := Mat4Identity;
+  Result.r1.x := XAxis.X;
+  Result.r1.y := YAxis.X;
+  Result.r1.z := ZAxis.X;
+  Result.r2.x := XAxis.Y;
+  Result.r2.y := YAxis.Y;
+  Result.r2.z := ZAxis.Y;
+  Result.r3.x := XAxis.Z;
+  Result.r3.y := YAxis.Z;
+  Result.r3.z := ZAxis.Z;
+  Result.r4.x := - XAxis.Dot(source);
+  Result.r4.y := - YAxis.Dot(source);
+  Result.r4.z := - ZAxis.Dot(source);
+end;
+
+
+function Mat4CreatePerspectiveFovLH(const FOV, Aspect, ZNear, ZFar: Single;
+  const HorizontalFOV: Boolean = False): Mat4;
+var
+  XScale, YScale: Single;
+begin
+  if HorizontalFOV then
+  begin
+    XScale := 1 / Tan(FOV / 2);
+    YScale := XScale / Aspect;
+  end else
+  begin
+    YScale := 1 / Tan(FOV / 2);
+    XScale := YScale / Aspect;
+  end;
+
+  Result := Mat4Identity;
+  Result.r1.x := XScale;
+  Result.r2.y := YScale;
+  Result.r3.z := ZFar / (ZFar - ZNear);
+  Result.r3.w := 1;
+  Result.r4.z := -ZNear * ZFar / (ZFar - ZNear);
+  Result.r4.w := 0;
+end;
+
+function Mat4CreateRotationX(angle : single): Mat4;
+var
+  Sine, Cosine: Single;
+begin
+  Sine := System.sin(angle);
+  Cosine := System.cos(angle);
+
+  Result := Mat4Identity;
+  Result.r2.y := Cosine;
+  Result.r2.z := Sine;
+  Result.r3.y := - Result.r2.z;
+  Result.r3.z := Result.r2.y;
+end;
+
+function Mat4CreateRotationY(angle : single): Mat4;
+var
+  Sine, Cosine: Single;
+begin
+  Sine := System.sin(angle);
+  Cosine := System.cos(angle);
+
+  Result := Mat4Identity;
+  Result.r1.x := Cosine;
+  Result.r1.z := - Sine;
+  Result.r3.x := - Result.r1.z;
+  Result.r3.z := Result.r1.x;
+end;
+
+function Mat4CreateTranslation(translation : vec3) : Mat4;
+begin
+  Result := Mat4Identity;
+  Result.r4.x := translation.X;
+  Result.r4.y := translation.Y;
+  Result.r4.z := translation.Z;
+end;
+
+function Mat4CreateRotationZ(angle : single): Mat4;
+var
+  Sine, Cosine: Single;
+begin
+  Sine := System.sin(angle);
+  Cosine := System.cos(angle);
+
+  Result := Mat4Identity;
+  Result.r1.x := Cosine;
+  Result.r1.y := Sine;
+  Result.r2.x := - Result.r1.y;
+  Result.r2.y := Result.r1.x;
+end;
+
+function Mat4CreateOrthoOffCenterRH(Left, Top, Right, Bottom, ZNear, ZFar: Single): Mat4;
+begin
+  Result := Mat4Identity;
+  Result.r1.x := 2 / (Right - Left);
+  Result.r2.y := 2 / (Top - Bottom);
+  Result.r3.z := 1 / (ZFar - ZNear);
+  Result.r4.x := (Left + Right) / (Left - Right);
+  Result.r4.y := (Top + Bottom) / (Bottom - Top);
+  Result.r4.z := ZNear / (ZNear - ZFar);
+end;
+
 
 function Mat3CreateRotation(angle : single) : Mat3;
 var
@@ -495,26 +652,13 @@ begin
 end;
 }
 
-function _fmod(a, b: single): single;overload;
-{$IFDEF CPUx86}
-asm
-  fld dword ptr[b]
-  fld dword ptr[a]
-@r:
-  fprem
-  fstsw ax
-  sahf
-  jp @r
-  fstp st(1)
-end;
-{$ELSE}
+function _fmod(a, b: single): single;overload; {$IFDEF DO_INLINE} inline;{$ENDIF}
 begin
   if IsZero(b) then
     Exit(0);
 
 	Result := a - b * {math.floor}trunc(a / b);
 end;
-{$ENDIF}
 
 function _fmods(a, b: double): double;overload;
 begin
@@ -553,15 +697,6 @@ begin
 	Result := a - b * {math.floor}trunc(a / b);
 end;
 {$ENDIF}
-
-
-function _fmod(a, b: extended): extended;overload;
-begin
-  if IsZero(b) then
-    Exit(0);
-
-	Result := a - b * {math.floor}trunc(a / b);
-end;
 
 /// <summary>
 /// pow returns the value of x raised to the y power. i.e., xy. Results are undefined if x0 or if x0 and y0.
@@ -832,23 +967,23 @@ end;
 
 function _mod(const a, b: Vec2): Vec2;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;     { return T(cmath::fmod(x, y)); }
 begin
-  Result.x := FMod(a.x, b.x);
-  Result.y := FMod(a.y, b.y);
+  Result.x := _fMod(a.x, b.x);
+  Result.y := _fMod(a.y, b.y);
 end;
 
 function _mod(const a, b: Vec3): Vec3;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;     { return T(cmath::fmod(x, y)); }
 begin
-  Result.x := fmod(a.x, b.x);
-  Result.y := fmod(a.y, b.y);
-  Result.z := fmod(a.z, b.z);
+  Result.x := _fmod(a.x, b.x);
+  Result.y := _fmod(a.y, b.y);
+  Result.z := _fmod(a.z, b.z);
 end;
 
 function _mod(const a, b: Vec4): Vec4;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;     { return T(cmath::fmod(x, y)); }
 begin
-  Result.x := fmod(a.x, b.x);
-  Result.y := fmod(a.y, b.y);
-  Result.z := fmod(a.z, b.z);
-  Result.w := fmod(a.w, b.w);
+  Result.x := _fmod(a.x, b.x);
+  Result.y := _fmod(a.y, b.y);
+  Result.z := _fmod(a.z, b.z);
+  Result.w := _fmod(a.w, b.w);
 end;
 
 function _mod(const a: Vec2;b:TVecType): Vec2;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;     { return T(cmath::fmod(x, y)); }
@@ -862,17 +997,17 @@ end;
 
 function _mod(const a: Vec3;b:TVecType): Vec3;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;     { return T(cmath::fmod(x, y)); }
 begin
-  Result.x := fmod(a.x, b);
-  Result.y := fmod(a.y, b);
-  Result.z := fmod(a.z, b);
+  Result.x := _fmod(a.x, b);
+  Result.y := _fmod(a.y, b);
+  Result.z := _fmod(a.z, b);
 end;
 
 function _mod(const a: Vec4;b:TVecType): Vec4;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;     { return T(cmath::fmod(x, y)); }
 begin
-  Result.x := fmod(a.x, b);
-  Result.y := fmod(a.y, b);
-  Result.z := fmod(a.z, b);
-  Result.w := fmod(a.w, b);
+  Result.x := _fmod(a.x, b);
+  Result.y := _fmod(a.y, b);
+  Result.z := _fmod(a.z, b);
+  Result.w := _fmod(a.w, b);
 end;
 
 
@@ -1559,7 +1694,7 @@ function _acos(x:Single):Single;  begin Result := ArcCos(x) end;
 //function _atan(x:Single):Single;  begin Result := x - (x * x * x * 0.333333333333) + (x * x * x * x * x * 0.2) - (x * x * x * x * x * x * x * 0.1428571429) + (x * x * x * x * x * x * x * x * x * 0.111111111111) - (x * x * x * x * x * x * x * x * x * x * x * 0.0909090909); end;
 function _atan(x:Single):Single;  begin Result := arctan(x) end;
 function _atan(x,y:Single):Single;begin Result := ArcTan2(x,y) end;
-function _tan(x:Single):Single;   begin if x=pi/2 then Exit(0); Result := System.Tangent(x); end;
+function _tan(x:Single):Single;   begin if x=pi/2 then Exit(0); Result := Tan(x); end;
 
 function _asin(x: Double): Double;
 var
@@ -1585,7 +1720,7 @@ end;
 //function _atan(x:Double):Double;  begin Result := x - (x * x * x * 0.333333333333) + (x * x * x * x * x * 0.2) - (x * x * x * x * x * x * x * 0.1428571429) + (x * x * x * x * x * x * x * x * x * 0.111111111111) - (x * x * x * x * x * x * x * x * x * x * x * 0.0909090909); end;
 function _atan(x:Double):Double;  begin Result := ArcTan(x) end;
 function _atan(x,y:Double):Double;begin Result := ArcTan2(x,y) end;
-function _tan(x:Double):Double;   begin if x=pi/2 then Exit(0); Result := System.Tangent(x); end;
+function _tan(x:Double):Double;   begin if x=pi/2 then Exit(0); Result := Tan(x); end;
 
 //function _acos(x:Extended):Extended;  begin Result := ArcCos(x) end;
 //function _atan(x:Extended):Extended;  begin Result := x - (x * x * x * 0.333333333333) + (x * x * x * x * x * 0.2) - (x * x * x * x * x * x * x * 0.1428571429) + (x * x * x * x * x * x * x * x * x * 0.111111111111) - (x * x * x * x * x * x * x * x * x * x * x * 0.0909090909); end;
@@ -2010,7 +2145,7 @@ end;
 function _sinLarge(const x: TVecType): TVecType;
 begin
   {$IFDEF CPUX64}
-  Result := System.sin(Math.FMod(x,2*pi));
+  Result := System.sin(_fMod(x,2*pi));
   {$ELSE}
   Result := System.sin(x);
   {$ENDIF}
@@ -2019,8 +2154,8 @@ end;
 function _sinLarge(const x: Vec2): Vec2;
 begin
   {$IFDEF CPUX64}
-  Result.x := System.sin(Math.FMod(x.x,2*pi));
-  Result.y := System.sin(Math.FMod(x.y,2*pi));
+  Result.x := System.sin(_fMod(x.x,2*pi));
+  Result.y := System.sin(_fMod(x.y,2*pi));
   {$ELSE}
   Result.x := System.sin(x.x);
   Result.y := System.sin(x.y);
@@ -2030,9 +2165,9 @@ end;
 function _sinLarge(const x: Vec3): Vec3;
 begin
   {$IFDEF CPUX64}
-  Result.x := System.sin(Math.FMod(x.x,2*pi));
-  Result.y := System.sin(Math.FMod(x.y,2*pi));
-  Result.z := System.sin(Math.FMod(x.z,2*pi));
+  Result.x := System.sin(_FMod(x.x,2*pi));
+  Result.y := System.sin(_FMod(x.y,2*pi));
+  Result.z := System.sin(_FMod(x.z,2*pi));
   {$ELSE}
   Result.x := System.sin(x.x);
   Result.y := System.sin(x.y);
@@ -2043,10 +2178,10 @@ end;
 function _sinLarge(const x: Vec4): Vec4;
 begin
   {$IFDEF CPUX64}
-  Result.x := System.sin(Math.FMod(x.x,2*pi));
-  Result.y := System.sin(Math.FMod(x.y,2*pi));
-  Result.z := System.sin(Math.FMod(x.z,2*pi));
-  Result.w := System.sin(Math.FMod(x.w,2*pi));
+  Result.x := System.sin(_FMod(x.x,2*pi));
+  Result.y := System.sin(_FMod(x.y,2*pi));
+  Result.z := System.sin(_FMod(x.z,2*pi));
+  Result.w := System.sin(_FMod(x.w,2*pi));
   {$ELSE}
   Result.x := System.sin(x.x);
   Result.y := System.sin(x.y);
@@ -2058,7 +2193,7 @@ end;
 function _cosLarge(const x: TVecType): TVecType;
 begin
   {$IFDEF CPUX64}
-  Result := System.cos(Math.FMod(x,2*pi));
+  Result := System.cos(_FMod(x,2*pi));
   {$ELSE}
   Result := System.cos(x);
   {$ENDIF}
@@ -2067,8 +2202,8 @@ end;
 function _cosLarge(const x: Vec2): Vec2;
 begin
   {$IFDEF CPUX64}
-  Result.x := System.cos(Math.FMod(x.x,2*pi));
-  Result.y := System.cos(Math.FMod(x.y,2*pi));
+  Result.x := System.cos(_FMod(x.x,2*pi));
+  Result.y := System.cos(_FMod(x.y,2*pi));
   {$ELSE}
   Result.x := System.cos(x.x);
   Result.y := System.cos(x.y);
@@ -2078,9 +2213,9 @@ end;
 function _cosLarge(const x: Vec3): Vec3;
 begin
   {$IFDEF CPUX64}
-  Result.x := System.cos(Math.FMod(x.x,2*pi));
-  Result.y := System.cos(Math.FMod(x.y,2*pi));
-  Result.z := System.cos(Math.FMod(x.z,2*pi));
+  Result.x := System.cos(_FMod(x.x,2*pi));
+  Result.y := System.cos(_FMod(x.y,2*pi));
+  Result.z := System.cos(_FMod(x.z,2*pi));
   {$ELSE}
   Result.x := System.cos(x.x);
   Result.y := System.cos(x.y);
@@ -2091,10 +2226,10 @@ end;
 function _cosLarge(const x: Vec4): Vec4;
 begin
   {$IFDEF CPUX64}
-  Result.x := System.cos(Math.FMod(x.x,2*pi));
-  Result.y := System.cos(Math.FMod(x.y,2*pi));
-  Result.z := System.cos(Math.FMod(x.z,2*pi));
-  Result.w := System.cos(Math.FMod(x.w,2*pi));
+  Result.x := System.cos(_FMod(x.x,2*pi));
+  Result.y := System.cos(_FMod(x.y,2*pi));
+  Result.z := System.cos(_FMod(x.z,2*pi));
+  Result.w := System.cos(_FMod(x.w,2*pi));
   {$ELSE}
   Result.x := System.cos(x.x);
   Result.y := System.cos(x.y);
@@ -2573,10 +2708,108 @@ begin
   r4.x := d1;  r4.y := d2;  r4.z := d3; r4.w := d4;
 end;
 
-class operator Mat4.Multiply(const a: Mat4; const b: Vec4): Vec4;
+class operator Mat4.Multiply(const b: Vec4; const a: Mat4): Vec4;
 begin
+  Result.x := (b.X * a.r1.x) + (b.Y * a.r2.x) + (b.Z * a.r3.x) + (b.W * a.r4.x);
+  Result.y := (b.X * a.r1.y) + (b.Y * a.r2.y) + (b.Z * a.r3.y) + (b.W * a.r4.y);
+  Result.z := (b.X * a.r1.z) + (b.Y * a.r2.z) + (b.Z * a.r3.z) + (b.W * a.r4.z);
+  Result.w := (b.X * a.r1.w) + (b.Y * a.r2.w) + (b.Z * a.r3.w) + (b.W * a.r4.w);
 end;
 
+
+function DetInternal(const a1, a2, a3, b1, b2, b3, c1, c2, c3: Single): Single;
+begin
+  Result := a1 * (b2 * c3 - b3 * c2) - b1 * (a2 * c3 - a3 * c2) + c1 * (a2 * b3 - a3 * b2);
+end;
+
+function Mat4.Determinant: TVecType;
+begin
+  Result := r1.x * DetInternal(r2.y, r2.y, r3.y, r2.z,  r2.z, r3.z, r2.w, r2.w, r3.w)
+            - r1.y * DetInternal(r2.x, r2.x, r3.x, r2.z, r2.z, r3.z, r2.w, r2.w, r3.w)
+            + r1.z * DetInternal(r2.x, r2.x, r3.x, r2.y, r2.y, r3.y, r2.w, r2.w, r3.w)
+            - r1.w * DetInternal(r2.x, r2.x, r3.x, r2.y, r2.y, r3.y, r2.z, r2.z, r3.z);
+end;
+
+function Mat4.Adjoint: Mat4;
+var
+  a1, a2, a3, a4, b1, b2, b3, b4, c1, c2, c3, c4, d1, d2, d3, d4: Single;
+begin
+  a1 := Self.r1.x;
+  b1 := Self.r1.y;
+  c1 := Self.r1.z;
+  d1 := Self.r1.w;
+  a2 := Self.r2.x;
+  b2 := Self.r2.y;
+  c2 := Self.r2.z;
+  d2 := Self.r2.w;
+  a3 := Self.r3.x;
+  b3 := Self.r3.y;
+  c3 := Self.r3.z;
+  d3 := Self.r3.w;
+  a4 := Self.r4.x;
+  b4 := Self.r4.y;
+  c4 := Self.r4.z;
+  d4 := Self.r4.w;
+
+  Result.r1.x := DetInternal(b2, b3, b4, c2, c3, c4, d2, d3, d4);
+  Result.r2.x := -DetInternal(a2, a3, a4, c2, c3, c4, d2, d3, d4);
+  Result.r3.x := DetInternal(a2, a3, a4, b2, b3, b4, d2, d3, d4);
+  Result.r4.x := -DetInternal(a2, a3, a4, b2, b3, b4, c2, c3, c4);
+
+  Result.r1.y := -DetInternal(b1, b3, b4, c1, c3, c4, d1, d3, d4);
+  Result.r2.y := DetInternal(a1, a3, a4, c1, c3, c4, d1, d3, d4);
+  Result.r3.y := -DetInternal(a1, a3, a4, b1, b3, b4, d1, d3, d4);
+  Result.r4.y := DetInternal(a1, a3, a4, b1, b3, b4, c1, c3, c4);
+
+  Result.r1.z := DetInternal(b1, b2, b4, c1, c2, c4, d1, d2, d4);
+  Result.r2.z := -DetInternal(a1, a2, a4, c1, c2, c4, d1, d2, d4);
+  Result.r3.z := DetInternal(a1, a2, a4, b1, b2, b4, d1, d2, d4);
+  Result.r4.z := -DetInternal(a1, a2, a4, b1, b2, b4, c1, c2, c4);
+
+  Result.r1.w := -DetInternal(b1, b2, b3, c1, c2, c3, d1, d2, d3);
+  Result.r2.w := DetInternal(a1, a2, a3, c1, c2, c3, d1, d2, d3);
+  Result.r3.w := -DetInternal(a1, a2, a3, b1, b2, b3, d1, d2, d3);
+  Result.r4.w := DetInternal(a1, a2, a3, b1, b2, b3, c1, c2, c3);
+end;
+
+function Mat4.Inverse: Mat4;
+var
+  Det: TVecType;
+begin
+  Det := Self.Determinant;
+  if Abs(Det) < _EPSILON_ then
+    Result := Mat4Identity
+  else
+    Result := self.Adjoint.Scale(1 / Det);
+end;
+
+class operator Mat4.Multiply(const b: Vec3; const a: Mat4): Vec3;
+begin
+  Result.x := (b.x * a.r1.x) + (b.Y * a.r2.x) + (b.Z * a.r3.x) + a.r4.x;
+  Result.y := (b.x * a.r1.y) + (b.Y * a.r2.y) + (b.Z * a.r3.y) + a.r4.y;
+  Result.z := (b.x * a.r1.z) + (b.Y * a.r2.z) + (b.Z * a.r3.z) + a.r4.z;
+end;
+
+
+function Mat4.Scale(factor: TVecType): Mat4;
+begin
+  Result.r1.x := r1.x * factor;
+  Result.r1.y := r1.y * factor;
+  Result.r1.z := r1.z * factor;
+  Result.r1.w := r1.w * factor;
+  Result.r2.x := r2.x * factor;
+  Result.r2.y := r2.y * factor;
+  Result.r2.z := r2.z * factor;
+  Result.r2.w := r2.w * factor;
+  Result.r3.x := r3.x * factor;
+  Result.r3.y := r3.y * factor;
+  Result.r3.z := r3.z * factor;
+  Result.r3.w := r3.w * factor;
+  Result.r4.x := r4.x * factor;
+  Result.r4.y := r4.y * factor;
+  Result.r4.z := r4.z * factor;
+  Result.r4.w := r4.w * factor;
+end;
 
 function _fwidth(const a: Vec2): TVecType;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;
 begin
@@ -2602,11 +2835,24 @@ end;
 
 
 
-
-
 class operator Mat4.Multiply(const a, b: Mat4): Mat4;
 begin
-  raise Exception.Create('TODO');
+  Result.r1.x := a.r1.x * b.r1.x + a.r1.y * b.r2.x + a.r1.z * b.r3.x + a.r1.w * b.r4.x;
+  Result.r1.y := a.r1.x * b.r1.y + a.r1.y * b.r2.y + a.r1.z * b.r3.y + a.r1.w * b.r4.y;
+  Result.r1.z := a.r1.x * b.r1.z + a.r1.y * b.r2.z + a.r1.z * b.r3.z + a.r1.w * b.r4.z;
+  Result.r1.w := a.r1.x * b.r1.w + a.r1.y * b.r2.w + a.r1.z * b.r3.w + a.r1.w * b.r4.w;
+  Result.r2.x := a.r2.x * b.r1.x + a.r2.y * b.r2.x + a.r2.z * b.r3.x + a.r2.w * b.r4.x;
+  Result.r2.y := a.r2.x * b.r1.y + a.r2.y * b.r2.y + a.r2.z * b.r3.y + a.r2.w * b.r4.y;
+  Result.r2.z := a.r2.x * b.r1.z + a.r2.y * b.r2.z + a.r2.z * b.r3.z + a.r2.w * b.r4.z;
+  Result.r2.w := a.r2.x * b.r1.w + a.r2.y * b.r2.w + a.r2.z * b.r3.w + a.r2.w * b.r4.w;
+  Result.r3.x := a.r3.x * b.r1.x + a.r3.y * b.r2.x + a.r3.z * b.r3.x + a.r3.w * b.r4.x;
+  Result.r3.y := a.r3.x * b.r1.y + a.r3.y * b.r2.y + a.r3.z * b.r3.y + a.r3.w * b.r4.y;
+  Result.r3.z := a.r3.x * b.r1.z + a.r3.y * b.r2.z + a.r3.z * b.r3.z + a.r3.w * b.r4.z;
+  Result.r3.w := a.r3.x * b.r1.w + a.r3.y * b.r2.w + a.r3.z * b.r3.w + a.r3.w * b.r4.w;
+  Result.r4.x := a.r4.x * b.r1.x + a.r4.y * b.r2.x + a.r4.z * b.r3.x + a.r4.w * b.r4.x;
+  Result.r4.y := a.r4.x * b.r1.y + a.r4.y * b.r2.y + a.r4.z * b.r3.y + a.r4.w * b.r4.y;
+  Result.r4.z := a.r4.x * b.r1.z + a.r4.y * b.r2.z + a.r4.z * b.r3.z + a.r4.w * b.r4.z;
+  Result.r4.w := a.r4.x * b.r1.w + a.r4.y * b.r2.w + a.r4.z * b.r3.w + a.r4.w * b.r4.w;
 end;
 
 
@@ -2630,7 +2876,6 @@ function _hash(const n:vec4):vec4;overload;
 begin
   Result := _fract(_sinLarge(n) * 43758.5453123);
 end;
-
 
 
 end.

@@ -10,6 +10,36 @@ unit Clipper;
 * License   :  http://www.boost.org/LICENSE_1_0.txt                            *
 *******************************************************************************)
 
+{$ifdef fpc}
+ {$mode delphi}
+ {$warnings off}
+ {$hints off}
+ {$ifdef cpui386}
+  {$define cpu386}
+  {$asmmode intel}
+ {$endif}
+ {$ifdef fpc_little_endian}
+  {$define little_endian}
+ {$else}
+  {$ifdef fpc_big_endian}
+   {$define big_endian}
+  {$endif}
+ {$endif}
+ {$ifdef fpc_has_internal_sar}
+  {$define HasSAR}
+ {$endif}
+{$else}
+ {$define little_endian}
+ {$ifndef cpu64}
+  {$define cpu64}
+ {$endif}
+ {$optimization on}
+ {$undef HasSAR}
+ {$define UseDIV}
+{$endif}
+{$overflowchecks off}
+{$rangechecks off}
+
 {$IFDEF FPC}
   {$DEFINE INLINING}
 {$ELSE}

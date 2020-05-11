@@ -30,7 +30,7 @@ unit GS.Pixel32.Win;
 
 interface
 
-Uses SysUtils, Classes, Types, Windows, Graphics, GS.Pixel32;
+Uses SysUtils, Classes, Types, Windows, Graphics, GS.Pixel32.Types, GS.Pixel32;
 
 Type
 
@@ -39,7 +39,7 @@ public
   procedure CopyToDc(dstDc: HDC; x: Integer = 0; y: Integer = 0;
     transparent: Boolean = true; bkColor: TP32 = 0);
 
-  procedure CopyFromDC(srcDc: HDC; const srcRect: System.Types.TRect);
+  procedure CopyFromDC(srcDc: HDC; const srcRect: Types.TRect);
 
   procedure loadFromFile(filename : String);
   procedure SaveToFile(filename : String);
@@ -132,7 +132,7 @@ begin
   b := TBitmap.Create;
   try
     b.LoadFromFile(filename);
-    CopyFromDC(b.Canvas.Handle,rect(0,0,b.Width,b.Height));
+    CopyFromDC(b.Canvas.Handle,Types.rect(0,0,b.Width,b.Height));
   finally
     freeandNil(b); //Free vcl ressources.
   end;

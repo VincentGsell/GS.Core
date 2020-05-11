@@ -1,16 +1,19 @@
 {$IFDEF fpc}
- {$MODE delphi}
+ {$mode delphi}
+ {$modeswitch ADVANCEDRECORDS}
  {$INLINE ON}
  {$MINENUMSIZE 1}
  {$PACKSET 1}
  {$PACKENUM 1}
  {$H+}
-{$CODEPAGE UTF8}
-{$MACRO ON}
+ {$MACRO ON}
  {$IFOPT D+} {$DEFINE DEBUG} {$ENDIF}
+ {$CODEPAGE UTF8}
 {$ENDIF}
 
 {$IFDEF DCC}
+{$extendedsyntax on}
+{$writeableconst on}
 {$ENDIF}
 
 {$IF DEFINED(Win32) or DEFINED(Win64)}
@@ -22,8 +25,6 @@
   {$rangechecks off}
   {$overflowchecks off}
 {$ENDIF}
-{$extendedsyntax on}
-{$writeableconst on}
 {$hints off}
 {$booleval off}
 {$typedaddress off}

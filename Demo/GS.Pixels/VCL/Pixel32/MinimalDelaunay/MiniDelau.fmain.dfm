@@ -19,15 +19,31 @@ object Form1: TForm1
   OnResize = FormResize
   PixelsPerInch = 96
   TextHeight = 13
-  object CheckBox1: TCheckBox
+  object Panel1: TPanel
     Left = 8
     Top = 8
-    Width = 97
-    Height = 17
-    Caption = 'Display triangles'
-    Checked = True
-    State = cbChecked
+    Width = 185
+    Height = 105
+    Caption = 'Panel1'
     TabOrder = 0
-    OnClick = CheckBox1Click
+    object SpeedButton1: TSpeedButton
+      Left = 152
+      Top = 8
+      Width = 23
+      Height = 22
+      Caption = '+'
+      OnClick = SpeedButton1Click
+    end
+    object CheckBox1: TCheckBox
+      Left = 8
+      Top = 8
+      Width = 97
+      Height = 17
+      Caption = 'Display triangles'
+      Checked = True
+      State = cbChecked
+      TabOrder = 0
+      OnClick = CheckBox1Click
+    end
   end
 end

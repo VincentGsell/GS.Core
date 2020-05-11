@@ -82,7 +82,10 @@ public
   property Side : TVecType read FSide write SetSide;
 end;
 
-TGSAssetShapeMesh = Class(TGSAsset2DMeshedObject)
+TGSAssetShapeMesh = class(TGSAsset2DMeshedObject)
+end;
+
+TGSAssetRoundedShapeMesh = class(TGSAssetShapeMesh)
 private
   FRadius: TVecType;
   FSubdi: Uint32;
@@ -92,7 +95,7 @@ private
   procedure SetSubdi(const Value: Uint32);
   procedure InternalBuild;
   procedure SetPreShapeModelEnabled(const Value: Boolean);
-    procedure SetPreShapedModel(const Value: TGSShape2dType);
+  procedure SetPreShapedModel(const Value: TGSShape2dType);
 protected
 public
   Constructor Create; override;
@@ -123,7 +126,7 @@ public
   procedure addZone(x,y,w,h : TVecType; name : TGSAssetString);
 End;
 
-TGSAssetImageFormat = (aifRawARGB32BitFormat, aifBitmap, aifJPG, aifPNG);
+TGSAssetImageFormat = (aifRawARGB32BitFormat);
 TGSAssetImageContainer = class(TGSAssetObject)
 private
 protected
@@ -131,7 +134,8 @@ protected
   FImageSource: TGSAssetString;
   FBinaryData: TStream;
   FImageFormat: TGSAssetImageFormat;
-
+  FWidth: Uint32;
+  FHeight: Uint32;
   function GetAssetType: TGSAssetType; override;
   function GetAssetHumanName: TGSAssetString; override;
   function GetAssetMemorySize: TGSAssetInt; override;
@@ -145,6 +149,8 @@ public
   property BinaryData : TStream read FBinaryData;
   property ImageDescription : TGSAssetString read FImageDesc write FImageDesc;
   property AssetImageSource : TGSAssetString read FImageSource write FImageSource;
+  property Width : Uint32 read FWidth write FWidth;
+  property Height : Uint32 read FHeight write FHeight;
 end;
 
 //Composed based.
@@ -565,6 +571,8 @@ begin
   FImageDesc := ReadString(aStream);
   FImageSource := ReadString(aStream);
   FImageFormat := TGSAssetImageFormat(Readbyte(aStream));
+  FWidth := ReadUint32(aStream);
+  FHeight := ReadUint32(aStream);
   ReadStream(aStream,FBinaryData);
 end;
 
@@ -573,6 +581,8 @@ begin
   WriteString(aStream,FImageDesc);
   WriteString(aStream,FImageSource);
   Writebyte(aStream,Byte(FImageFormat));
+  WriteUInt32(aStream,FWidth);
+  WriteUInt32(aStream,FHeight);
   WriteStream(aStream,FBinaryData);
 end;
 
@@ -607,9 +617,9 @@ begin
   result := 'Image (Image binary source, atlas mapping, uv';
 end;
 
-{ TGSAssetShapeMesh }
+{ TGSAssetRoundedShapeMesh }
 
-constructor TGSAssetShapeMesh.Create;
+constructor TGSAssetRoundedShapeMesh.Create;
 begin
   inherited;
   FPreShapedModel := TGSShape2dType.hexa;
@@ -619,7 +629,7 @@ begin
   InternalBuild;
 end;
 
-procedure TGSAssetShapeMesh.InternalBuild;
+procedure TGSAssetRoundedShapeMesh.InternalBuild;
 begin
   if FPreShapeModelEnabled then
     fMesh.SetShapeType(FPreShapedModel)
@@ -629,25 +639,25 @@ begin
   end;
 end;
 
-procedure TGSAssetShapeMesh.SetPreShapedModel(const Value: TGSShape2dType);
+procedure TGSAssetRoundedShapeMesh.SetPreShapedModel(const Value: TGSShape2dType);
 begin
   FPreShapedModel := Value;
   InternalBuild;
 end;
 
-procedure TGSAssetShapeMesh.SetPreShapeModelEnabled(const Value: Boolean);
+procedure TGSAssetRoundedShapeMesh.SetPreShapeModelEnabled(const Value: Boolean);
 begin
   FPreShapeModelEnabled := Value;
   InternalBuild;
 end;
 
-procedure TGSAssetShapeMesh.SetRadius(const Value: TVecType);
+procedure TGSAssetRoundedShapeMesh.SetRadius(const Value: TVecType);
 begin
   FRadius := Value;
   InternalBuild;
 end;
 
-procedure TGSAssetShapeMesh.SetSubdi(const Value: Uint32);
+procedure TGSAssetRoundedShapeMesh.SetSubdi(const Value: Uint32);
 begin
   FSubdi := Value;
   if  FSubdi<3 then

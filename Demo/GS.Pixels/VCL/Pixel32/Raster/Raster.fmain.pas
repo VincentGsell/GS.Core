@@ -7,20 +7,21 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls,  Vcl.StdCtrls, pngImage,
   GS.Geometry.Direction,
   GS.Pixel32,
-  GS.Pixel32.PixelShader,
+  GS.Pixel32.Types,
+  GS.Pixel32.Fragments,
   GS.Pixel32.Effect.Gradient,
   GS.Pixel32.Win;
 
 type
   TStar = record
-    coord : TP32Vertex;
+    coord : TP32Vertice;
     len : integer;
     col : TP32;
     startAngle : integer;
     angle : Integer;
     velocity : integer;
   end;
-  TQuadVertices = Array[0..3] of TP32Vertex;
+  TQuadVertices = Array[0..3] of TP32Vertice;
   TQuadColors = array[0..3] of TP32;
 
 
@@ -43,19 +44,19 @@ type
     { Public declarations }
     pixel : TPixel32;
     quads : array of TStar;
-    mouse : TP32Vertex;
+    mouse : TP32Vertice;
     mouseLeft : boolean;
 
     scotish : TPixel32ShaderSquaredMotif;
-    dice : TPixel32TextureShader;
+    dice : TPixel32FragmentShaderTextureColor;
 
-    textureShaderTest : TPixel32TextureShader;
+    textureShaderTest : TPixel32FragmentShaderTextureColor;
     gradientTexture : TPixel32;
 
-    FPS : Integer;
+    FPS,CurrentFPS,MinFPS,MaxFPS : Integer;
 
     //Use low level raster.
-    function buildQuad(lenx,leny,cx,cy,angleInDegree : Integer) : TQuadVertices;
+    function buildQuad(lenx,leny,cx,cy,angleInDegree : single) : TQuadVertices;
     procedure drawQuad(const vertices : TQuadVertices; const color : TP32 = $FF000000);
     procedure drawQuadBorder(const vertices : TQuadVertices; const color : TP32 = $FF000000);
     procedure drawQuads;
@@ -84,7 +85,7 @@ begin
   scotish := TPixel32ShaderSquaredMotif.Create;
 
   //Build a texture based shader.
-  dice := TPixel32TextureShader.Create;
+  dice := TPixel32FragmentShaderTextureColor.Create;
   dice.Texture := TPixel32.create;
   dice.Texture.loadFromFile('../../../../../assets/alpha-dice.bmp');
   dice.Texture.alphaLayerResetByColor(gspBlack,0); //Make it transparent (starting from bmp)
@@ -95,7 +96,7 @@ begin
   gradientTexture := TPixel32.create; //Storage.
   grad := TPixel32GeneratorGradient.Create; //Generator.
   try
-    grad.init(gradientTexture, pixel.currentDrawShader);
+    grad.init(gradientTexture);
     grad.ColorA := pixel.ColorSetAValue(gspWhite,120);
     grad.ColorB := gspRed;
     grad.ShiftGradient := -50;
@@ -106,40 +107,36 @@ begin
   end;
 
   //Assign this texture a texture shader.
-  textureShaderTest := TPixel32TextureShader.Create;
+  textureShaderTest := TPixel32FragmentShaderTextureColor.Create;
   textureShaderTest.Texture := gradientTexture;
 
   FPS := 0;
+  MinFPS := 9999;
+  MaxFPS := 0;
 end;
 
 procedure TForm2.FormDestroy(Sender: TObject);
+var l : TPixel32;
 begin
   FreeAndnil(pixel);
   FreeAndNil(scotish);
   FreeAndNil(gradientTexture);
   FreeAndNil(textureShaderTest);
-  FreeAndNil(dice.Texture);
+  l := dice.Texture;
+  FreeAndNil(l);
   FreeAndNil(dice);
 end;
 
-function TForm2.buildQuad(lenx,leny,cx,cy,angleInDegree : Integer) : TQuadVertices;
+function TForm2.buildQuad(lenx,leny,cx,cy,angleInDegree : single) : TQuadVertices;
 var a : TDirectionalObject;
-    tw,th : integer;
+//    tw,th : integer;
 begin
   //processing quad edge using GS.TDirectionalObject. (easy and more intuitive than matrix for simple geometry handling.)
-  tw := 0;
-  th := 0;
-  if pixel.currentDrawShader is TPixel32TextureShader then
-  begin
-    tw := TPixel32TextureShader(pixel.currentDrawShader).Texture.width;
-    th := TPixel32TextureShader(pixel.currentDrawShader).Texture.height;
-  end;
 
   Result[0] := P32Vertex(trunc(cx-lenx/2),trunc(cy-leny/2),0,0,0);
-  Result[1] := P32Vertex(trunc(cx+lenx/2),trunc(cy-leny/2),0,tw,0);
-  Result[2] := P32Vertex(trunc(cx+lenx/2),trunc(cy+leny/2),0,tw,th);
-  Result[3] := P32Vertex(trunc(cx-lenx/2),trunc(cy+leny/2),0,0,th);
-
+  Result[1] := P32Vertex(trunc(cx+lenx/2),trunc(cy-leny/2),0,0,0);
+  Result[2] := P32Vertex(trunc(cx+lenx/2),trunc(cy+leny/2),0,0,0);
+  Result[3] := P32Vertex(trunc(cx-lenx/2),trunc(cy+leny/2),0,0,0);
 
   a := TDirectionalObject.Create(cx,cy,10);
   try
@@ -190,11 +187,11 @@ procedure TForm2.drawQuadBorder(const vertices: TQuadVertices;
   const color: TP32);
 begin
   pixel.color_pen := gspBlack;
-  pixel.moveTo( vertices[0].x, vertices[0].y);
-  pixel.lineTo( vertices[1].x, vertices[1].y);
-  pixel.lineTo( vertices[2].x, vertices[2].y);
-  pixel.lineTo( vertices[3].x, vertices[3].y);
-  pixel.lineTo( vertices[0].x, vertices[0].y);
+  pixel.moveTo( round(vertices[0].x), round(vertices[0].y));
+  pixel.lineTo( round(vertices[1].x), round(vertices[1].y));
+  pixel.lineTo( round(vertices[2].x), round(vertices[2].y));
+  pixel.lineTo( round(vertices[3].x), round(vertices[3].y));
+  pixel.lineTo( round(vertices[0].x), round(vertices[0].y));
 end;
 
 procedure TForm2.drawQuads;
@@ -230,12 +227,13 @@ const dicesize = 1.0; //0.5
 var vv : TQuadVertices;
     lx,ly : integer;
 begin
+  pixel.color_fill := gspWhite;
   pixel.clear;
 
-  pixel.setDrawShader(textureShaderTest);
+  pixel.setFragmentShader(textureShaderTest);
   drawQuads;
 
-  pixel.ResetDrawShader; //Back to classical shader (Color shader)
+  pixel.resetFragmentShader; //Back to classical shader (Color shader)
   vv := buildQuad(100,100,120,120,mouse.y);
   drawQuad(vv,pixel.ColorSetAValue(gspGreen,100));
   vv := buildQuad(100,100,120,140,mouse.y+10);
@@ -247,7 +245,7 @@ begin
   vv := buildQuad(100,100,120,200,mouse.y+40);
   drawQuad(vv,pixel.ColorSetAValue(gspAqua,100));
 
-  pixel.setDrawShader(dice);
+  pixel.setFragmentShader(dice);
   //Build a bounding dice
   vv := buildQuad( round(dice.Texture.width/dicesize*cos(GetTickCount/1000)),
                    round(dice.Texture.height/dicesize*cos(GetTickCount/1000)),
@@ -255,33 +253,39 @@ begin
   drawQuad(vv,pixel.ColorSetAValue(gspAqua,100));
 
   //Again scotish shader, with variance in color and alpha
-  scotish.SetDataColor(pixel.ColorSetAValue(gspWhite,10),gspBlack,5);
-  pixel.setDrawShader(scotish);
+  scotish.colorFill := pixel.ColorSetAValue(gspWhite,10);
+  scotish.colorMotif := gspBlack;
+  scotish.Squarelen := 5;
+  pixel.setFragmentShader(scotish);
   vv := buildQuad(100,100,120,220,mouse.y+50);
   drawQuad(vv);
 
   if mouseLeft then
   begin
     //Select scotish shader...
-    pixel.setDrawShader(scotish);
+    pixel.setFragmentShader(scotish);
     ///..And set alpha to basic color of the shader.
-    scotish.SetDataColor(pixel.ColorSetAValue(gspBlue,200),pixel.ColorSetAValue(gspWhite,50),5);
+    scotish.colorFill := pixel.ColorSetAValue(gspBlue,200);
+    scotish.colorMotif := pixel.ColorSetAValue(gspWhite,50);
+    scotish.Squarelen := 5;
     vv := buildQuad(200,200,mouse.x,mouse.y,mouse.x);
     drawQuad(vv); //Color useless here, because of use of a special shader.
   end;
 
 
   //And a last one, with texture.
-  pixel.setDrawShader(textureShaderTest);
+  pixel.setFragmentShader(textureShaderTest);
   vv := buildQuad(200,200,120,Pixel.height-200 ,mouse.x+50);
   drawQuad(vv);
 
   //We draw a line... With the scotish shader (fun effect)
-  pixel.setDrawShader(scotish);
-  scotish.SetDataColor(gspBlue,gspWhite,5);
+  pixel.setFragmentShader(scotish);
+  scotish.colorFill := gspBlue;
+  scotish.colorMotif := gspWhite;
+  scotish.Squarelen := 2;
   pixel.color_pen := gspBlue;
-  lx := mouse.x;
-  ly := mouse.y;
+  lx := round(mouse.x);
+  ly := round(mouse.y);
   //Avoid line cross to be draw where shader will produce "white" screen :)
   if (lx mod 5) = 1 then
    inc(lx);
@@ -291,7 +295,7 @@ begin
   pixel.lineTo(lx,pixel.height);
   pixel.moveTo(0,ly);
   pixel.lineTo(pixel.width,ly);
-  pixel.ResetDrawShader; //back to standart colo drawer.
+  pixel.resetFragmentShader; //back to standart colo drawer.
 
 
   //VCL specific.
@@ -317,7 +321,11 @@ end;
 
 procedure TForm2.TimerFPSTimer(Sender: TObject);
 begin
-  Caption := 'GS.Pixel32 Raster demo '+IntToStr(FPS);
+  CurrentFPS := FPS;
+  if MinFPS>FPS then
+    MinFPS := FPS;
+  if MaxFPS<FPS then
+    MaxFPS := FPS;
   FPS := 0;
 end;
 
@@ -327,13 +335,14 @@ begin
   //Update angle of stars. (rotate)
   for i := 0 to QUADS_COUNT-1 do
   begin
-    quads[i].angle := mouse.x;
+    quads[i].angle := round(mouse.x);
     quads[i].coord.x := quads[i].coord.x + quads[i].velocity;
     if quads[i].coord.x > Width + quads[i].len then
       quads[i].coord.x := 0-quads[i].len;
   end;
 
   repaint;
+  Caption := format('GS.Pixel32 Raster demo FPS : %d (count : %d Min : %d, Max : %d)',[CurrentFPS,FPS, MinFPS,MaxFPS]);
 end;
 
 procedure TForm2.WMEraseBkGnd(var Message: TMessage);

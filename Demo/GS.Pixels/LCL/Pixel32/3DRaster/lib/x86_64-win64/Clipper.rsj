@@ -1,0 +1,7 @@
+{"version":1,"strings":[
+{"hash":193712206,"name":"clipper.rsclipper_openpatherr","sourcebytes":[79,110,108,121,32,115,117,98,106,101,99,116,32,112,97,116,104,115,32,99,97,110,32,98,101,32,111,112,101,110,46],"value":"Only subject paths can be open."},
+{"hash":44796942,"name":"clipper.rsclipper_polytreeerr","sourcebytes":[84,104,101,32,84,80,111,108,121,84,114,101,101,32,112,97,114,97,109,101,116,101,114,32,109,117,115,116,32,98,101,32,97,115,115,105,103,110,101,100,46],"value":"The TPolyTree parameter must be assigned."},
+{"hash":65289282,"name":"clipper.rsclipper_clippingerr","sourcebytes":[85,110,100,101,102,105,110,101,100,32,99,108,105,112,112,105,110,103,32,101,114,114,111,114],"value":"Undefined clipping error"},
+{"hash":84863982,"name":"clipper.rsclipper_scalingerr","sourcebytes":[84,104,101,32,115,99,97,108,105,110,103,32,102,114,97,99,116,105,111,110,32,109,117,115,116,32,98,101,32,97,115,115,105,103,110,101,100,32,98,101,102,111,114,101,32,97,110,121,32,112,97,116,104,115,32,97,114,101,32,97,100,100,101,100,46],"value":"The scaling fraction must be assigned before any paths are added."},
+{"hash":204406942,"name":"clipper.rsclipper_scalingerr2","sourcebytes":[84,104,101,32,115,99,97,108,105,110,103,32,102,114,97,99,116,105,111,110,32,109,117,115,116,32,98,101,32,103,114,101,97,116,101,114,32,116,104,97,110,32,122,101,114,111,46],"value":"The scaling fraction must be greater than zero."}
+]}

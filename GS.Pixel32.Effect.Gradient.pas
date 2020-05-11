@@ -34,6 +34,7 @@ Uses Classes,
      SysUtils,
      Math,
      GS.Pixel32,
+     GS.Pixel32.Types,
      GS.Pixel32.Effect;
 
 

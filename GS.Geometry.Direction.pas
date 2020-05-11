@@ -29,7 +29,6 @@ Unit GS.Geometry.Direction;
 interface
 
 
-
 Const GLB_Math_PrecisionTolerance = 1.0E-12;
       GLB_PrecisionTolerance: Double = 1.0E-6;
       GLB_Pi = 3.141592654;

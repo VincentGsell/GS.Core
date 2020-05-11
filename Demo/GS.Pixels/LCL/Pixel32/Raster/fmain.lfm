@@ -4,11 +4,20 @@ object Form1: TForm1
   Top = 125
   Width = 635
   Caption = 'Form1'
+  ClientHeight = 417
+  ClientWidth = 635
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  OnMouseDown = FormMouseDown
   OnResize = FormResize
-  LCLVersion = '2.0.6.0'
+  LCLVersion = '1.8.4.0'
+  object Image1: TImage
+    Left = 8
+    Height = 400
+    Top = 8
+    Width = 616
+    Anchors = [akTop, akLeft, akRight, akBottom]
+    OnResize = FormResize
+  end
   object Timer1: TTimer
     Interval = 1
     OnTimer = Timer1Timer

@@ -15,7 +15,8 @@
 // ------------ 05112013 - Vincent Gsell : FMX Compliant and remove draw stuff.
 // ------------ 29032014 - ObjectUp - VGS : FMeX adaptation.
 // ------------ 15032020 - GridSystem - VGS : Transfert to GS.Core.
-unit GS.Geometry.Delaunay;
+// ------------ 17042020 - GridSystem - VGS : Transfert to GS.Core/ThirParty.
+unit Delaunay;
 
 interface
 

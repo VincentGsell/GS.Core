@@ -344,18 +344,6 @@ begin
   end;
 end;
 
-{ TVisibilityThread }
-
-{$IFDEF FPC}
-function TVisibilityThread.GetStarted: Boolean;
-begin
-  result := not(Suspended); //Not same behaviour than DCC, but work in our case.
-  //Normally, FStarted is set to true just before Execute.
-end;
-{$ENDIF}
-
-
-
 { TList_ObjectArray }
 
 procedure TList_ObjectArray.Add(aObject: TObject);

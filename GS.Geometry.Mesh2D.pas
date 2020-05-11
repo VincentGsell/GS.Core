@@ -10,10 +10,13 @@ type
 
 TGSRawMesh2D = class
 private
+protected
 public
+  BoundingBox : Vec4;
   vertices : array of vec2;
   uvs : array of vec2;       //...
-  indexes : array of Uint32; //... Synchro with indexes.
+  cols : array of vec4;      //... Synchro with vertices.
+  indexes : array of Uint32;
 
   Constructor Create; virtual;
 
@@ -31,15 +34,19 @@ public
   procedure Modify(xpos,ypos,angle : single); overload;
   procedure Modify(xpos,ypos,angle,xscale,yscale : single); overload;
 
-  //procedure GetCenter(var pointf)...
   procedure UpdateVertices(const matrix : Mat3);
 
-  function getBounding : vec4;
+  function fullRefreshBounding : vec4;
+  procedure progressiveRefreshBounding(a : vec2); //to Call when you add mesh.
+  function BoudingCenter : vec2;
+  procedure resetBoundingBox;
+
+
   function getVerticeCount : Uint32;
   function getIndicesCount : Uint32;
 
   function getTriangleCount : Uint32;
-  procedure Triangle(const index : Uint32; out a,b,c, uva,uvb,uvc : vec2);
+  procedure Triangle(const index : Uint32; out a,b,c, uva,uvb,uvc : vec2; out ca,cb,cc : vec4);
 
   procedure copy(var destination : TGSRawMesh2D);
 
@@ -59,15 +66,25 @@ begin
   UpdateVertices(fLocalMatrix);
 end;
 
+function TGSRawMesh2D.BoudingCenter: vec2;
+begin
+  result.create(BoundingBox.left + abs(BoundingBox.right - BoundingBox.Left)/2,
+                BoundingBox.top + abs(BoundingBox.top - BoundingBox.bottom)/2);
+end;
+
 procedure TGSRawMesh2D.copy(var destination: TGSRawMesh2D);
 begin
   SetLength(destination.vertices,length(vertices));
   SetLength(destination.indexes,length(indexes));
   SetLength(destination.uvs,length(uvs));
+  SetLength(destination.cols,length(cols));
 
   Move(vertices[0],destination.vertices[0],length(vertices)*sizeOf(vec2));
   Move(uvs[0],destination.uvs[0],length(uvs)*sizeOf(vec2));
+  Move(cols[0],destination.cols[0],length(cols)*sizeOf(vec2));
   Move(indexes[0],destination.indexes[0],length(indexes)*SizeOf(Uint32));
+
+  destination.BoundingBox := BoundingBox;
 end;
 
 constructor TGSRawMesh2D.create;
@@ -77,7 +94,7 @@ begin
 end;
 
 
-function TGSRawMesh2D.getBounding: vec4;
+function TGSRawMesh2D.FullRefreshBounding: vec4;
 var i : integer;
     p : vec2;
 begin
@@ -94,6 +111,7 @@ begin
     if result.bottom<p.Y then
       result.bottom := p.Y;
   end;
+  BoundingBox := result;
 end;
 
 
@@ -113,6 +131,18 @@ begin
 end;
 
 
+procedure TGSRawMesh2D.ProgressiveRefreshBounding(a: vec2);
+begin
+  if a.x < BoundingBox.Left then
+    BoundingBox.Left := a.x;
+  if a.x > BoundingBox.right then
+    BoundingBox.right := a.x;
+  if a.y < BoundingBox.top then
+    BoundingBox.top := a.y;
+  if a.y > BoundingBox.bottom then
+    BoundingBox.bottom := a.y;
+end;
+
 procedure TGSRawMesh2D.Merge(from: TGSRawMesh2D);
 var cp : integer;
   I: Integer;
@@ -129,12 +159,18 @@ begin
   SetLength(uvs,Length(uvs)+length(from.uvs));
   move(from.uvs[0],uvs[cp],length(from.uvs)*Sizeof(from.uvs[0]));
 
+  //cols
+  cp := System.Length(cols);
+  SetLength(cols,Length(cols)+length(from.cols));
+  move(from.cols[0],cols[cp],length(from.cols)*Sizeof(from.cols[0]));
+
   cp := System.Length(indexes);
   SetLength(indexes,System.Length(indexes)+System.length(from.indexes));
   move(from.indexes[0],indexes[cp],System.length(from.indexes)*Sizeof(from.indexes[0]));
   if cp>0 then //index corrector.
     for i := cp-1 to System.length(indexes)-1 do
       indexes[i] := indexes[i] + cp;
+  FullRefreshBounding;
 end;
 
 procedure TGSRawMesh2D.Modify(xpos, ypos, angle, xscale, yscale: single);
@@ -160,6 +196,13 @@ begin
   vertices := nil;
   indexes := nil;
   uvs := nil;
+  cols := nil;
+  resetBoundingBox;
+end;
+
+procedure TGSRawMesh2D.resetBoundingBox;
+begin
+  BoundingBox.create(M_MXVT,M_MXVT,-M_MXVT,-M_MXVT);
 end;
 
 procedure TGSRawMesh2D.Rotate(angle: single);
@@ -182,11 +225,13 @@ procedure TGSRawMesh2D.UpdateVertices(const matrix: Mat3);
 var i : integer;
     p : vec2;
 begin
+  resetBoundingBox;
   for i := 0 to length(vertices)-1 do
   begin
     p := vec2.create(vertices[i].x,vertices[i].y) * matrix;
     vertices[i].x := p.x;
     vertices[i].y := p.y;
+    ProgressiveRefreshBounding(p);
   end;
 end;
 
@@ -204,13 +249,10 @@ begin
   vertices[2].create(width/2,height/2);
   vertices[3].create(-width/2,height/2);
 
-//  uvs[0] := vec2.create(0,0);
-//  uvs[1] := vec2.create(1,0);
-//  uvs[2] := vec2.create(1,1);
-//  uvs[3] := vec2.create(0,1);
-
   setLength(indexes,6);
-  setLength(uvs,6);
+  setLength(uvs,4);
+  setLength(cols,4);
+
   indexes[0] := 0;
   indexes[1] := 1;
   indexes[2] := 2;
@@ -221,23 +263,35 @@ begin
   uvs[0] := vec2.create(0,0);
   uvs[1] := vec2.create(1,0);
   uvs[2] := vec2.create(1,1);
-  uvs[3] := vec2.create(1,1);
-  uvs[4] := vec2.create(0,1);
-  uvs[5] := vec2.create(0,0);
+  uvs[3] := vec2.create(0,1);
+
+  cols[0] := vec4.create(1,0,0,1);
+  cols[1] := vec4.create(0,1,0,1);
+  cols[2] := vec4.create(0,0,1,1);
+  cols[3] := vec4.create(1,1,1,1);
+
+  BoundingBox.create(-width/2,-height/2,width/2,height/2);
 end;
 
 
-procedure TGSRawMesh2D.Triangle(const index: Uint32; out a, b, c, uva,uvb,uvc : vec2);
+procedure TGSRawMesh2D.Triangle(const index: Uint32; out a, b, c, uva,uvb,uvc : vec2; out ca,cb,cc : vec4);
 var baseIndex : Uint32;
+    ai,bi,ci : Uint32;
 begin
   assert(index<=getTriangleCount);
   baseIndex := index*3;
-  a := vertices[indexes[baseIndex]];
-  b := vertices[indexes[baseIndex+1]];
-  c := vertices[indexes[baseIndex+2]];
-  uva := uvs[baseIndex];
-  uvb := uvs[baseIndex+1];
-  uvc := uvs[baseIndex+2];
+  ai := indexes[baseIndex];
+  bi := indexes[baseIndex+1];
+  ci := indexes[baseIndex+2];
+  a := vertices[ai];
+  b := vertices[bi];
+  c := vertices[ci];
+  uva := uvs[ai];
+  uvb := uvs[bi];
+  uvc := uvs[ci];
+  ca := cols[ai];
+  cb := cols[bi];
+  cc := cols[ci];
 end;
 
 end.
