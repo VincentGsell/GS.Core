@@ -140,12 +140,12 @@
         <DCCReference Include="..\..\..\..\..\GS.Soft3D.PipeLine.Types.pas"/>
         <DCCReference Include="..\..\..\..\..\GS.Soft3D.PipeLine.VertexShader.pas"/>
         <DCCReference Include="..\..\..\..\..\GS.Soft3D.Types.pas"/>
-        <DCCReference Include="..\..\..\..\..\GS.Soft3D.View.Pixel32.pas"/>
         <DCCReference Include="..\..\..\..\..\GS.Common.Log.pas"/>
         <DCCReference Include="..\..\..\..\..\GS.Common.Log.Default.pas"/>
         <DCCReference Include="..\..\..\..\..\GS.Common.Monitoring.pas"/>
         <DCCReference Include="..\..\..\..\..\GS.Common.Monitoring.Default.pas"/>
         <DCCReference Include="..\..\..\..\..\GS.Soft3D.PipeLine.Types.InternalFormat.pas"/>
+        <DCCReference Include="..\..\..\..\..\GS.Soft3D.View.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

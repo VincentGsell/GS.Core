@@ -1,4 +1,4 @@
-unit GS.Soft3D.View.Pixel32;
+unit GS.Soft3D.View;
 
 interface
 
@@ -9,8 +9,7 @@ uses SysUtils,
      GS.Geometry,
      GS.Soft3D,
      GS.Soft3D.Types,
-     GS.Soft3D.PipeLine,
-     GS.Soft3D.PipeLine.RasterOperation.Pixel32;
+     GS.Soft3D.PipeLine;
 
 Type
   TView3d = class
@@ -23,7 +22,6 @@ Type
     function GetCamZ: single;
     procedure SetCamZ(const Value: single);
   public
-    Pixel32PipeLine : TS3DRasterOperationPixel32;
     PipeLine : TS3DPipeline;
 
     procedure ResizeBuffers(w,h : Uint32);
@@ -51,8 +49,6 @@ implementation
 constructor TView3d.Create;
 begin
   PipeLine := TS3DPipeline.Create; //build all the 3D pipeline.
-  Pixel32PipeLine := TS3DRasterOperationPixel32.Create(PipeLine,PipeLine.InputData,PipeLine.WorkData); //Surface dedicated to Soft3D.
-  PipeLine.RasterOperation := Pixel32PipeLine;
 
   CameraZ := -15;
   Projection := TS3DProjectionType.Perspective;
@@ -114,7 +110,7 @@ procedure TView3d.ResizeBuffers(w, h: Uint32);
 begin
   PipeLine.InputData.Resolution.width := w;
   PipeLine.InputData.Resolution.height := h;
-  Pixel32PipeLine.PixelSurface.resize(w,h);
+  PipeLine.RasterOperation.Resize(w,h);
   PipeLine.RasterControl.BackMem.resize(w,h);
 end;
 

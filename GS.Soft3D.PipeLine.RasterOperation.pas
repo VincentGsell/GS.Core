@@ -17,6 +17,8 @@ Type
   public
     //Must be implemented into surface enabled techno descendant (such as Pixel32)
     function Run : boolean; virtual; abstract;
+    //Resisze pixel buffer.
+    procedure Resize(_width, _height : Uint32); Virtual; abstract;
   end;
 
 

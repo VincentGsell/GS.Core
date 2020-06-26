@@ -18,6 +18,7 @@ Type
   public
     PixelSurface : TPixel32;
     function Run : boolean; Override;
+    procedure Resize(_width, _height : Uint32); Override;
   end;
 
 
@@ -26,6 +27,12 @@ implementation
 uses GS.Soft3d.PipeLine;
 
 { TS3DRasterOperationPixel32 }
+
+procedure TS3DRasterOperationPixel32.Resize(_width, _height: Uint32);
+begin
+  inherited;
+  PixelSurface.resize(_width,_height);
+end;
 
 function TS3DRasterOperationPixel32.Run : boolean;
 var l : pTP32;

@@ -29,7 +29,8 @@ uses
   GS.Soft3D.PipeLine,
   GS.Soft3D.PipeLine.Types,
   GS.Soft3D.PipeLine.FragmentShader,
-  GS.Soft3D.View.Pixel32,
+  GS.Soft3D.View,
+  GS.Soft3D.PipeLine.RasterOperation.Pixel32,
   GS.Pixel32.Win;
 
 type
@@ -94,7 +95,7 @@ var oi,fi : Uint32;
 begin
   viewport.Execute;
   viewport.Projection := TS3DProjectionType(RadioGroup1.ItemIndex);
-  TPixel32(viewport.Pixel32PipeLine.PixelSurface).CopyToDc(Image1.Canvas.handle);
+  TPixel32( TS3DRasterOperationPixel32(viewport.PipeLine.RasterOperation).PixelSurface).CopyToDc(Image1.Canvas.handle);
 
   Image1.Repaint;
   Done := False;
@@ -120,8 +121,14 @@ begin
   pixel := TPixel32.create;     //final surface draewing... (image)
 
   viewport := TView3d.Create; //virtual window on 3d world.
-  viewPort.Pixel32PipeLine.PixelSurface := Pixel;
+
+  { TODO : BEAUTIFY !! }
+  viewPort.PipeLine.RasterOperation := TS3DRasterOperationPixel32.Create(viewport.PipeLine,viewport.PipeLine.InputData,viewport.PipeLine.WorkData);
+  TS3DRasterOperationPixel32(viewPort.PipeLine.RasterOperation).PixelSurface := Pixel;
+
+
   viewport.ResizeBuffers(ClientWidth,ClientHeight);
+
   viewport.CameraZ := -2;
 
   viewport.wireFrame := false;
