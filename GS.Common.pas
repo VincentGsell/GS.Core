@@ -153,8 +153,8 @@ private
 protected
 public
 end;
-
 {$ENDIF}
+
 
 Procedure StreamEncrypt(aStreamToEncrypt : TMemoryStream);
 Procedure StreamDecrypt(aStreamToDecrypt : TMemoryStream);

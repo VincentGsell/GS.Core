@@ -12,9 +12,9 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -----------------------------------------------------------------------------
- Unit Name : GS.Pixel
+ Unit Name : GS.Soft3D
  Author    : Vincent Gsell (vincent dot gsell at gmail dot com)
- Purpose   : basic Pixel class introduced by interface.
+ Purpose   : basic 3d model. Abstract from any hardware implementation
  Date:     : 2020031
  History   :
  20200301 - Creating unit.
@@ -40,158 +40,54 @@ uses SysUtils,
      classes,
      contNrs,
      Math,
-     GS.Geometry,
-     GS.Soft3D.Types,
-     GS.Soft3D.PipeLine,
-     GS.Soft3D.PipeLine.RasterOperation.Pixel32;
+     Gs.Geometry,
+     Gs.Geometry.Triangulation,
+     Gs.Geometry.Mesh2d,
+     GS.Soft3D.Types;
 
 Type
-
-
-
-  TPlane = class(TMesh3d)
+  TGSPlaneMesh = class(TMesh3d)
   public
     constructor create; override;
   end;
 
-  TCube = class(TMesh3d)
+  TGSCubeMesh = class(TMesh3d)
   public
     constructor create; override;
   end;
 
-  TCamera = class(TBase3D)
+  TGSPlaneTriMesh = class(TMesh3d)
+  public
+    constructor create; override;
+  end;
+
+  TGSSphere = Class(TMesh3d)
+  public
+    constructor create; override;
+  end;
+
+
+  //----------------------------------------------------------------------------
+
+
+  TGSObject3D = class(TS3DObject)
+  end;
+
+
+  TGSCamera = class(TBase3D)
   public
   end;
 
 
 
-  TView3d = class
-  private
-    FWireframe: boolean;
-    Frasterframe: boolean;
 
-    procedure SetProjection(const Value: TS3DProjectionType);
-    function GetProjection: TS3DProjectionType;
-    function GetCamZ: single;
-    procedure SetCamZ(const Value: single);
-  public
-    Pixel32PipeLine : TS3DRasterOperationPixel32;
-    PipeLine : TS3DPipeline;
-
-    constructor Create; virtual;
-    destructor Destroy; override;
-
-    procedure addMesh(_mesh : TMesh3d);
-    function addCube(x,y,z : single) : TCube;
-    function addPlane(x,y,z : single) : TPlane;
-
-    procedure Execute;
-
-    Property CameraZ : single read GetCamZ Write SetCamZ;
-//    Property CameraX : single read FCamX Write FCamX;
-//    Property CameraY : single read FCamY Write FCamY;
-
-    property rasterFrame : boolean read Frasterframe write fRasterframe;
-    property wireFrame : boolean read FWireframe write FWireframe;
-
-    property Projection : TS3DProjectionType read GetProjection write SetProjection;
-
-  end;
 
 implementation
 
 
-
-
-{ TView3d }
-
-function TView3d.addCube(x, y, z :  single) : TCube;
-begin
-  Result :=  TCube.Create;
-  Result.x := x;
-  Result.y := y;
-  Result.z := z;
-  addMesh(Result);
-end;
-
-procedure TView3d.addMesh(_mesh: TMesh3d);
-begin
-  assert(assigned(_mesh));
-  PipeLine.InputData.Meshes.AddMesh(_mesh);
-end;
-
-function TView3d.addPlane(x, y, z: single): TPlane;
-begin
-  Result :=  TPlane.Create;
-  Result.x := x;
-  Result.y := y;
-  Result.z := z;
-  addMesh(Result);
-end;
-
-constructor TView3d.Create;
-begin
-  Pixel32PipeLine := TS3DRasterOperationPixel32.Create; //Surface dedicated to Soft3D.
-  PipeLine := TS3DPipeline.Create(Pixel32PipeLine); //build all the 3D pipeline.
-
-  CameraZ := -15;
-  Projection := TS3DProjectionType.Perspective;
-  FWireframe := false;
-  Frasterframe := true;
-end;
-
-destructor TView3d.Destroy;
-begin
-  freeAndNil(PipeLine);
-  inherited;
-end;
-
-
-
-function CalculateSurfaceNormal(AVecA, AVecB,
-  AVecC: vec3) : vec3;
-var
-  LVecU, LVecV: vec3;
-begin
-  LVecU := AVecB;
-  LVecU := LVecU - AVecA;
-
-  LVecV := AVecC;
-  LVecV := LVecV - AVecA;
-
-  Result.X := (LVecU.Y*LVecV.Z) - (LVecU.Z*LVecV.Y);
-  Result.Y := (LVecU.Z*LVecV.X) - (LVecU.X*LVecV.Z);
-  Result.Z := (LVecU.X*LVecV.Y) - (LVecU.Y*LVecV.X);
-end;
-
-procedure TView3d.Execute;
-begin
-  PipeLine.Process;
-end;
-
-procedure TView3d.SetCamZ(const Value: single);
-begin
-  PipeLine.InputData.CameraPos.z := value;
-end;
-
-procedure TView3d.SetProjection(const Value: TS3DProjectionType);
-begin
-  PipeLine.InputData.Projection := Value;
-end;
-
-function TView3d.GetCamZ: single;
-begin
-  result := PipeLine.InputData.CameraPos.z;
-end;
-
-function TView3d.GetProjection: TS3DProjectionType;
-begin
-  Result := PipeLine.InputData.Projection;
-end;
-
 { TCube }
 
-constructor TCube.create;
+constructor TGSCubeMesh.create;
 begin
   inherited;
   addVertex(-0.5,-0.5,-0.5); //0
@@ -213,9 +109,9 @@ begin
 end;
 
 
-{ TPlane }
+{ TGSPlaneMesh }
 
-constructor TPlane.create;
+constructor TGSPlaneMesh.create;
 begin
   inherited;
   addVertex(-0.5,-0.5,0);
@@ -225,5 +121,66 @@ begin
   addQuad(0,1,2,3);
 end;
 
+
+{ TGSPlaneTriMesh }
+
+function edgeFunction(var a,b,c : vec2) : TVecType; {$IFNDEF DEBUG} inline; {$ENDIF}
+begin
+  result := (a.x - c.x) * (b.y - a.y) - (a.y - c.y) * (b.x - a.x);
+end;
+
+
+constructor TGSPlaneTriMesh.create;
+var i : Integer;
+    cloud : Array of vec2;
+    mesh2d : TGSRawMesh2d;
+    a,b,c,d : vec2;
+    uva,uvb,uvc : vec2;
+    aa,bb,cc : Vec4;
+    area : TVecType;
+
+
+Const
+  CST_POINT_COUNT = 10;
+begin
+  Randomize;
+  mesh2d :=TGSRawMesh2D.Create;
+  try
+    SetLength(cloud,CST_POINT_COUNT);
+    cloud[0].x := -(CST_POINT_COUNT div 2);
+    cloud[0].y := 0;
+    cloud[CST_POINT_COUNT-1].x := (CST_POINT_COUNT div 2);
+    cloud[CST_POINT_COUNT-1].y := 0;
+
+    for i := 1 to CST_POINT_COUNT-2 do
+    begin
+      cloud[i].x := i - (CST_POINT_COUNT div 2);
+      cloud[i].y := 5 + Random(10);
+    end;
+
+    TGSTriangulationPortal.PolygoneTriangulation(cloud,mesh2d);
+    for i := 0 to mesh2d.getTriangleCount-1 do
+    begin
+      mesh2d.Triangle(i,a,b,c,uva,uvb,uvc,aa,bb,cc);
+      addVertex(a.x,a.y,0); //Todo do something with z. (progressive proportinal curve fellow or other).
+      addVertex(b.x,b.y,0);
+      addVertex(c.x,c.y,0);
+      addTriangle(i*3,i*3+1,i*3+2,0,0,0,0,0,0);
+    end;
+
+    meshScale(0.1);
+  finally
+    FreeAndNil(mesh2d);
+  end;
+
+end;
+
+{ TGSSphere }
+
+constructor TGSSphere.create;
+begin
+  inherited;
+
+end;
 
 end.

@@ -5,6 +5,7 @@ interface
 
 uses Classes,
      SysUtils,
+     GS.Common.Monitoring,
      GS.Geometry,
      GS.Soft3d.Types,
      GS.Soft3d.MeshTools,
@@ -14,24 +15,11 @@ Type
 
   TS3DRasterOperation = class(TS3DPipeLineStep)
   public
-    FragShaderData : TS3DFragmentShaderControl;
-
     //Must be implemented into surface enabled techno descendant (such as Pixel32)
-    procedure BuildImage; virtual; abstract;
-
-    procedure Run; override;
+    function Run : boolean; virtual; abstract;
   end;
 
 
 implementation
-
-{ TS3DRasterOperation }
-
-procedure TS3DRasterOperation.Run;
-begin
-  Assert(assigned(FragShaderData));
-  InputData := FragShaderData.InputData;
-  BuildImage;
-end;
 
 end.

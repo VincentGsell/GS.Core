@@ -6,26 +6,19 @@ Uses Classes,
      SysUtils,
      contNrs,
 
+     GS.Common.Monitoring,
      GS.Geometry,
-     GS.Soft3D.Types;
+     GS.Soft3D.Types,
+     GS.Soft3D.PipeLine.Types.InternalFormat;
 
 Type
-  TS3DObject = Class
+  TS3DPipeLineObject = Class
   End;
 
-  TS3DMeshList = Class(TObjectList)
-  private
-    function GetMesh(Index: Uint32): TMesh3D;
-    procedure SetMesh(Index: Uint32; const Value: TMesh3D);
-  public
-    procedure AddMesh(mesh : TMesh3D);
-    property Mesh[Index : Uint32] : TMesh3D read GetMesh write SetMesh; default;
-  End;
-
-
-  TS3DInputData3D = class(TS3DObject)
+  TS3DInputData3D = class(TS3DPipeLineObject)
   public
     Meshes : TS3DMeshList;
+    Objects : TS3DObjectList;
 
     Resolution : TPoint2Di;
 
@@ -36,47 +29,51 @@ Type
     Projection : TS3dProjectionType;
 
     procedure MatrixProcess;
+
+    Constructor Create;
   end;
 
-  TS3DPipeLineStep = Class(TS3DObject)
+  TS3DPipeLineData = class(TS3DPipeLineObject)
+  public
+    Transformed : TS3PLObjectList;
+    Constructor Create; virtual;
+    Destructor Destroy; Override;
+  end;
+
+  TS3DPipeLineStep = Class(TS3DPipeLineObject)
+  private
   protected
   public
-    InputData : TS3DInputData3D;
-    procedure Run; virtual; abstract;
+    PipelineMaster : TObject;        //Pointer on owner.
+    InputData : TS3DInputData3D;     //Pointer
+    WorkingData : TS3DPipeLineData;  //Pointer
+    function Run :  Boolean; virtual; abstract;
+
+    Constructor Create(Owner : TObject; _in : TS3DInputData3D; _wo : TS3DPipeLineData); reintroduce; virtual;
   End;
 
 
 implementation
 
-{ TS3DMeshList }
-
-procedure TS3DMeshList.AddMesh(mesh: TMesh3D);
-begin
-  if IndexOf(mesh)=-1 then
-    Add(mesh);
-end;
-
-function TS3DMeshList.GetMesh(Index: Uint32): TMesh3D;
-begin
-  result := TMesh3D(Items[Index]);
-end;
-
-procedure TS3DMeshList.SetMesh(Index: Uint32; const Value: TMesh3D);
-begin
-  Items[Index] := Value;
-end;
-
+uses GS.Soft3d.PipeLine;
 
 { TS3DInputData3D }
 
+constructor TS3DInputData3D.Create;
+begin
+  inherited;
+  Meshes := nil;
+  Objects := nil;
+  Resolution.width := 512;
+  Resolution.height := 512;
+  Projection := TS3DProjectionType.Perspective;
+end;
+
 procedure TS3DInputData3D.MatrixProcess;
 var aspectRatio, ZFar, ZNear, FOV : single;
-    i : integer;
-    l : TMesh3D;
-    objMat, objTransMatrix : Mat4;
-    objRotX, objRotY, objRotZ : Mat4;
-    finalMat : Mat4;
 begin
+  TMonitoring.enter('TS3DInputData3D.MatrixProcess');
+  try
 
   CameraMatrix := mat4Identity;
   ProjectionMatrix := mat4Identity;
@@ -101,11 +98,11 @@ begin
       //ORTHOGRAPHIC PROJECTION.
       // 45° rotation on Y
       ProjectionMatrix :=
-//          Mat4CreateRotationY(-45*PI/180)
+//          Mat4CreateRotationY(-45*PI/180) *
       // 20° rotation on X
-//        * Mat4CreateRotationX(-20*PI/180)
+//          Mat4CreateRotationX(-20*PI/180) *
       // move the scene to the back to avoid Z Clipping
-//        Mat4CreateTranslation(vec3.Create(0, 0, -500))
+//        Mat4CreateTranslation(vec3.Create(0, 0, -5)) *
       // create an iometric projection
           Mat4CreateOrthoOffCenterRH(
             -Resolution.width, -Resolution.height,
@@ -122,31 +119,37 @@ begin
 // Rotate all view.
 //  FViewMatrix := mat4CreateRotationY(DegToRad(GTest)) * FViewMatrix;
 
-
-//  TargetCanvas.beginDraw;
-  for i := 0 to Meshes.Count-1 do
-  begin
-    l := TMesh3D(Meshes[i]);
-
-    //Object.
-    objTransMatrix := mat4CreateTranslation(vec3.create(l.x,l.y,l.z));
-    objRotX := mat4CreateRotationX(_radians(l.rx));
-    objRotY := mat4CreateRotationY(_radians(l.ry));
-    objRotZ := mat4CreateRotationZ(_radians(l.rz));
-
-    objMat := objRotX;
-    objMat := objMat * mat4CreateTranslation(vec3.create(0,0,0));
-    objMat := objMat * objRotY;
-    objMat := objMat * mat4CreateTranslation(vec3.create(0,0,0));
-    objMat := objMat * objRotZ;
-    objMat := objMat * mat4CreateTranslation(vec3.create(0,0,0));
-    objMat := objMat * objTransMatrix;
-
-    //Projection.
-    finalMat := objMat * ViewMatrix;
-
+  finally
+    TMonitoring.exit('TS3DInputData3D.MatrixProcess');
   end;
+end;
 
+{ TS3DPipeLineStep }
+
+constructor TS3DPipeLineStep.Create(Owner: TObject; _in: TS3DInputData3D;
+  _wo: TS3DPipeLineData);
+begin
+  Inherited Create;
+  assert(Assigned(Owner));
+  assert(Owner is TS3DPipeline);
+  assert(Assigned(_in));
+  Assert(Assigned(_wo));
+  InputData := _in;
+  WorkingData := _wo;
+  PipelineMaster := Owner;
+end;
+
+{ TS3DPipeLineData }
+
+constructor TS3DPipeLineData.Create;
+begin
+  Transformed := TS3PLObjectList.Create;
+end;
+
+destructor TS3DPipeLineData.Destroy;
+begin
+  FreeAndNil(Transformed);
+  inherited;
 end;
 
 end.

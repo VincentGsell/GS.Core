@@ -206,7 +206,6 @@ End;
 
 function P32Vertex( const x : single = 0;
                     const y : single = 0;
-                    const z : single = 0;
                     u : single =0;
                     v : single =0;
                     r : single = 1;
@@ -225,7 +224,6 @@ Uses GS.Pixel32.Rasterize,GS.Pixel32.DirectRasterizer;
 
 function P32Vertex( const x : single = 0;
                     const y : single = 0;
-                    const z : single = 0;
                     u : single =0;
                     v : single =0;
                     r : single = 1;
@@ -235,7 +233,6 @@ function P32Vertex( const x : single = 0;
 begin
   result.x := x;
   result.y := y;
-//  result.z := z;
   result.u := u;
   result.v := v;
   result.rgba.r := r;
@@ -643,10 +640,10 @@ end;
 
 function TPixel32.getSurfaceVertices: TP32QuadVertices;
 begin
-  result[0] := P32Vertex(0,0,0,0,0,1,0,0,1);
-  result[1] := P32Vertex(width-1,0,0,1,0,0,1,0,1);
-  result[2] := P32Vertex(width-1,height-1,0,1,1,0,0,1,1);
-  result[3] := P32Vertex(0,height-1,0,0,1,1,1,1,1);
+  result[0] := P32Vertex(0,0,0,0,1,0,0,1);
+  result[1] := P32Vertex(width-1,0,1,0,0,1,0,1);
+  result[2] := P32Vertex(width-1,height-1,1,1,0,0,1,1);
+  result[3] := P32Vertex(0,height-1,0,1,1,1,1,1);
 end;
 
 { TCustomPixel32SurfaceEffect }

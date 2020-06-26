@@ -2,7 +2,9 @@ program ServiceStandAlone;
 
 uses
   Vcl.Forms,
-  serviceStandAlone.fmain in 'serviceStandAlone.fmain.pas' {Form5};
+  serviceStandAlone.fmain in 'serviceStandAlone.fmain.pas' {Form5},
+  GS.Pixel32.Service.Image32.Types in '..\..\..\..\..\..\GS.Pixel32.Service.Image32.Types.pas',
+  GS.Pixel32.Service.Image32.Backend in '..\..\..\..\..\..\GS.Pixel32.Service.Image32.Backend.pas';
 
 {$R *.res}
 

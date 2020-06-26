@@ -32,7 +32,7 @@ function ReadInteger(Stream: TStream): Integer;
 function ReadInt32(Stream: TStream): Int32;
 function ReadInt64(Stream: TStream): Int64;
 function ReadUInt64(Stream: TStream): UInt64;
-function ReadUint32(Stream: TStream): UInt32;
+function ReadUInt32(Stream: TStream): UInt32;
 function ReadByte(Stream: TStream): Byte;
 function ReadBoolean(Stream: TStream): Boolean;
 function ReadDouble(Stream: TStream): Double;

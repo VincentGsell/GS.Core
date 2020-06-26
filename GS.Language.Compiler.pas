@@ -22,6 +22,9 @@ TChecker = class;
 ///
 ///
 
+//GSCRoot object keep track of unique "path" throught syntax process.
+//It has log feature.
+//Consider it as your "diary" throught the amazing syntax analyze journey.
 TGSCRoot = class
 private
   function GetNodeCount: integer;
@@ -59,8 +62,9 @@ protected
 
   procedure InternalProcess; virtual; abstract;
 public
-  Constructor Create(_root : TGSCRoot; const _NodeName : String = ''; const comeFrom : TGSCNode = Nil); reintroduce;
+  Constructor Create(_root : TGSCRoot; const _NodeName : String = ''; const comeFrom : TGSCNode = Nil); reintroduce; virtual;
 
+  procedure init; virtual;
   function process : TGSCNode; virtual;
 
   property NodeName : String read FnodeName write FnodeName;
@@ -83,12 +87,12 @@ end;
 //Base checker for syntax and semantic.
 TChecker = class
 private
-  function GetLog: TStringList;
 protected
   froot : TGSCRoot;
   fStart : TGSCNode_Start;
   fFinish : TGSCNode_Finish;
   FTokenizer: TWordTokenizer;
+  function GetLog: TStringList; virtual;
 public
   constructor Create(_root : TGSCRoot; _tokenizer : TWordTokenizer); virtual;
   destructor Destroy; override;
@@ -212,6 +216,12 @@ begin
     FnodeName := CST_DEFAULTNODENAME;
   fnext := Nil;
   fcomeFrom := comeFrom;
+end;
+
+procedure TGSCWorkNode.init;
+begin
+  //none here.
+  //Use it to init var, without to have to override constructor.
 end;
 
 function TGSCWorkNode.process : TGSCNode;

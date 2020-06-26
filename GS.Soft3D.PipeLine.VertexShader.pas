@@ -4,33 +4,29 @@ interface
 
 uses Classes,
      SysUtils,
+     GS.Common.Monitoring,
      GS.Geometry,
      GS.Soft3d.Types,
      GS.Soft3d.MeshTools,
-     GS.Soft3d.PipeLine.Types;
+     GS.Soft3d.PipeLine.Types,
+     GS.Soft3d.PipeLine.Types.InternalFormat;
 
 Type
   TS3DVertexShaderControl = class;
   TS3DVertexShader = class(TS3DObject)
   public
-    controler : TS3DVertexShaderControl;
-    procedure process(obj : TMesh3D; var _matrix : mat4); virtual; abstract;
+    { TODO : Not used yet.
+    To define here access, and methodology, to overriy shader transformation.
+    See in Run, the call nest. }
   end;
-    TS3DVertexShader_STDShader = class(TS3DVertexShader)
-       procedure process(obj : TMesh3D; var _matrix : mat4); override;
-    end;
 
   TS3DVertexShaderControl = class(TS3DPipeLineStep)
   protected
-    TransformationMatrix : Mat4;
-    Shader : TS3DVertexShader;
-    procedure transform;
   public
-    TransformedMeshes : TS3DMeshList;
+    function Run : Boolean; override;
 
-    procedure Run; override;
+    Constructor Create(Owner : TObject; _in : TS3DInputData3D; _wo : TS3DPipeLineData); override;
 
-    constructor Create(input : TS3DInputData3D); reintroduce;
     destructor Destroy; override;
   end;
 
@@ -38,48 +34,80 @@ implementation
 
 { TS3DVertexShaderControl }
 
-constructor TS3DVertexShaderControl.Create(input: TS3DInputData3D);
+
+constructor TS3DVertexShaderControl.Create(Owner : TObject; _in : TS3DInputData3D; _wo : TS3DPipeLineData);
 begin
-  assert(assigned(input));
-  inherited Create;
-  InputData := input;
-  Shader := TS3DVertexShader_STDShader.Create;
-  Shader.controler := self;
+  inherited Create(Owner,_in,_wo);
 end;
 
 destructor TS3DVertexShaderControl.Destroy;
 begin
-  freeAndNil(Shader);
 end;
 
-procedure TS3DVertexShaderControl.Run;
-var s,l : TMesh3D;
+Function TS3DVertexShaderControl.Run : boolean;
+var s,l : TS3DObject;
+    f : TMesh3D;
+    t : TS3PLObject;
+    tl,mi,i : integer;
+    VertexIndiceA,VertexIndiceB,VertexIndiceC : Uint16;
+    transformationMatrix : Mat4;
+
 begin
-  for s in InputData.Meshes do
-  begin
-    l := TMesh3D.Create;
-    TMesh3DTool.copy(s,l);
-    TransformedMeshes.AddMesh(l);
+  TMonitoring.enter('S3DVertexShaderControl.Run');
+  try
+    //HERE : Frustrum culling, sorting, simplying etc. etc.
+    //In order to give an "lighten" transformed mesh.
+    result := InputData.Objects.Count>0;
+    if not(result) then
+      Exit;
+
+    WorkingData.Transformed.Clear;
+    mi := 0;
+    for s in InputData.Objects do
+    begin
+      Assert(Assigned(s.MeshAsset),'TS3DVertexShaderControl.Run / PreTesslization state : Object has no mesh assigned');
+      f := TMesh3D.Create;
+      try
+        transformationMatrix := s.TransformationMatrix * InputData.ViewMatrix;
+        TMesh3DTool.transform(s.MeshAsset,f,transformationMatrix);
+
+        t := TS3PLObject.Create;
+        t.meshIndex := mi;
+        Assert(f.meshData.indicesArraySize mod 3 = 0,'TS3DVertexShaderControl.Run / PreTesslization state : Indice must be multiple of 3 (triangulation)');
+        Assert(f.meshData.indicesArraySize-2>0,'TS3DVertexShaderControl.Run / Triangles indice overflow');
+
+        SetLength(t.faces,f.meshData.indicesArraySize div 3);
+        for i := 0 to Length(t.faces)-1 do
+        begin
+          tl := i * 3;
+
+          VertexIndiceA := f.meshData.indices[tl];
+          VertexIndiceB := f.meshData.indices[tl+1];
+          VertexIndiceC := f.meshData.indices[tl+2];
+
+          SetLength(t.faces[i].v,3); //triangle.
+
+          t.faces[i].v[0] := f.meshData.vertices[VertexIndiceA];
+          t.faces[i].v[1] := f.meshData.vertices[VertexIndiceB];
+          t.faces[i].v[2] := f.meshData.vertices[VertexIndiceC];
+
+          { TODO : UV, normals... }
+        end;
+        WorkingData.Transformed.AddObj(t);
+      finally
+        FreeAndNil(f);
+      end;
+
+      //Here, vertices is matrix transformed, but not raster projected. (made in tesselization)
+      result := WorkingData.Transformed.Count>0;
+      for t in WorkingData.Transformed do
+      begin
+          //{ TODO : Put here External Vertex Shader call ! }
+      end;
+    end;
+  finally
+    TMonitoring.exit('S3DVertexShaderControl.Run');
   end;
-  transform;
-end;
-
-procedure TS3DVertexShaderControl.transform;
-var i : integer;
-begin
-  for i:= 0 to TransformedMeshes.Count-1 do
-  begin
-    Shader.process(TransformedMeshes[i],TransformationMatrix);
-  end;
-end;
-
-{ TS3DVertexShader_STDShader }
-
-procedure TS3DVertexShader_STDShader.process(obj: TMesh3D; var _matrix: mat4);
-var i : integer;
-begin
-  for i := 0 to obj.meshData.verticesArraySize-1 do
-    obj.meshData.Vertices[i] := obj.meshData.Vertices[i] * _matrix;
 end;
 
 

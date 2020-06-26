@@ -13,35 +13,23 @@ uses Classes,
 Type
 
   TS3DFragmentShaderControl = class(TS3DPipeLineStep)
-    RasterData : TS3DRasterAndInterpolationControl;
-    Constructor Create(rasterStep : TS3DRasterAndInterpolationControl); reintroduce;
-    procedure Run; Override;
+    function Run : Boolean; Override;
   end;
-    TS3DFragmentShader = class(TS3DObject)
-      Controler : TS3DFragmentShaderControl;
+    TS3DFragmentShader = class
     end;
-    TS3DFragmentShader_Color = class(TS3DFragmentShader)
+    TS3DFragmentShader_Color = class
     end;
-
 
 implementation
 
 
 { TS3DFragmentShaderControl }
 
-constructor TS3DFragmentShaderControl.Create(
-  rasterStep: TS3DRasterAndInterpolationControl);
-begin
-  inherited Create;
-  Assert(assigned(rasterStep));
-  InputData := rasterStep.InputData;
-  RasterData :=  rasterStep;
-end;
 
-procedure TS3DFragmentShaderControl.Run;
+function TS3DFragmentShaderControl.Run : boolean;
 begin
-  inherited;
-
+  //...
+  result := true;
 end;
 
 end.

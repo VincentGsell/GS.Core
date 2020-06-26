@@ -5,11 +5,12 @@
 /// Aim        : - Win and Linux Delphi/FPC harmonized CPU access.
 ///-------------------------------------------------------------------------------
 /// History
+/// 20200619 - VGS - Rename as GS.System.CPU
 /// 20180929 - VGS - Added perfocounter for win.
-///                  Intrdocuce simple thread safe monitoring function.
+///                  Introdcuce simple thread safe monitoring function.
 ///-------------------------------------------------------------------------------
 
-unit GS.CPUUsage;
+unit GS.System.CPU;
 
 {$I GSCore.inc}
 
@@ -150,7 +151,7 @@ begin
     Result := GetTickCount64;
 end;
 {$ELSE}
-  {$IFDEF LINUX}
+{$IFDEF LINUX}
 var tv : timeval;
 Begin
   if {$IFDEF FPC}fpgettimeofday(@tv,nil){$ELSE}gettimeofday(tv,nil){$ENDIF} <>0 then
@@ -158,9 +159,9 @@ Begin
   else
     Result := (tv.tv_sec * 1000) + round((tv.tv_usec / 1000));
 end;
-  {$ELSE}
-    {$MESSAGE Fatal 'Method not implemented on current platform'}
-  {$ENDIF}
+{$ELSE}
+   {$MESSAGE Fatal 'Method not implemented on current platform'}
+{$ENDIF}
 {$ENDIF}
 
 { TgsCPUUsage }

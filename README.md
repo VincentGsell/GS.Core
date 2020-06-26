@@ -7,6 +7,22 @@
 # GS.Core
   Core functions shared by my projects 
 
+# history
+
+- 20200626 
+	- Introduce GS.Soft3d.Pipeline : More advanced 3d raster, try to have clean architecture, fellowing pipeline one. 3dRasterDemo included.
+	- Several rename, add GS.System.* demos, 
+	- GS.Common.* enhancement, Twee langage parser (very early)
+- 20200511 
+	- 3DRasterStandAloneDemos - 3d Standalone : For learning purpose : All you need to 3d raster. The Raster part is powered by Pixel32
+- 20200425 
+	- Introducing 3D capabilities throught GS.Soft3D.Pipeline domain : Work in progress.
+- 20200401 
+	- Introduce Language domain.
+- 20200301 
+	- Introduce Pixels domain, with Pixel32 as implemenation (32Bits raster pixel libs).
+
+
 - GS.Pixel
   Raster graphics system. Design to be simple, and build upon simple "software shader" technics.
   
@@ -35,13 +51,6 @@
   A work in progress attempt to work on file with advanced tools. See Glacify demo, for exemple.	 
   Glacify is an full R&D project, witch aim to reach the fellowing features : 
   - in one file archiving (=a "glacier"), versioning capability, archiving by provide cyphering and compression, get clear file version   on demand, capabity to scan directory and only process changed files.
-
-# history
-
-- 20200511 - 3DRasterStandAloneDemos - The Raster part is powered by Pixel32
-- 20200425 - Introducing 3D capabilities throught GS.Soft3D.Pipeline domain : Work in progress.
-- 20200401 - Introduce Language domain.
-- 20200301 - Introduce Pixels domain, with Pixel32 as implemenation (32Bits raster pixel libs).
 
 # Dependancy
 

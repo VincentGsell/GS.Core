@@ -11,61 +11,25 @@ uses Classes,
      GS.Soft3d.PipeLine.Tesselation;
 
 Type
-
-  TS3DGeometryShaderControler = class;
   TS3DGeometryShader = class(TS3DObject)
-    controler : TS3DGeometryShaderControler;
-    procedure process(obj : TS3DTesselletionMethod); virtual; abstract;
+        { TODO :
+    As Vertex Shader.
+    See if it relevant, at this stage. }
   end;
-    TS3DGeometryShader_STDShader = class(TS3DGeometryShader)
-    public
-      procedure process(obj : TS3DTesselletionMethod); override;
-    end;
 
   TS3DGeometryShaderControler = class(TS3DPipeLineStep)
   protected
   public
-    TesselationControl : TS3DTesselletionControl;
-    GeomShader : TS3DGeometryShader;
-
-    Constructor Create(Tessel : TS3DTesselletionControl); reintroduce;
-    procedure Run; override;
+    function Run : Boolean; override;
   end;
 
 
 implementation
 
 
-{ TS3DGeometryShader_STDShader }
-
-procedure TS3DGeometryShader_STDShader.process(obj: TS3DTesselletionMethod);
+function TS3DGeometryShaderControler.Run : Boolean;
 begin
-  //Todo.
-  //Aim : adding basic geometry stuffs, starting from entry data.
-end;
-
-
-
-{ TS3DGeometryShaderControler }
-
-constructor TS3DGeometryShaderControler.Create(Tessel: TS3DTesselletionControl);
-begin
-  assert(assigned(Tessel));
-  InputData := Tessel.InputData;
-  TesselationControl := Tessel;
-  GeomShader := TS3DGeometryShader_STDShader.Create;
-  GeomShader.Controler := self;
-end;
-
-procedure TS3DGeometryShaderControler.Run;
-var i,j : integer;
-begin
-  //WIP...
-  for i := 0 to TesselationControl.MeshObjectCount-1 do
-  begin
-    TesselationControl.MeshIndex := i;
-    GeomShader.process(TesselationControl.TesselationMethod);
-  end;
+  //....
 end;
 
 end.

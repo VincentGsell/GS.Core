@@ -35,6 +35,7 @@ public
 end;
 
 Type TTiangulationMethod = (tmDelaunay, tmSeibel, tmBeRo);
+
 //Use that for "One time call".
 TGSTriangulationPortal = class
   class function Delaunay(cloudPoint : array of vec2; var resultMesh : TGSRawMesh2D) : UInt32;

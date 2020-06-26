@@ -11,6 +11,13 @@ object Form5: TForm5
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
+  object Image1: TImage
+    Left = 232
+    Top = 232
+    Width = 385
+    Height = 305
+  end
 end

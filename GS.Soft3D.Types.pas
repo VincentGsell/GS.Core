@@ -4,6 +4,7 @@ interface
 
 uses Classes,
      SysUtils,
+     contnrs,
      GS.Geometry;
 
 Type
@@ -21,6 +22,7 @@ Type
     vertices : array of vec3; //...
     UVMap : array of TCoord;  //...Synchro.
     indices : array of Uint32;
+    normals : array of vec3;
 
     procedure clear;
 
@@ -28,39 +30,64 @@ Type
     procedure setVerticesArraySize(newSize : Uint32);
     function indicesArraySize : Uint32;
     procedure setIndicesArraySize(newSize : Uint32);
+    function NormalArraySize : Uint32;
+    procedure setNormalsArraySize(newSize : Uint32);
 
     procedure copy(var destination : TMeshData3D);
   private
   End;
 
+  TBaseVertexArray = array of vec3;
+//  TBaseTriangle = record VertexIndiceA,VertexIndiceB,VertexIndiceC : integer; uvA, uvB, uvC : TCoord; end;
+//  TBaseTriangle3D = record VertexA,VertexB,VertexC : vec3; uvA, uvB, uvC : TCoord; end;
+
   TBase3D = class
   private
+  protected
   public
     x,y,z : single;    //position.
     rx,ry,rz : single; //Rotation (self)
     Enabled : boolean;
     constructor Create; virtual;
+
+    function TransformationMatrix : Mat4;
   end;
 
-  TBaseVertexArray = array of vec3;
-  TBaseTriangle = record VertexIndiceA,VertexIndiceB,VertexIndiceC : integer; uvA, uvB, uvC : TCoord; end;
-  TBaseTriangle3D = record VertexA,VertexB,VertexC : vec3; uvA, uvB, uvC : TCoord; end;
-
-  TMesh3D = class(TBase3D)
+  TMesh3D = class
   protected
   public
     meshData : TMeshData3D;
-
-    constructor Create; override;
+    constructor Create; virtual;
     destructor Destroy; override;
 
     procedure addVertex(x,y,z : single); overload;  //todo Normal
     procedure addVertex(const map : TBaseVertexArray); overload; //todo Normal
     procedure addTriangle(i1,i2,i3 : uint32; u,v,u1,v1,u2,v2 : integer); overload;
     procedure addQuad(i1,i2,i3,i4 : uint32);
-
     procedure meshScale(factor : single); //?
   end;
+
+  TS3DMeshList = Class(TObjectList)
+  private
+    function GetMesh(Index: Uint32): TMesh3D;
+    procedure SetMesh(Index: Uint32; const Value: TMesh3D);
+  public
+    procedure AddMesh(mesh : TMesh3D);
+    property Mesh[Index : Uint32] : TMesh3D read GetMesh write SetMesh; default;
+  End;
+
+  TS3DObject = Class(TBase3D)
+    MeshAsset : TMesh3D; //Pointer.
+  End;
+
+  TS3DObjectList = Class(TObjectList)
+  private
+    function GetObj(Index: UInt32): TS3DObject;
+    procedure SetObj(Index: UInt32; const Value: TS3DObject);
+  public
+    procedure AddObject(_obj : TS3DObject);
+    property  Objects3D[Index : UInt32] : TS3DObject read GetObj Write SetObj; default;
+  End;
 
 
 implementation
@@ -78,10 +105,31 @@ begin
   Enabled := true;
 end;
 
+function TBase3D.TransformationMatrix: Mat4;
+var ObjTransMatrix, ObjRotX,ObjRotY,OBjRotZ : Mat4;
+begin
+  objTransMatrix := mat4CreateTranslation(vec3.create(x,y,z));
+  objRotX := mat4CreateRotationX(_radians(rx));
+  objRotY := mat4CreateRotationY(_radians(ry));
+  objRotZ := mat4CreateRotationZ(_radians(rz));
+
+  Result := objRotX;
+  Result := Result * mat4CreateTranslation(vec3.create(0,0,0));
+  Result := Result * objRotY;
+  Result := Result * mat4CreateTranslation(vec3.create(0,0,0));
+  Result := Result * objRotZ;
+  Result := Result * mat4CreateTranslation(vec3.create(0,0,0));
+  Result := Result * objTransMatrix;
+end;
+
 { TMeshData3D }
 
 procedure TMeshData3D.clear;
 begin
+  vertices := nil;
+  indices := nil;
+  normals := nil;
+  UVMap := nil;
 //  FillChar(vertices,(length(vertices)-1)*SizeOf(TVertice3D),0);
 //  FillChar(Indices,length(Indices)-1,0);
 end;
@@ -89,10 +137,12 @@ end;
 procedure TMeshData3D.copy(var destination: TMeshData3D);
 begin
   SetLength(destination.vertices,length(vertices));
+  SetLength(destination.normals,length(normals));
   SetLength(destination.UVMap,length(vertices));
   SetLength(destination.indices,length(indices));
 
   Move(vertices[0],destination.vertices[0],length(vertices)*sizeOf(vec3));
+  Move(normals[0],destination.normals[0],length(normals)*sizeOf(vec3));
   Move(UVMap[0],destination.UVMap[0],length(UVMap)*sizeOf(TCoord));
   Move(indices[0],destination.indices[0],length(indices)*SizeOf(Uint32));
 end;
@@ -102,9 +152,19 @@ begin
   result := Length(Indices);
 end;
 
+function TMeshData3D.NormalArraySize: Uint32;
+begin
+  result:=Length(Normals);
+end;
+
 procedure TMeshData3D.setIndicesArraySize(newSize: Uint32);
 begin
   SetLength(Indices,newSize);
+end;
+
+procedure TMeshData3D.setNormalsArraySize(newSize: Uint32);
+begin
+  SetLength(normals,newSize);
 end;
 
 procedure TMeshData3D.setVerticesArraySize(newSize: Uint32);
@@ -180,6 +240,43 @@ var i : integer;
 begin
   for I := 0 to meshData.verticesArraySize-1 do
     meshData.Vertices[i] := meshData.Vertices[i] * factor;
+end;
+
+{ TS3DMeshList }
+
+procedure TS3DMeshList.AddMesh(mesh: TMesh3D);
+begin
+  if IndexOf(mesh)=-1 then
+    Add(mesh);
+end;
+
+function TS3DMeshList.GetMesh(Index: Uint32): TMesh3D;
+begin
+  result := TMesh3D(Items[Index]);
+end;
+
+procedure TS3DMeshList.SetMesh(Index: Uint32; const Value: TMesh3D);
+begin
+  Items[Index] := Value;
+end;
+
+
+
+{ TS3DObjectList }
+
+procedure TS3DObjectList.AddObject(_obj: TS3DObject);
+begin
+  add(_Obj);
+end;
+
+function TS3DObjectList.GetObj(Index: UInt32): TS3DObject;
+begin
+  result := TS3DObject(Items[Index]);
+end;
+
+procedure TS3DObjectList.SetObj(Index: UInt32; const Value: TS3DObject);
+begin
+  Items[Index] := Value;
 end;
 
 end.

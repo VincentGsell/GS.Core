@@ -2,8 +2,8 @@ object Form7: TForm7
   Left = 0
   Top = 0
   Caption = 'Form7'
-  ClientHeight = 566
-  ClientWidth = 890
+  ClientHeight = 597
+  ClientWidth = 1040
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -12,22 +12,29 @@ object Form7: TForm7
   Font.Style = []
   OldCreateOrder = False
   OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnMouseWheel = FormMouseWheel
+  OnResize = FormResize
   DesignSize = (
-    890
-    566)
+    1040
+    597)
   PixelsPerInch = 96
   TextHeight = 13
   object Image1: TImage
     Left = 0
     Top = 0
-    Width = 890
-    Height = 566
+    Width = 1040
+    Height = 597
     Align = alClient
     AutoSize = True
+    OnMouseDown = Image1MouseDown
+    OnMouseMove = Image1MouseMove
     ExplicitLeft = 16
+    ExplicitWidth = 890
+    ExplicitHeight = 566
   end
   object Panel1: TPanel
-    Left = 675
+    Left = 825
     Top = 8
     Width = 207
     Height = 233
@@ -111,8 +118,37 @@ object Form7: TForm7
       end
     end
   end
+  object Panel2: TPanel
+    Left = 760
+    Top = 247
+    Width = 272
+    Height = 322
+    Anchors = [akTop, akRight]
+    Caption = 'Panel2'
+    TabOrder = 1
+    DesignSize = (
+      272
+      322)
+    object TreeView1: TTreeView
+      Left = 6
+      Top = 5
+      Width = 259
+      Height = 311
+      Anchors = [akLeft, akTop, akRight, akBottom]
+      DoubleBuffered = True
+      Indent = 19
+      ParentDoubleBuffered = False
+      TabOrder = 0
+    end
+  end
   object TimerFPS: TTimer
-    Left = 56
-    Top = 16
+    OnTimer = TimerFPSTimer
+    Left = 40
+    Top = 24
+  end
+  object ApplicationEvents1: TApplicationEvents
+    OnIdle = ApplicationEvents1Idle
+    Left = 40
+    Top = 72
   end
 end

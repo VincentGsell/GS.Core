@@ -102,18 +102,18 @@
             <Form>Form34</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.AlgoProgram.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.AlgoProgram.Runner.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.Compiler.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.Compiler.Pascal.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.Formula.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.Formula.Solver.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.Parser.Pascal.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.Semantic.Pascal.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.Syntax.Pascal.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.Tokenizer.Pascal.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.VM.pas"/>
-        <DCCReference Include="..\..\..\..\..\..\GS.Core\GS.Language.WordTokenizer.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.AlgoProgram.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.AlgoProgram.Runner.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.Compiler.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.Compiler.Pascal.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.Formula.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.Formula.Solver.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.Parser.Pascal.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.Semantic.Pascal.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.Syntax.Pascal.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.Tokenizer.Pascal.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.VM.pas"/>
+        <DCCReference Include="..\..\..\..\..\..\GS.Language.WordTokenizer.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

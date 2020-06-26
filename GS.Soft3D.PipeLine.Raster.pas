@@ -4,10 +4,13 @@ interface
 
 uses Classes,
      SysUtils,
+     Math,
      GS.Geometry,
+     GS.Common.Monitoring,
      GS.Soft3d.Types,
      GS.Soft3d.MeshTools,
      GS.Soft3d.PipeLine.Types,
+     GS.Soft3d.PipeLine.Types.InternalFormat,
      GS.Soft3d.PipeLine.GeometryShader,
      GS.Soft3d.PipeLine.Tesselation;
 
@@ -18,42 +21,53 @@ Type
   TS3DBackBuffeCode = array of byte;
 
   TS3DBackBufferItem = packed record //(!) pixel level.
+    barrier : Uint16;
     z : single;
-    r,g,b,a : byte;
-    //detection info ?
-    //rec and object id ?
+    ObjFound : Boolean;
+    Objindex : Uint32;
+    ObjFaceIndex : Uint32;
+    //r,g,b,a : byte;
   end;
   pTS3DBackBufferItem = ^TS3DBackBufferItem;
-
   TS3DBackBufferArray = array of TS3DBackBufferItem;
-  TS3DBackBufferLayer = array of TS3DBackBufferArray;
 
   TS3DBackBuffer = class
   private
   protected
-    BarrierCode : TS3DBackBuffeCode;
-    Buffer : TS3DBackBufferLayer;
     fMemory : UInt64;
     fwidth: Uint32;
-    fLayerCount: byte;
     fheight: Uint32;
+    fv : Uint32;
   public
-    Constructor Create(layerCounter : byte; width, height : Uint32); reintroduce;
+    Buffer : TS3DBackBufferArray;
+
+    Constructor Create(width, height : Uint32); reintroduce;
+
+    procedure resize(_w,_h : Uint32);
+
+    procedure cycle;
+
+    function BackBufferMemory : pTS3DBackBufferItem;
+    function BackBufferScanLine(LineIndex : Uint32) : pTS3DBackBufferItem;
+
 
     property MemorySize : Uint64 read fMemory;
-    property layerCount : byte read fLayerCount;
     property width : Uint32 read fwidth;
     property height : Uint32 read fheight;
+
+    property BackBufferValue : Uint32 read fv;
+
   end;
 
   TS3DRasterAndInterpolationControl = class(TS3DPipeLineStep)
   public
-    Geometry : TS3DGeometryShaderControler;
-    Buffer : TS3DBackBuffer;
-    Constructor Create(s3dGeom : TS3DGeometryShaderControler; width, height : Uint32); reintroduce;
-    Destructor Destroy; override;
+    BackMem : TS3DBackBuffer;
+    Constructor Create(Owner : TObject; _in : TS3DInputData3D; _wo : TS3DPipeLineData); override;
+    Destructor Destroy; Override;
 
-    procedure Run; override;
+    function Run : Boolean; override;
+
+    function QueryingBuffer(x, y: Uint32; out objIndex, FaceIndex: Uint32): Boolean;
   end;
 
 
@@ -61,108 +75,202 @@ implementation
 
 { TS3DBackBuffer }
 
-constructor TS3DBackBuffer.Create(layerCounter: byte; width, height: Uint32);
+function TS3DBackBuffer.BackBufferMemory: pTS3DBackBufferItem;
 begin
-  assert(layerCounter>0);
+  result := @(Buffer[0]);
+end;
+
+function TS3DBackBuffer.BackBufferScanLine(
+  LineIndex: Uint32): pTS3DBackBufferItem;
+begin
+  assert(lineIndex<height);
+  result := BackBufferMemory;
+  inc(Result,LineIndex*width);
+end;
+
+constructor TS3DBackBuffer.Create(width, height: Uint32);
+var i : integer;
+begin
+  fv := 0;
   assert(width>0);
   assert(height>0);
 
-  SetLength(BarrierCode,width*height);
-  SetLength(Buffer,width*height);
+  resize(width,height);
+end;
 
-  FMemory := SizeOf(Buffer) + SizeOf(BarrierCode);
+procedure TS3DBackBuffer.cycle;
+begin
+  inc(fv); //Alternative : reset all backbuffer barrier array.
+end;
+
+procedure TS3DBackBuffer.resize(_w, _h: Uint32);
+begin
+  SetLength(Buffer,_w *_h);
+  FMemory := SizeOf(Buffer) * _w *_h;
+  fwidth := _w;
+  fheight := _h;
 end;
 
 { TS3DRasterAndInterpolationControl }
 
-constructor TS3DRasterAndInterpolationControl.Create(s3dGeom : TS3DGeometryShaderControler; width, height: Uint32);
+constructor TS3DRasterAndInterpolationControl.Create(Owner : TObject; _in : TS3DInputData3D; _wo : TS3DPipeLineData);
 begin
-  assert(assigned(s3dGeom));
-  InputData := s3dGeom.InputData;
-  Geometry := s3dGeom;
-  Buffer := TS3DBackBuffer.Create(CST_DEFAULT_LAYER_COUNT,width,height);
+  inherited Create(Owner,_in,_wo);
+  BackMem := TS3DBackBuffer.Create(InputData.Resolution.width,InputData.Resolution.height);
 end;
 
 destructor TS3DRasterAndInterpolationControl.Destroy;
 begin
-  FreeAndNil(Buffer);
+  FreeAndNil(BackMem);
   inherited;
 end;
 
-procedure TS3DRasterAndInterpolationControl.Run;
-var i,j : Integer;
-    t : TBaseTriangle3D;
-    ltri : TS3DTesselletionTri;
+function TS3DRasterAndInterpolationControl.QueryingBuffer(x, y: Uint32;
+  out objIndex, FaceIndex: Uint32): Boolean;
+var bb : pTS3DBackBufferItem;
 begin
-
-///
-///  Triangle transformation for preparing raster fragement op.
-
-  for I := 0 to Geometry.TesselationControl.MeshObjectCount-1 do
+  result := false;
+  objIndex := 0;
+  FaceIndex := 0;
+  if (y<BackMem.height) and (x<BackMem.width) then
   begin
-    Geometry.TesselationControl.MeshIndex := i;
-    ltri :=  TS3DTesselletionTri(Geometry.TesselationControl.TesselationMethod);
-
-    for j := 0 to ltri.triangleCount-1 do
+    bb := BackMem.BackBufferScanLine(y);
+    inc(bb,x);
+    if bb.barrier = BackMem.BackBufferValue then
     begin
-      t := ltri.triangles3D(j);
-
-      //Applying Z.
-      t.VertexA.X := t.VertexA.X / t.VertexA.Z;
-      t.VertexA.Y := t.VertexA.Y / t.VertexA.Z;
-      t.VertexB.X := t.VertexB.X / t.VertexB.Z;
-      t.VertexB.Y := t.VertexB.Y / t.VertexB.Z;
-      t.VertexC.X := t.VertexC.X / t.VertexC.Z;
-      t.VertexC.Y := t.VertexC.Y / t.VertexC.Z;
-
-      //https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/perspective-correct-interpolation-vertex-attributes
-      //https://www.khronos.org/opengl/wiki/Vertex_Transformation
-      //viewport = (0,0,Width, Height) | Formula = windowCoordinate[0] = (x * 0.5 + 0.5) * viewport[2] + viewport[0];
-
-      //Denormalization.
-      t.VertexA.X := (1 + t.VertexA.X) * 0.5 * InputData.Resolution.width;
-      t.VertexA.Y := (1 + t.VertexA.Y) * 0.5 * InputData.Resolution.height;
-      t.VertexB.X := (1 + t.VertexB.X) * 0.5 * InputData.Resolution.width;
-      t.VertexB.Y := (1 + t.VertexB.Y) * 0.5 * InputData.Resolution.height;
-      t.VertexC.X := (1 + t.VertexC.X) * 0.5 * InputData.Resolution.width;
-      t.VertexC.Y := (1 + t.VertexC.Y) * 0.5 * InputData.Resolution.height;
-
-      //Denormalization Equivalence : (for info - vector dir display inverse.)
-      //t.VertexA.x := (1-t.VertexA.x) * Width/2;
-      //t.VertexA.y := (1-t.VertexA.y) * Height/2;
-      //t.VertexB.x := (1-t.VertexB.x) * Width/2;
-      //t.VertexB.y := (1-t.VertexB.y) * Height/2;
-      //t.VertexC.x := (1-t.VertexC.x) * Width/2;
-      //t.VertexC.y := (1-t.VertexC.y) * Height/2;
-
+      result := bb.ObjFound;
+      objIndex := bb.Objindex;
+      FaceIndex := bb.ObjFaceIndex;
     end;
-{
-//      TargetCanvas.beginDraw;
-      if Frasterframe then
-      begin
-
-        TargetCanvas.setVerticeXYZ(0,t.VertexA.X,t.VertexA.Y,t.VertexA.Z);
-        TargetCanvas.setVerticeUV(0,t.uvA.u,t.uvA.v);
-        TargetCanvas.setVerticeXYZ(1,t.VertexB.X,t.VertexB.Y,t.VertexB.Z);
-        TargetCanvas.setVerticeUV(1,t.uvB.u,t.uvB.v);
-        TargetCanvas.setVerticeXYZ(2,t.VertexC.X,t.VertexC.Y,t.VertexC.Z);
-        TargetCanvas.setVerticeUV(2,t.uvC.u,t.uvC.v);
-        TargetCanvas.rasterize;
-
-      end;
-
-      if wireFrame then //TODO 3d line !?
-      begin
-
-        TargetCanvas.moveTo(round(t.VertexA.x),round(t.VertexA.y));
-        TargetCanvas.LineTo(round(t.VertexB.x),round(t.VertexB.y));
-        TargetCanvas.lineTo(round(t.VertexC.x),round(t.VertexC.y));
-        TargetCanvas.lineTo(round(t.VertexA.x),round(t.VertexA.y));
-}
-//      TargetCanvas.endDraw;
-//    end;
-//    TargetCanvas.endDraw;
+  end;
 end;
+
+function edgeFunctionLocal(var a,b,c : vec3) : TVecType; {$IFNDEF DEBUG} inline; {$ENDIF}
+begin
+  result := (a.x - c.x) * (b.y - a.y) - (a.y - c.y) * (b.x - a.x);
+end;
+
+function TS3DRasterAndInterpolationControl.Run : boolean;
+var s : TS3PLObject;
+    area, w0,w1,w2 : TVecType;
+    p, sv : vec3;
+    oi,k,w,h : UInt32;
+    v : array[0..2] of vec3;
+    minx, maxx, miny, maxy : integer;
+    vi0x,vi0y,vi1x,vi1y,vi2x,vi2y : integer;
+
+
+    procedure ZBufferBuild;
+    var i,j : Integer;
+        holyZ : TVecType;
+        ZCol,ZDef : single;
+        bb : pTS3DBackBufferItem;
+    begin
+      for j := miny to maxy do
+      begin
+        bb := BackMem.BackBufferScanLine(j);
+        inc(bb,minx);
+        bb.ObjFound := false;
+        for i := minx to maxx do
+        begin
+          p.x := i; p.y := j;
+          w0 := edgeFunctionLocal(v[1], v[2], p);
+          w1 := edgeFunctionLocal(v[2], v[0], p);
+          w2 := edgeFunctionLocal(v[0], v[1], p);
+
+          if (w0>=0) and (w1>=0) and (w2>=0) then
+          begin
+            bb.ObjFound := true;
+            w0 := w0 / area;
+            w1 := w1 / area;
+            w2 := w2 / area;
+
+            holyZ := (w0*v[0].z + w1*v[1].z + w2*v[2].z);
+            ZDef := 0;
+            if holyZ<>0 then
+              ZDef := abs(1 / holyZ);
+            ZCol := _clamp(ZDef,0,1);
+
+            if bb.barrier <> BackMem.BackBufferValue then
+            begin
+              bb.barrier := BackMem.BackBufferValue;
+              bb.z := ZCol;
+              bb.Objindex := oi;
+              bb.ObjFaceIndex := k;
+            end
+            else
+            begin
+              if ZDef>bb.z then
+              begin
+                { TODO : Here Introduce layer, to keep object overlay ? }
+                bb.z := ZCol;
+                bb.Objindex := oi;
+                bb.ObjFaceIndex := k;
+              end;
+            end;
+          end;
+          inc(bb);
+        end;
+      end;
+    end;
+
+begin
+  //ZBuffer build.
+  TMonitoring.enter('TS3DRasterAndInterpolationControl.Run');
+  try
+    Result := WorkingData.Transformed.Count>0;
+    w := InputData.Resolution.width;
+    h := InputData.Resolution.height;
+    BackMem.cycle;
+    oi := 0;
+    for s in WorkingData.Transformed do
+    begin
+      for k := 0 to length(s.Faces)-1 do
+      begin
+        v[0] := s.Faces[k].v[0];
+        v[1] := s.Faces[k].v[1];
+        v[2] := s.Faces[k].v[2];
+
+        area := edgeFunctionLocal(v[0],
+                                  v[1],
+                                  v[2]);
+        if area<=0 then
+        begin
+          //swap (rev. triangle.)
+          sv := v[0];
+          v[0] := v[2];
+          v[2] := sv;
+          area := edgeFunctionLocal(v[0],v[1],v[2]);
+          if area<=0 then
+          begin
+            Exit;
+          end;
+        end;
+
+        vi0x := round(v[0].x);
+        vi0y := round(v[0].y);
+        vi1x := round(v[1].x);
+        vi1y := round(v[1].y);
+        vi2x := round(v[2].x);
+        vi2y := round(v[2].y);
+
+        minx:=max(min(min(vi0x,vi1x),vi2x),0);
+        miny:=max(min(min(vi0y,vi1y),vi2y),0);
+
+        maxx:=min(max(max(vi0x,vi1x),vi2x),w-1);
+        maxy:=min(max(max(vi0y,vi1y),vi2y),h-1);
+
+///VGS : 2 above lines Desactivated since 2020/06/25 : Seems to introduce major glitch. to study.
+///      if maxx-minx=0 then break; ?
+///      if maxy-miny=0 then break;
+
+        ZBufferBuild;
+      end;
+      Inc(oi); //Object index in transformed list.
+    end;
+  finally
+    TMonitoring.exit('TS3DRasterAndInterpolationControl.Run');
+  end;
 end;
 
 end.

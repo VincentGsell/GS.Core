@@ -14,11 +14,20 @@ uses
   GS.Soft3D.PipeLine.Tesselation in '..\..\..\..\..\GS.Soft3D.PipeLine.Tesselation.pas',
   GS.Soft3D.PipeLine.Types in '..\..\..\..\..\GS.Soft3D.PipeLine.Types.pas',
   GS.Soft3D.PipeLine.VertexShader in '..\..\..\..\..\GS.Soft3D.PipeLine.VertexShader.pas',
-  GS.Soft3D.Types in '..\..\..\..\..\GS.Soft3D.Types.pas';
+  GS.Soft3D.Types in '..\..\..\..\..\GS.Soft3D.Types.pas',
+  GS.Soft3D.View.Pixel32 in '..\..\..\..\..\GS.Soft3D.View.Pixel32.pas',
+  GS.Common.Log in '..\..\..\..\..\GS.Common.Log.pas',
+  GS.Common.Log.Default in '..\..\..\..\..\GS.Common.Log.Default.pas',
+  GS.Common.Monitoring in '..\..\..\..\..\GS.Common.Monitoring.pas',
+  GS.Common.Monitoring.Default in '..\..\..\..\..\GS.Common.Monitoring.Default.pas',
+  GS.Soft3D.PipeLine.Types.InternalFormat in '..\..\..\..\..\GS.Soft3D.PipeLine.Types.InternalFormat.pas';
 
 {$R *.res}
 
 begin
+  {$IFDEF DEBUG}
+  ReportMemoryLeaksOnShutdown := true;
+  {$ENDIF}
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TForm7, Form7);

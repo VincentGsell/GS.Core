@@ -142,22 +142,22 @@ begin
   try
     a.SetPointedCoord(Point(result[0].x,result[0].Y,0));
     a.TurnBy(angleInDegree);
-    Result[0] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,0,0); //...Get coord...
+    Result[0] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,0); //...Get coord...
 
 //    a.TurnBy(90); //...And so on.
     a.SetPointedCoord(Point(result[1].x,result[1].Y,0));
     a.TurnBy(angleInDegree);
-    Result[1] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,1,0);
+    Result[1] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),1,0);
 
 //    a.TurnBy(90);
     a.SetPointedCoord(Point(result[2].x,result[2].Y,0));
     a.TurnBy(angleInDegree);
-    Result[2] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,1,1);
+    Result[2] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),1,1);
 
 //    a.TurnBy(90);
     a.SetPointedCoord(Point(result[3].x,result[3].Y,0));
     a.TurnBy(angleInDegree);
-    Result[3] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,0,1);
+    Result[3] := P32Vertex(trunc(a.GetPointedCoord.X),trunc(a.GetPointedCoord.y),0,1);
   finally
     FreeandNil(a);
   end;

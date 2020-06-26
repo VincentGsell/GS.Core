@@ -194,7 +194,7 @@ constructor TPixel32SurfaceEffectClassicOperations.Create;
 begin
   inherited Create;
   InitializeOperations(addInternalPixelUnitOperation);
-  FCurrentOp := RedOperation; //First one.
+  FCurrentOp := TPixelUnitOp.RedOperation; //First one.
 end;
 
 procedure TPixel32SurfaceEffectClassicOperations.process;
@@ -251,7 +251,7 @@ constructor TPixel32SurfaceEffectClassicBlendOps.Create;
 begin
   inherited Create;
   InitializeBlends(addInternalPixelUnitBlendOperation);
-  FCurrentOp := OpacityBlend; //First one.
+  FCurrentOp := TPixelUnitBlendOp.OpacityBlend; //First one.
 end;
 
 procedure TPixel32SurfaceEffectClassicBlendOps.setOpParameter(askLevel: single;

@@ -9,6 +9,9 @@
         <Projects Include="..\..\..\GS.PasCode\Delphi\VCL\PascalTests\ProjectPascalTest.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\..\..\GS.TwineCode\ProjectTwine.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -35,14 +38,23 @@
     <Target Name="ProjectPascalTest:Make">
         <MSBuild Projects="..\..\..\GS.PasCode\Delphi\VCL\PascalTests\ProjectPascalTest.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ProjectTwine">
+        <MSBuild Projects="..\..\..\GS.TwineCode\ProjectTwine.dproj"/>
+    </Target>
+    <Target Name="ProjectTwine:Clean">
+        <MSBuild Projects="..\..\..\GS.TwineCode\ProjectTwine.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ProjectTwine:Make">
+        <MSBuild Projects="..\..\..\GS.TwineCode\ProjectTwine.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="ProjectGSLangTests;ProjectPascalTest"/>
+        <CallTarget Targets="ProjectGSLangTests;ProjectPascalTest;ProjectTwine"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="ProjectGSLangTests:Clean;ProjectPascalTest:Clean"/>
+        <CallTarget Targets="ProjectGSLangTests:Clean;ProjectPascalTest:Clean;ProjectTwine:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="ProjectGSLangTests:Make;ProjectPascalTest:Make"/>
+        <CallTarget Targets="ProjectGSLangTests:Make;ProjectPascalTest:Make;ProjectTwine:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
