@@ -25,7 +25,8 @@
 
 - GS.Pixel
   Raster graphics system. Design to be simple, and build upon simple "software shader" technics.
-  
+  This lib's aim is to try to reach a good level of performance, but it first target efficiency and simplicity to achieve common advanced graphics tasks.
+
 - GS.Language
   Common compiler technique - Work In progress.
   
@@ -68,8 +69,7 @@ For your conveniance and for easy integration, those libs are availables on this
 
 # Demo
 
-  GS.Pixel derivated : 
- ![Alt text](/../master/Ressources/Pixel32Tease.png?raw=true "Pixel32 Demos")
+  GS.Pixel derivated![Alt text](/../master/Ressources/Pixel32tease.png?raw=true "Pixel32 Demos")
   
   - 3D Raster demo, all in one unit, for teaching purpose
   https://github.com/VincentGsell/GS.Demos.3DRasterStandAlone
