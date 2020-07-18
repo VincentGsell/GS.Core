@@ -111,7 +111,7 @@ object Form3: TForm3
   end
   object btnCreate: TButton
     Left = 3
-    Top = 279
+    Top = 360
     Width = 103
     Height = 25
     Caption = 'Create'
@@ -121,10 +121,11 @@ object Form3: TForm3
   end
   object ListBox2: TListBox
     Left = 3
-    Top = 310
+    Top = 391
     Width = 103
     Height = 203
     ItemHeight = 13
+    MultiSelect = True
     TabOrder = 3
     OnClick = ListBox1Click
   end
@@ -144,9 +145,44 @@ object Form3: TForm3
     State = cbChecked
     TabOrder = 4
   end
+  object Button1: TButton
+    Left = 3
+    Top = 279
+    Width = 103
+    Height = 25
+    Caption = 'Save'
+    TabOrder = 5
+    OnClick = Button1Click
+  end
+  object Button2: TButton
+    Left = 3
+    Top = 310
+    Width = 103
+    Height = 25
+    Caption = 'Load'
+    TabOrder = 6
+    OnClick = Button2Click
+  end
+  object Button3: TButton
+    Left = 3
+    Top = 596
+    Width = 22
+    Height = 25
+    Caption = '-'
+    TabOrder = 7
+    OnClick = Button3Click
+  end
   object TimerFPS: TTimer
     OnTimer = TimerFPSTimer
     Left = 448
     Top = 16
+  end
+  object SaveDialog1: TSaveDialog
+    Left = 472
+    Top = 320
+  end
+  object OpenDialog1: TOpenDialog
+    Left = 480
+    Top = 328
   end
 end

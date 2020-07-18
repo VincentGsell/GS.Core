@@ -141,7 +141,7 @@ var i : Integer;
 
 
 Const
-  CST_POINT_COUNT = 10;
+  CST_POINT_COUNT = 100;
 begin
   Randomize;
   mesh2d :=TGSRawMesh2D.Create;

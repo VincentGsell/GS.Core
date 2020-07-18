@@ -24,7 +24,7 @@ Type
     barrier : Uint16;
     z : single;
     ObjFound : Boolean;
-    Objindex : Uint32;
+    ObjIndex : Uint32;
     ObjFaceIndex : Uint32;
     //r,g,b,a : byte;
   end;
@@ -170,7 +170,6 @@ var s : TS3PLObject;
       begin
         bb := BackMem.BackBufferScanLine(j);
         inc(bb,minx);
-        bb.ObjFound := false;
         for i := minx to maxx do
         begin
           p.x := i; p.y := j;
@@ -180,7 +179,6 @@ var s : TS3PLObject;
 
           if (w0>=0) and (w1>=0) and (w2>=0) then
           begin
-            bb.ObjFound := true;
             w0 := w0 / area;
             w1 := w1 / area;
             w2 := w2 / area;
@@ -197,6 +195,7 @@ var s : TS3PLObject;
               bb.z := ZCol;
               bb.Objindex := oi;
               bb.ObjFaceIndex := k;
+              bb.ObjFound := true;
             end
             else
             begin
@@ -260,9 +259,28 @@ begin
         maxx:=min(max(max(vi0x,vi1x),vi2x),w-1);
         maxy:=min(max(max(vi0y,vi1y),vi2y),h-1);
 
-///VGS : 2 above lines Desactivated since 2020/06/25 : Seems to introduce major glitch. to study.
-///      if maxx-minx=0 then break; ?
-///      if maxy-miny=0 then break;
+        { TODO : replace by clamp }
+        if maxx>InputData.Resolution.x then
+          maxx := InputData.Resolution.x;
+        if maxx<0 then
+          maxx := 0;
+        if maxy>InputData.Resolution.y then
+          maxy := InputData.Resolution.y;
+        if maxy<0 then
+          maxy := 0;
+
+        if minx>InputData.Resolution.x then
+          minx := InputData.Resolution.x;
+        if minx<0 then
+          minx := 0;
+        if miny>InputData.Resolution.y then
+          miny := InputData.Resolution.y;
+        if miny<0 then
+          miny := 0;
+
+        //avoid enter in Zbffer processing with incongrous value.
+        if maxx-minx=0 then break;
+        if maxy-miny=0 then break;
 
         ZBufferBuild;
       end;

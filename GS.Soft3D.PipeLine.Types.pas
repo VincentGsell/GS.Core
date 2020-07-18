@@ -86,7 +86,7 @@ begin
       AspectRatio := Resolution.width/Resolution.height;
       ZFar := 1000;
       ZNear := 0;
-      FOV := _radians(90.0);
+      FOV := _radians(45.0);
 
       ProjectionMatrix :=
         mat4CreatePerspectiveFovLH(

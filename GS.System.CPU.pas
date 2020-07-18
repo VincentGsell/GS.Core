@@ -6,7 +6,9 @@
 ///-------------------------------------------------------------------------------
 /// History
 /// 20180929 - VGS - Added perfocounter for win.
-///                  Intrdocuce simple thread safe monitoring function.
+///                  Introduce simple thread safe monitoring function.
+/// 20200630 - VGS - FMX Support. (Embarcadero Mobile mainly)
+///
 ///-------------------------------------------------------------------------------
 
 unit GS.System.CPU;
@@ -33,6 +35,12 @@ Uses SysUtils, Classes, SyncObjs
 
 {$IFDEF DCC}
 Uses System.SysUtils, System.Classes, System.SyncObjs, System.SysConst, System.Types
+
+{$IFDEF USE_FMX}
+  ,FMX.Types
+  ,FMX.Platform
+{$ENDIF}
+
  {$IFDEF WINDOWS}
  ,Windows,
  Messages
@@ -52,6 +60,7 @@ Uses System.SysUtils, System.Classes, System.SyncObjs, System.SysConst, System.T
  ;
 {$ENDIF}
 Type
+
 
 
 //TODO : Dig into GetSystemTimes to separate Kernel time for Linux, android and MacOSX.
@@ -102,7 +111,6 @@ function GetSystemTimes(var lpIdleTime, lpKernelTime, lpUserTime: TFileTime): BO
 {$ENDIF}
 
 function gsGetTickCount : Int64;
-
 function gsNewMonitoring : Uint32;
 Procedure gsStartMonitoring(aMonIndex : UInt32);
 function gsStepMonitoring(aMonIndex : UInt32) : Uint64;
@@ -113,6 +121,10 @@ implementation
 var glbMon : Array of Int64;
     glbIndex : integer;
     glbLock : {$IFDEF FPC}SyncObjs.{$ENDIF}TCriticalSection;
+
+{$IFDEF USE_FMX}
+var PlatformTimer : IFMXTimerService;
+{$ENDIF}
 
 function gsNewMonitoring : UInt32;
 begin
@@ -159,7 +171,13 @@ Begin
     Result := (tv.tv_sec * 1000) + round((tv.tv_usec / 1000));
 end;
 {$ELSE}
+  {$IFDEF USE_FMX}
+begin
+  Result := Round(PlatformTimer.GetTick * 1000);
+end;
+  {$ELSE}
    {$MESSAGE Fatal 'Method not implemented on current platform'}
+  {$ENDIF}
 {$ENDIF}
 {$ENDIF}
 
@@ -326,6 +344,13 @@ end;
 Initialization
 
 glbLock := {$IFDEF FPC}SyncObjs.{$ENDIF}TCriticalSection.Create;
+
+{$IFDEF USE_FMX}
+  if Not(TPlatformServices.Current.SupportsPlatformService(IFMXTimerService,IInterface(PlatformTimer)) ) then
+  begin
+    Raise  Exception.Create('Timer not supported on this plateform. Abort.');
+  end;
+{$ENDIF}
 
 
 Finalization

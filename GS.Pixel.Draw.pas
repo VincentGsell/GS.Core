@@ -18,6 +18,7 @@ public
   Constructor Create(asset :  TGSAsset2DMeshedObject); reintroduce;
   Destructor Destroy; override;
   procedure ResetMeshFromAsset; virtual;
+  function Asset : TGSAsset2DMeshedObject; virtual;
 
   //iPixDrawable;
   function Mesh : TGSRawMesh2D; virtual;
@@ -51,6 +52,11 @@ implementation
 USES GS.Pixel32.Rasterize;
 
 { TPixelDrawable }
+
+function TPixelDrawable.Asset: TGSAsset2DMeshedObject;
+begin
+  result := FAsset;
+end;
 
 constructor TPixelDrawable.Create(asset :  TGSAsset2DMeshedObject);
 begin

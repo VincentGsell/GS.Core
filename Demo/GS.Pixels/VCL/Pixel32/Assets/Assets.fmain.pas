@@ -83,7 +83,7 @@ begin
 
   imageAsset.Image.ImageFormat := TGSAssetImageFormat.aifRawARGB32BitFormat;
   imageAsset.Image.AssetImageSource := '';
-  imageAsset.Image.ImageDescription := 'an avatar with an axes.';
+  imageAsset.Image.ImageDescription := 'Goldorak - an avatar with an axes which comes from its shoulders :)';
   imageAsset.Atlas.addZone(0,0,ImageAsset.Image.width,ImageAsset.Image.height,'*');
   imageAsset.Atlas.addZone(60,0,150,100,'Head');
 

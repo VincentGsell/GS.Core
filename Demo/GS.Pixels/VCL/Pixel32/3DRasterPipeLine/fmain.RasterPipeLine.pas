@@ -58,6 +58,7 @@ type
     procedure FormMouseWheel(Sender: TObject; Shift: TShiftState;
       WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure FormResize(Sender: TObject);
+    procedure cbClick(Sender: TObject);
   private
     { Private declarations }
     M,MLD : TPoint;
@@ -110,10 +111,16 @@ begin
 
 end;
 
+procedure TForm7.cbClick(Sender: TObject);
+begin
+  viewPort.PipeLine.RasterOperation.EnableFullWireFrame := cbWireFrame.Checked;
+  viewPort.PipeLine.RasterOperation.EnableRasterEngine := cbRasterFrame.Checked;
+end;
+
 procedure TForm7.FormCreate(Sender: TObject);
 //var grad : TPixel32GeneratorGradient;
-//    i : integer;
-var ll : TS3DObject;
+var q,i,j : integer;
+    ll : TS3DObject;
 begin
   MyObjectList := TS3DObjectList.Create; //3d Object.
   MyMeshList := TS3DMeshList.Create; //Assets for 3d objeczt !
@@ -129,7 +136,7 @@ begin
 
   viewport.ResizeBuffers(ClientWidth,ClientHeight);
 
-  viewport.CameraZ := -2;
+  viewport.CameraZ := 6;
 
   viewport.wireFrame := false;
   viewport.rasterFrame := true;
@@ -155,11 +162,13 @@ begin
   ll := TS3DObject.Create;
   ll.MeshAsset := MyNiceCube;
   ll.x := -2;
+  ll.DefaultColor.create(1,1,0,1);
   MyObjectList.AddObject(ll);
 
   ll := TS3DObject.Create;
   ll.MeshAsset := MyNiceCube;
   ll.y := -2;
+  ll.DefaultColor.create(0,1,0,1);
   MyObjectList.AddObject(ll);
 
   ll := TS3DObject.Create;
@@ -174,6 +183,20 @@ begin
   MyMountain.y := 2;
   MyObjectList.AddObject(MyMountain);
 
+  //Cube on the rear
+
+  q := 5;
+  for i := -q to q do
+  for j := -q to q do
+  begin
+    ll := TS3DObject.Create;
+    ll.MeshAsset := MyNiceCube;
+    ll.z := -7;
+    ll.x := 1.2 * i;
+    ll.y := 1.2 * j;
+    ll.DefaultColor.create(Random(100)/100,Random(100)/100,Random(100)/100,1);
+    MyObjectList.AddObject(ll);
+  end;
 
 //  My3DObj := viewport.addPlane(0,0,0);
 
@@ -256,6 +279,9 @@ begin
 }
 
 viewport.Execute;
+
+TimerFPS.Enabled := true;
+
 end;
 
 procedure TForm7.FormDestroy(Sender: TObject);

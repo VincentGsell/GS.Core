@@ -49,6 +49,7 @@ object Form7: TForm7
       Height = 17
       Caption = 'Wireframe'
       TabOrder = 0
+      OnClick = cbClick
     end
     object cbRasterFrame: TCheckBox
       Left = 104
@@ -59,6 +60,7 @@ object Form7: TForm7
       Checked = True
       State = cbChecked
       TabOrder = 1
+      OnClick = cbClick
     end
     object RadioGroup1: TRadioGroup
       Left = 8
@@ -142,6 +144,7 @@ object Form7: TForm7
     end
   end
   object TimerFPS: TTimer
+    Enabled = False
     OnTimer = TimerFPSTimer
     Left = 40
     Top = 24

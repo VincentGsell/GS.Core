@@ -60,6 +60,11 @@ type
     ListBox2: TListBox;
     Label7: TLabel;
     chkDrawMode: TCheckBox;
+    SaveDialog1: TSaveDialog;
+    Button1: TButton;
+    Button2: TButton;
+    OpenDialog1: TOpenDialog;
+    Button3: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -73,6 +78,9 @@ type
     procedure btnCreateClick(Sender: TObject);
     procedure Image1MouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -201,6 +209,79 @@ begin
     SetLength(DrawList,index+1);
     DrawList[index] := TPixelShape.Create(asset);
     ListBox2.AddItem('Shape'+InttoStr(index)+' ('+intToStr(DrawList[index].Mesh.getTriangleCount)+' tri.)',DrawList[index]);
+  end;
+end;
+
+procedure TForm3.Button1Click(Sender: TObject);
+var asset : TGSAssetShapeMesh;
+    l : TFileStream;
+begin
+  if ListBox1.ItemIndex>-1 then
+  begin
+    asset := TGSAssetShapeMesh(ListBox1.Items.Objects[ListBox1.ItemIndex]);
+    if SaveDialog1.Execute then
+    begin
+      l := TFileStream.Create(SaveDialog1.FileName,fmCreate);
+      try
+        asset.SaveToStream(l);
+        ShowMessage(format('"%s" Saved',[SaveDialog1.FileName]));
+      finally
+        FreeAndNil(l);
+      end;
+    end;
+  end;
+end;
+
+procedure TForm3.Button2Click(Sender: TObject);
+var asset : TGSAssetShapeMesh;
+    l : TFileStream;
+begin
+  if OpenDialog1.Execute then
+  begin
+    l := TFileStream.Create(OpenDialog1.FileName,fmOpenRead);
+    try
+      asset := TGSAssetShapeMesh.Create;
+      asset.LoadFromStream(l);
+      asset.MeshData.fullRefreshBounding;
+      assetManager.addAsset(asset);
+      ListBox1.AddItem('Asset '+IntToStr(assetManager.AssetCount),asset);
+    finally
+      FreeAndNil(l);
+    end;
+  end;
+end;
+
+procedure TForm3.Button3Click(Sender: TObject);
+var a,b,c : TPixelShape;
+    i : integer;
+    tr : TGS2DSubOpp;
+begin
+  a := nil;
+  if ListBox2.SelCount = 2 then
+  begin
+    for I := 0 to ListBox2.Count-1 do
+    begin
+      if ListBox2.Selected[i] then
+      begin
+        a := TPixelShape(ListBox2.Items.Objects[i]);
+        break;
+      end;
+    end;
+    for I := ListBox2.Count-1 downto 0 do
+    begin
+      if ListBox2.Selected[i] then
+      begin
+        b := TPixelShape(ListBox2.Items.Objects[i]);
+        break;
+      end;
+    end;
+
+    c := TPixelShape.Create(a.Asset);
+
+    tr := TGS2DSubOpp.Create;
+    tr.Subject
+
+
   end;
 end;
 

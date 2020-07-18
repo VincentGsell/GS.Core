@@ -47,8 +47,9 @@ Type
   public
     x,y,z : single;    //position.
     rx,ry,rz : single; //Rotation (self)
+    DefaultColor : Vec4;
     Enabled : boolean;
-    constructor Create; virtual;
+    Constructor Create; virtual;
 
     function TransformationMatrix : Mat4;
   end;
@@ -96,12 +97,14 @@ implementation
 
 constructor TBase3D.create;
 begin
+  inherited Create;
   x := 0;
   y := x;
   z := y;
   rx := 0;
   ry := 0;
   rz := 0;
+  DefaultColor.create(1,0,0,1);
   Enabled := true;
 end;
 

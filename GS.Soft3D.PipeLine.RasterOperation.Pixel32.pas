@@ -8,6 +8,7 @@ uses Classes,
      GS.Soft3d.Types,
      GS.Soft3d.PipeLine.Types.InternalFormat,
      GS.Soft3d.PipeLine.RasterOperation,
+     GS.Soft3d.PipeLine.FragmentShader,
      GS.Pixel32.Types,
      GS.Pixel32;
 
@@ -17,6 +18,7 @@ Type
   protected
   public
     PixelSurface : TPixel32;
+
     function Run : boolean; Override;
     procedure Resize(_width, _height : Uint32); Override;
   end;
@@ -37,32 +39,51 @@ end;
 function TS3DRasterOperationPixel32.Run : boolean;
 var l : pTP32;
     i,j : integer;
-    ZCol : single;
     ob : TS3PLObject;
+    align,backbuffervalue : NativeInt;
 begin
   if TS3DPipeline(PipelineMaster).WorkData.Transformed.Count=0 then
     exit;
 
-  PixelSurface.clear;
+  if EnableClearRaster then
+    PixelSurface.clear;
 
-  l := PixelSurface.getSurfaceScanLinePtr(0);
-  for j := 0 to PixelSurface.height-1 do
+  if EnableRasterEngine then
   begin
-    for i := 0 to PixelSurface.width-1 do
+    l := PixelSurface.getSurfaceScanLinePtr(0);
+    backbuffervalue := TS3DPipeline(PipelineMaster).RasterControl.BackMem.BackBufferValue;
+    for j := 0 to PixelSurface.height-1 do
     begin
-      if TS3DPipeline(PipelineMaster).RasterControl.BackMem.Buffer[j*PixelSurface.width+i].barrier =  TS3DPipeline(PipelineMaster).RasterControl.BackMem.BackBufferValue then
+      align := j*PixelSurface.width;
+      for i := 0 to PixelSurface.width-1 do
       begin
-        ZCol := TS3DPipeline(PipelineMaster).RasterControl.BackMem.Buffer[j*PixelSurface.width+i].Z;
-        if ZCol<>0 then
-          l^ := PixelSurface.colorP32Rec(trunc(ZCol*255),trunc(ZCol*255),trunc(ZCol*255),255).Color
+        With TS3DPipeline(PipelineMaster).RasterControl.BackMem.Buffer[align] do
+        if barrier = backbuffervalue  then
+        begin
+          FragControl.x := i;
+          FragControl.y := j;
+          FragControl.Z := Z;
+          FragControl.ObjIndex := Objindex;
+          FragControl.FaceIndex := ObjFaceIndex;
+
+          if Z>0 then
+          begin
+            FragControl.Run; //running all shader for the current parameter.
+            l^ := PixelSurface.colorP32Rec( trunc(FragControl.result_rgba.r*255),
+                                            trunc(FragControl.result_rgba.g*255),
+                                            trunc(FragControl.result_rgba.b*255),
+                                            trunc(FragControl.result_rgba.a*255)).Color;
+          end;
+        end;
+        inc(l);
+        inc(align);
       end;
-      inc(l);
+      l := PixelSurface.getSurfaceScanLinePtr(j);
     end;
-    l := PixelSurface.getSurfaceScanLinePtr(j);
   end;
 
-{
-
+  PixelSurface.rasterMode := TSoftwareRasterizeOption.roDirectMode;
+  if EnableFullWireFrame then
   for ob in WorkingData.Transformed do
   for i := 0 to length(ob.faces)-1 do
   begin
@@ -75,7 +96,7 @@ begin
     PixelSurface.LineTo(round(ob.Faces[i].v[0].X),
                         round(ob.Faces[i].v[0].Y));
   end;
-}
+
 
 end;
 
