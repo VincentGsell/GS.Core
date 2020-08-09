@@ -5,7 +5,7 @@
 [![](https://tokei.rs/b1/github/VincentGsell/GS.Core?category=comments)](https://github.com//VincentGsell/GS.Core)
 
 # GS.Core
-  Core functions shared by my projects 
+  Core functions shared by projects, advanced soft graphics capabilities, parser stuffs, threads gems and so on
 
 # history
 
