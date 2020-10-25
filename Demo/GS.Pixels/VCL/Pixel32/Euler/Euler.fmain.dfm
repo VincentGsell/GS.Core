@@ -28,4 +28,30 @@ object Form4: TForm4
     OnMouseDown = Image1MouseDown
     OnMouseMove = Image1MouseMove
   end
+  object RadioGroup1: TRadioGroup
+    Left = 24
+    Top = 40
+    Width = 105
+    Height = 105
+    Caption = 'RadioGroup1'
+    ItemIndex = 0
+    Items.Strings = (
+      'Square'
+      'Tri'
+      'Crux'
+      'SquareEx')
+    TabOrder = 0
+    OnClick = CheckBox1Click
+  end
+  object CheckBox1: TCheckBox
+    Left = 24
+    Top = 17
+    Width = 97
+    Height = 17
+    Caption = 'Euler curve'
+    Checked = True
+    State = cbChecked
+    TabOrder = 1
+    OnClick = CheckBox1Click
+  end
 end

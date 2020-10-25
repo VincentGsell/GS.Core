@@ -145,8 +145,6 @@ begin
   viewport.PipeLine.InputData.Meshes := MyMeshList;
   viewport.PipeLine.InputData.Objects := MyObjectList;
 
-
-
   //Create a mesh reference.
   MyNiceCube := TGSCubeMesh.Create; //a cube.
   MyMeshList.AddMesh(MyNiceCube); //Add to our list.
@@ -164,6 +162,7 @@ begin
   ll.x := -2;
   ll.DefaultColor.create(1,1,0,1);
   MyObjectList.AddObject(ll);
+  ll := nil;
 
   ll := TS3DObject.Create;
   ll.MeshAsset := MyNiceCube;

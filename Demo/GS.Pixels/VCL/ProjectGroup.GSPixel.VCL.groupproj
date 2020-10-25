@@ -21,9 +21,6 @@
         <Projects Include="Pixel32\Euler\ProjectEuler.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Pixel32\Services\StandAlone\ServiceStandAlone.dproj">
-            <Dependencies/>
-        </Projects>
         <Projects Include="Pixel32\Effects\effectsDemo.dproj">
             <Dependencies/>
         </Projects>
@@ -34,6 +31,9 @@
             <Dependencies/>
         </Projects>
         <Projects Include="..\..\..\..\GS.Demos\GS.Demos.3DRasterStandAlone\delphi\D3DRaster.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Pixel32\Services\StandAlone\ServiceStandAlone.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -98,15 +98,6 @@
     <Target Name="ProjectEuler:Make">
         <MSBuild Projects="Pixel32\Euler\ProjectEuler.dproj" Targets="Make"/>
     </Target>
-    <Target Name="ServiceStandAlone">
-        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj"/>
-    </Target>
-    <Target Name="ServiceStandAlone:Clean">
-        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="ServiceStandAlone:Make">
-        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj" Targets="Make"/>
-    </Target>
     <Target Name="effectsDemo">
         <MSBuild Projects="Pixel32\Effects\effectsDemo.dproj"/>
     </Target>
@@ -143,14 +134,23 @@
     <Target Name="D3DRaster:Make">
         <MSBuild Projects="..\..\..\..\GS.Demos\GS.Demos.3DRasterStandAlone\delphi\D3DRaster.dproj" Targets="Make"/>
     </Target>
+    <Target Name="ServiceStandAlone">
+        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj"/>
+    </Target>
+    <Target Name="ServiceStandAlone:Clean">
+        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ServiceStandAlone:Make">
+        <MSBuild Projects="Pixel32\Services\StandAlone\ServiceStandAlone.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Minimal;Raster;MiniDelau;AssetsProject;ProjectAssetsMesh;ProjectEuler;ServiceStandAlone;effectsDemo;PolyRaster;ProjectRasterPipeLine;D3DRaster"/>
+        <CallTarget Targets="Minimal;Raster;MiniDelau;AssetsProject;ProjectAssetsMesh;ProjectEuler;effectsDemo;PolyRaster;ProjectRasterPipeLine;D3DRaster;ServiceStandAlone"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Minimal:Clean;Raster:Clean;MiniDelau:Clean;AssetsProject:Clean;ProjectAssetsMesh:Clean;ProjectEuler:Clean;ServiceStandAlone:Clean;effectsDemo:Clean;PolyRaster:Clean;ProjectRasterPipeLine:Clean;D3DRaster:Clean"/>
+        <CallTarget Targets="Minimal:Clean;Raster:Clean;MiniDelau:Clean;AssetsProject:Clean;ProjectAssetsMesh:Clean;ProjectEuler:Clean;effectsDemo:Clean;PolyRaster:Clean;ProjectRasterPipeLine:Clean;D3DRaster:Clean;ServiceStandAlone:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Minimal:Make;Raster:Make;MiniDelau:Make;AssetsProject:Make;ProjectAssetsMesh:Make;ProjectEuler:Make;ServiceStandAlone:Make;effectsDemo:Make;PolyRaster:Make;ProjectRasterPipeLine:Make;D3DRaster:Make"/>
+        <CallTarget Targets="Minimal:Make;Raster:Make;MiniDelau:Make;AssetsProject:Make;ProjectAssetsMesh:Make;ProjectEuler:Make;effectsDemo:Make;PolyRaster:Make;ProjectRasterPipeLine:Make;D3DRaster:Make;ServiceStandAlone:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

@@ -72,6 +72,11 @@ public
   property MeshData : TGSRawMesh2D read fMesh;
 end;
 
+TGSAsset2DMeshedBorderedObject = Class(TGSAsset2DMeshedObject)
+
+  //property BoderData : read fMesh;
+End;
+
 TGSAssetSquareMesh = Class(TGSAsset2DMeshedObject)
 private
   FSide: TVecType;

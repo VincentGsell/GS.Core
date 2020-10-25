@@ -276,10 +276,11 @@ begin
       end;
     end;
 
-    c := TPixelShape.Create(a.Asset);
+    c := TPixelShape.Create(TGSAssetShapeMesh(a.Asset));
 
-    tr := TGS2DSubOpp.Create;
-    tr.Subject
+Assert(false,'todo');
+//    tr := TGS2DSubOpp.Create;
+//    tr.Subject := a;
 
 
   end;

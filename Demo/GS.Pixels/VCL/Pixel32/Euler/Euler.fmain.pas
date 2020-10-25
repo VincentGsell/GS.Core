@@ -12,6 +12,8 @@ uses
 type
   TForm4 = class(TForm)
     Image1: TImage;
+    RadioGroup1: TRadioGroup;
+    CheckBox1: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -20,17 +22,20 @@ type
       Y: Integer);
     procedure Image1MouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure CheckBox1Click(Sender: TObject);
   private
     { Private declarations }
   public
     { Public declarations }
     pixel : TPixel32;
-    D,M : TPoint;
+    D,M,MM : TPoint;
     procedure drawEuler(const zoom : real = 4; const angle : real = 0);
     procedure squares(x,y,a:real; n:byte; const mode : byte = 0);
     procedure squaresEx(n,l,x,y:integer);
     procedure crux(x,y,a:real; n:byte);
     procedure tri(x,y,a:real; n:byte);
+
+    procedure DrawAll;
   end;
 
 var
@@ -86,6 +91,11 @@ begin
   end;
 end;
 
+procedure TForm4.CheckBox1Click(Sender: TObject);
+begin
+  DrawAll;
+end;
+
 procedure TForm4.crux(x,y,a:real; n:byte);
 var h:real;
 begin
@@ -102,6 +112,27 @@ begin
     crux(x-a/2,y-h/3,a/2,n-1);
     crux(x+a/2,y-h/3,a/2,n-1);
   end;
+end;
+
+procedure TForm4.DrawAll;
+const c = 30;
+begin
+  pixel.clear;
+  pixel.rectangle(MM.X-(c div 2),MM.Y-(c div 2),MM.X+(c div 2),MM.Y+(c div 2));
+
+  M := D - Point(MM.X,MM.Y);
+  if CheckBox1.Checked then
+    drawEuler(M.X, M.Y);
+
+  case RadioGroup1.ItemIndex of
+  0: squares(pixel.width/2,pixel.height/2,M.X,5,0);
+  1: tri(pixel.width/2,pixel.height/2,M.X,5);
+  2: crux(pixel.width/2,pixel.height/2,M.X,5);
+  3: squaresEx(8,M.X, pixel.width div 2 - (M.X div 2), pixel.height div 2 -  - (M.X div 2));
+  end;
+
+  pixel.CopyToDc(Image1.Picture.Bitmap.Canvas.Handle);
+  Image1.Repaint;
 end;
 
 procedure TForm4.tri(x,y,a:real; n:byte);
@@ -166,7 +197,6 @@ procedure TForm4.FormResize(Sender: TObject);
 begin
   image1.Picture.Bitmap.SetSize(image1.Width,Image1.Height);
   pixel.resize(image1.Picture.Bitmap.Width,Image1.Picture.Bitmap.Height);
-  drawEuler(M.X, M.Y);
   image1.Repaint;
 end;
 
@@ -175,27 +205,18 @@ procedure TForm4.Image1MouseDown(Sender: TObject; Button: TMouseButton;
 begin
   D := point(X,Y);
   M := D;
+  DrawAll;
 end;
 
 procedure TForm4.Image1MouseMove(Sender: TObject; Shift: TShiftState; X,
   Y: Integer);
-const c = 30;
 begin
   if ssLeft in Shift then
   begin
-  pixel.clear;
-  pixel.rectangle(X-(c div 2),Y-(c div 2),X+(c div 2),Y+(c div 2));
-
-    M := D - Point(X,Y);
-    drawEuler(M.X, M.Y);
-    squares(pixel.width/2,pixel.height/2,M.X,5,0);
-//    tri(pixel.width/2,pixel.height/2,M.X,5);
-//    crux(pixel.width/2,pixel.height/2,M.X,5);
-//    squaresEx(8,M.X, pixel.width div 2 - (M.X div 2), pixel.height div 2 -  - (M.X div 2));
-  pixel.CopyToDc(Image1.Picture.Bitmap.Canvas.Handle);
-  Image1.Repaint;
+    MM.X := X;
+    MM.Y := Y;
+    DrawAll;
   end;
-
 end;
 
 end.

@@ -433,6 +433,10 @@ function _hash(const n:vec2):vec2;overload;{$IFDEF DO_INLINE} inline;{$ENDIF} ov
 function _hash(const n:vec3):vec3;overload;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;
 function _hash(const n:vec4):vec4;overload;{$IFDEF DO_INLINE} inline;{$ENDIF} overload;
 
+function _lerp(a,b : TVecType; rel : TVecType) : TVecType;
+
+
+
 
 const
   vec2Black:Vec2=(x:0;y:0);
@@ -2877,5 +2881,10 @@ begin
   Result := _fract(_sinLarge(n) * 43758.5453123);
 end;
 
+function _lerp(a,b : TVecType; rel : TVecType) : TVecType;
+begin
+  assert((rel>=0) and (rel<=1));
+  result := _min(a,b) + (abs(a-b) * rel);
+end;
 
 end.
