@@ -1,0 +1,69 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  Caption = 'Form1'
+  ClientHeight = 651
+  ClientWidth = 964
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = Form3DCreate
+  OnMouseWheel = Form3DMouseWheel
+  DesignerMasterStyle = 0
+  object Layer3D1: TLayer3D
+    Height = 501.000000000000000000
+    Position.X = 482.000000000000000000
+    Position.Y = 326.000000000000000000
+    Projection = Screen
+    Resolution = 100
+    StyleLookup = 'backgroundstyle'
+    Width = 766.000000000000000000
+    object Selection1: TSelection
+      GripSize = 3.000000000000000000
+      HideSelection = False
+      Proportional = False
+      Position.X = 56.000000000000000000
+      Position.Y = 48.000000000000000000
+      Size.Width = 337.000000000000000000
+      Size.Height = 281.000000000000000000
+      Size.PlatformDefault = False
+      ShowHandles = True
+      OnChange = Selection1Change
+    end
+    object Button1: TButton
+      Position.X = 520.000000000000000000
+      Position.Y = 8.000000000000000000
+      Text = 'Button1'
+      OnClick = Button1Click
+    end
+    object Memo1: TMemo
+      Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+      DataDetectorTypes = []
+      Position.X = 48.000000000000000000
+      Position.Y = 368.000000000000000000
+      Size.Width = 577.000000000000000000
+      Size.Height = 41.000000000000000000
+      Size.PlatformDefault = False
+      Viewport.Width = 573.000000000000000000
+      Viewport.Height = 37.000000000000000000
+    end
+    object Button2: TButton
+      Position.X = 232.000000000000000000
+      Position.Y = 8.000000000000000000
+      Text = 'Button2'
+      OnClick = Button2Click
+    end
+    object Selection2: TSelection
+      GripSize = 3.000000000000000000
+      HideSelection = False
+      Proportional = False
+      Position.X = 408.000000000000000000
+      Position.Y = 88.000000000000000000
+      Size.Width = 193.000000000000000000
+      Size.Height = 153.000000000000000000
+      Size.PlatformDefault = False
+      ShowHandles = True
+      OnChange = Selection1Change
+    end
+  end
+end
