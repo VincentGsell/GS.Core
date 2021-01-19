@@ -50,11 +50,11 @@ begin
 
   if EnableRasterEngine then
   begin
-    l := PixelSurface.getSurfaceScanLinePtr(0);
     backbuffervalue := TS3DPipeline(PipelineMaster).RasterControl.BackMem.BackBufferValue;
     for j := 0 to PixelSurface.height-1 do
     begin
       align := j*PixelSurface.width;
+      l := PixelSurface.getSurfaceScanLinePtr(j);
       for i := 0 to PixelSurface.width-1 do
       begin
         With TS3DPipeline(PipelineMaster).RasterControl.BackMem.Buffer[align] do
@@ -78,7 +78,6 @@ begin
         inc(l);
         inc(align);
       end;
-      l := PixelSurface.getSurfaceScanLinePtr(j);
     end;
   end;
 

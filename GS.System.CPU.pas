@@ -17,9 +17,13 @@ unit GS.System.CPU;
 
 interface
 
+{$IFDEF IOS or ANDROID}
+{$DEFINE USE_FMX}
+{$ENDIF}
+
 {$IFDEF FPC}
 Uses SysUtils, Classes, SyncObjs
- {$IFDEF WINDOWS}
+{$IFDEF WINDOWS}
  ,
  Windows,
  Messages
@@ -171,7 +175,7 @@ Begin
     Result := (tv.tv_sec * 1000) + round((tv.tv_usec / 1000));
 end;
 {$ELSE}
-  {$IFDEF USE_FMX}
+{$IFDEF USE_FMX}
 begin
   Result := Round(PlatformTimer.GetTick * 1000);
 end;

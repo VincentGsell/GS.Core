@@ -55,15 +55,11 @@ object Form34: TForm34
     Top = 62
     Width = 1080
     Height = 673
-    ActivePage = tsCode
+    ActivePage = tsFormula
     Align = alClient
     TabOrder = 2
     object tsCode: TTabSheet
       Caption = 'Code'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       DesignSize = (
         1072
         645)
@@ -147,10 +143,6 @@ object Form34: TForm34
     object tsVM: TTabSheet
       Caption = 'VM'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Panel3: TPanel
         Left = 32
         Top = 24
@@ -171,10 +163,6 @@ object Form34: TForm34
     object tsFormula: TTabSheet
       Caption = 'Formula'
       ImageIndex = 2
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object but: TPanel
         Left = 0
         Top = 0
@@ -242,10 +230,10 @@ object Form34: TForm34
           GridLines = True
           Items.ItemData = {
             059A0000000400000000000000FFFFFFFFFFFFFFFF01000000FFFFFFFF000000
-            0001610002310030005026992B00000000FFFFFFFFFFFFFFFF01000000FFFFFF
-            FF00000000016200013500B821992B00000000FFFFFFFFFFFFFFFF01000000FF
-            FFFFFF000000000163000130007017992B00000000FFFFFFFFFFFFFFFF010000
-            00FFFFFFFF000000000164000331002E0035003810992BFFFFFFFFFFFFFFFF}
+            000161000231003000F0647A1500000000FFFFFFFFFFFFFFFF01000000FFFFFF
+            FF00000000016200013500D8D5CB0000000000FFFFFFFFFFFFFFFF01000000FF
+            FFFFFF0000000001630001320058CBCB0000000000FFFFFFFFFFFFFFFF010000
+            00FFFFFFFF0000000001640003320030003000E0EFCB00FFFFFFFFFFFFFFFF}
           ParentDoubleBuffered = False
           TabOrder = 0
           ViewStyle = vsReport

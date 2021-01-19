@@ -75,8 +75,10 @@ end;
 { TS3DFragmentShader_DepthColor }
 
 procedure TS3DFragmentShader_DepthColor.Process;
+var v : double;
 begin
-  control.result_rgba.create(control.Z,control.Z,control.Z,control.Z);
+  v := _Clamp(control.Z*10,0,1);
+  control.result_rgba.create(v,v,v,v);
 end;
 
 { TS3DFragmentShader_Color }

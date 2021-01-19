@@ -227,6 +227,75 @@ begin
   end;
 end;
 
+{ TODO : Put a function to pretiffy, or dumb a json stqrting from the fellowing code (to refactor in a recursive manner)
+var l : TStringStream;
+    ljson : TJson;
+    ljv : TJsonbase;
+    i : integer;
+    lpname : string;
+
+    procedure InternalJsonValueProcess(aValue : TJSonValue; const aName : String = '');
+    begin
+      case aValue.ValueType of
+        jvNone,jvNull : raise Exception.Create('todo');
+        jvString :  FQuery.parameters.addStringValue(aValue.AsString,aName);
+        jvArray : raise Exception.Create('todo');
+        jvNumber :  FQuery.parameters.addIntegerValue(Round(aValue.AsNumber),aName);
+        jvBoolean : FQuery.parameters.addBooleanValue(aValue.AsBoolean,aName);
+        jvObject : raise Exception.Create('todo');
+      end;
+    end;
+
+begin
+  l :=  TStringStream.Create;
+  try
+    l.LoadFromStream(stream);
+    ljson := TJson.Create;
+    try
+      ljson.Parse(l.DataString);
+
+      case ljson.StructType of
+        jsNone: ;
+        jsArray: ;
+        jsObject:
+        begin
+          decodeF
+        end;
+      end;
+
+      for i := 0 to ljson.Count-1 do
+      begin
+        ljv := ljson.Get(i);
+        if ljv is TJsonValue then
+        begin
+          InternalJsonValueProcess(TJSonValue(ljv));
+        end
+        else
+        if ljv is TJsonPair then
+        begin
+          lpname :=  TJsonPair(ljv).Name;
+          InternalJsonValueProcess(TJSonPair(ljv).Value,lpName);
+        end
+        else
+        if ljv is TJsonArray then
+        begin
+          raise Exception.Create('Error Message');
+        end
+        else
+        if ljv is TJsonObject then
+        begin
+          raise Exception.Create('Error Message');
+        end;
+     end;
+    finally
+      FreeAndNil(ljson);
+    end;
+  finally
+    FreeAndNil(l);
+  end;
+end;
+}
+
 Initialization
 
 TGSJson.Init;

@@ -123,7 +123,7 @@ var q,i,j : integer;
     ll : TS3DObject;
 begin
   MyObjectList := TS3DObjectList.Create; //3d Object.
-  MyMeshList := TS3DMeshList.Create; //Assets for 3d objeczt !
+  MyMeshList := TS3DMeshList.Create; //Assets for 3d object !
 
   pixel := TPixel32.create;     //final surface draewing... (image)
 
@@ -133,6 +133,9 @@ begin
   viewPort.PipeLine.RasterOperation := TS3DRasterOperationPixel32.Create(viewport.PipeLine,viewport.PipeLine.InputData,viewport.PipeLine.WorkData);
   TS3DRasterOperationPixel32(viewPort.PipeLine.RasterOperation).PixelSurface := Pixel;
 
+  //Change default shader. (Defaut shader is base object color);
+  //viewPort.PipeLine.RasterOperation.FragControl.defaultShader.Free;
+  //viewPort.PipeLine.RasterOperation.FragControl.defaultShader := TS3DFragmentShader_DepthColor.Create;
 
   viewport.ResizeBuffers(ClientWidth,ClientHeight);
 
@@ -189,7 +192,7 @@ begin
   for j := -q to q do
   begin
     ll := TS3DObject.Create;
-    ll.MeshAsset := MyNiceCube;
+    ll.MeshAsset := MyNiceCube; //Note that we shared the model
     ll.z := -7;
     ll.x := 1.2 * i;
     ll.y := 1.2 * j;
