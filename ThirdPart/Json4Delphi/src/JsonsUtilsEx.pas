@@ -13,6 +13,8 @@ uses SysUtils;
 function FixedFloatToStr(const Value: Extended): string;
 function FixedTryStrToFloat(const S: string; out Value: Extended): Boolean;
 function FixedStrToFloat(const S: string): Extended;
+function JSONDateToString(aDate : TDateTime) : String;
+function JSONStringToDate(aDate : String) : TDateTime;
 
 {$IFDEF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
 Function __ObjectToJson(aObject : TObject) : String;
@@ -33,8 +35,7 @@ implementation
 
 Uses TypInfo,
      DateUtils,
-     Jsons,
-     GS.JSON;
+     Jsons;
 
 Type
   PPPTypeInfo = ^PPTypeInfo;
@@ -140,15 +141,15 @@ function FixedTryStrToFloat(const S: string; out Value: Extended): Boolean;
 var
   FixedS: string;
 begin
-  if JsonsUtils_GLB_DECIMALSEPARATOR = GLB_JSON_STD_DECIMALSEPARATOR then
+  if FormatSettings.DecimalSeparator = GLB_JSON_STD_DECIMALSEPARATOR then
   begin
     Result := TryStrToFloat(S, Value);
   end
   else
   begin
     FixedS := StringReplace( S,
-                             JsonsUtils_GLB_DECIMALSEPARATOR,
                              GLB_JSON_STD_DECIMALSEPARATOR,
+                             FormatSettings.DecimalSeparator,
                              [rfReplaceAll]);
     Result := TryStrToFloat(FixedS, Value);
   end;
@@ -162,15 +163,15 @@ function FixedStrToFloat(const S: string): Extended;
 var
   FixedS: string;
 begin
-  if JsonsUtils_GLB_DECIMALSEPARATOR = GLB_JSON_STD_DECIMALSEPARATOR then
+  if FormatSettings.DecimalSeparator = GLB_JSON_STD_DECIMALSEPARATOR then
   begin
     Result := StrToFloat(S);
   end
   else
   begin
     FixedS := StringReplace( S,
-                             JsonsUtils_GLB_DECIMALSEPARATOR,
                              GLB_JSON_STD_DECIMALSEPARATOR,
+                             FormatSettings.DecimalSeparator,
                              [rfReplaceAll]);
     Result := StrToFloat(FixedS);
   end;

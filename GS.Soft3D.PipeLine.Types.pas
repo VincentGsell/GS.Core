@@ -26,6 +26,7 @@ Type
     ViewMatrix : Mat4;
     CameraMatrix : Mat4;
     CameraPos : Vec3;
+    CameraRot : Vec3;
     Projection : TS3dProjectionType;
 
     procedure MatrixProcess;
@@ -71,14 +72,23 @@ end;
 
 procedure TS3DInputData3D.MatrixProcess;
 var aspectRatio, ZFar, ZNear, FOV : single;
+    Rot : Mat4;
 begin
   TMonitoring.enter('TS3DInputData3D.MatrixProcess');
   try
 
   CameraMatrix := mat4Identity;
   ProjectionMatrix := mat4Identity;
+  Rot := Mat4Identity;
+
 
   CameraMatrix := mat4CreateLookAtDirLH(vec3.create(CameraPos.x,CameraPos.y,CameraPos.z),vec3.create(0,0,1),vec3.create(0,1,0));
+
+  Rot := Rot * Mat4CreateRotationX(CameraRot.x);
+  Rot := Rot * Mat4CreateRotationY(CameraRot.y);
+  Rot := Rot * Mat4CreateRotationZ(CameraRot.z);
+
+  CameraMatrix := CameraMatrix * Rot;
 
   Case Projection of
     TS3dProjectionType.Perspective :

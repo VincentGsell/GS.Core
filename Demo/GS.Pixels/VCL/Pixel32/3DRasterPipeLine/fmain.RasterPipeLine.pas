@@ -47,6 +47,7 @@ type
     ApplicationEvents1: TApplicationEvents;
     Panel2: TPanel;
     TreeView1: TTreeView;
+    Timer1: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure ApplicationEvents1Idle(Sender: TObject; var Done: Boolean);
     procedure FormDestroy(Sender: TObject);
@@ -59,6 +60,7 @@ type
       WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure FormResize(Sender: TObject);
     procedure cbClick(Sender: TObject);
+    procedure Timer1Timer(Sender: TObject);
   private
     { Private declarations }
     M,MLD : TPoint;
@@ -125,7 +127,7 @@ begin
   MyObjectList := TS3DObjectList.Create; //3d Object.
   MyMeshList := TS3DMeshList.Create; //Assets for 3d object !
 
-  pixel := TPixel32.create;     //final surface draewing... (image)
+  pixel := TPixel32.create;     //final surface drawing... (image)
 
   viewport := TView3d.Create; //virtual window on 3d world.
 
@@ -366,6 +368,14 @@ begin
       My3DObj.rx := MLD.Y-y;
     end;
   end;
+end;
+
+procedure TForm7.Timer1Timer(Sender: TObject);
+var al : single;
+begin
+  al := Cos((TThread.GetTickCount/1000));
+  viewport.SetCamPos(0,0,16+al*2);
+//  viewport.SetCamRotate(0,al,0);
 end;
 
 procedure TForm7.TimerFPSTimer(Sender: TObject);

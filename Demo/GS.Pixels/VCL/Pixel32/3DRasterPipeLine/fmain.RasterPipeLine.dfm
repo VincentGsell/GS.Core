@@ -154,4 +154,10 @@ object Form7: TForm7
     Left = 40
     Top = 72
   end
+  object Timer1: TTimer
+    Interval = 10
+    OnTimer = Timer1Timer
+    Left = 512
+    Top = 304
+  end
 end

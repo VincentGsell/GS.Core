@@ -31,6 +31,9 @@ Type
 
     procedure Execute;
 
+    procedure SetCamPos(X,Y,Z : single);
+    procedure SetCamRotate(X,Y,Z : single);
+
     Property CameraZ : single read GetCamZ Write SetCamZ;
 //    Property CameraX : single read FCamX Write FCamX;
 //    Property CameraY : single read FCamY Write FCamY;
@@ -83,6 +86,20 @@ end;
 procedure TView3d.Execute;
 begin
   PipeLine.Process;
+end;
+
+procedure TView3d.SetCamPos(X, Y, Z: single);
+begin
+  PipeLine.InputData.CameraPos.X := X;
+  PipeLine.InputData.CameraPos.Y := Y;
+  PipeLine.InputData.CameraPos.Z := Z;
+end;
+
+procedure TView3d.SetCamRotate(X, Y, Z: single);
+begin
+  PipeLine.InputData.CameraRot.X := X;
+  PipeLine.InputData.CameraRot.Y := Y;
+  PipeLine.InputData.CameraRot.Z := Z;
 end;
 
 procedure TView3d.SetCamZ(const Value: single);
