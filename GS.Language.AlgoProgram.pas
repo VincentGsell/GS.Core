@@ -177,7 +177,7 @@ type
     procedure emit_createVar(name : String; const _type : String= 'integer');
     procedure emit_createConst(name : String; const _type : String= 'integer');
     procedure emit_assignVar(resultName, ValueName : String);
-    procedure emit_assignVarConst(resultName : String; Value : Integer);
+    procedure emit_assignVarConst(resultName : String; typename : String; Value : string); overload;
     procedure emit_baseAssignOp(Op : TAlgoInstructionClass; resultName, op1Name, op2Name : String);
 
     property Instruction[Index : Integer] : TAlgoInstruction read GetInstructionCode;
@@ -232,18 +232,18 @@ begin
   AddInstruction(a);
 end;
 
-procedure TAlgoProgram.emit_assignVarConst(resultName: String; Value: Integer);
+procedure TAlgoProgram.emit_assignVarConst(resultName : String; typename : String; Value : string);
 var a : TAlgo_AssignVarConst;
     n : string;
 begin
-  n := format('CST_%s_%d',[uppercase(resultName),value]);
-  emit_createConst(n,'integer');
+  n := format('CST_%s_%s_%s',[uppercase(resultName),typename,value]);
+  emit_createConst(n,typename);
 
   a := TAlgo_AssignVarConst.create(self);
   a.varnameAssigned := resultName;
   a.valueSource := n;
-  a._type := 'integer';
-  a._valueAsString := IntToStr(Value);
+  a._type := typename;
+  a._valueAsString := Value;
   AddInstruction(a);
 end;
 

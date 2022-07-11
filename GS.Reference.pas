@@ -446,7 +446,7 @@ begin
   BB := TMEmoryStream.Create;
   try
     InternalReadGenericDataPrepare(Key,ctStream,FWorkingStream);
-    ReadStream(FWorkingStream,BB);
+    ReadStream(FWorkingStream,TStream(BB));
     SetLength(Result,BB.Size);
     BB.Position  := 0;
     BB.Read(Result,BB.Size);
@@ -474,7 +474,7 @@ begin
   Result := TMemoryStream.Create;
   FWorkingStream.Clear;
   InternalReadGenericDataPrepare(Key,ctStream,FWorkingStream);
-  ReadStream(FWorkingStream,Result);
+  ReadStream(FWorkingStream,TStream(Result));
 end;
 
 function TofReference.GetEntryAsString(Key: String): String;

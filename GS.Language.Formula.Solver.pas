@@ -140,7 +140,7 @@ var i: integer;
       begin
         vl := 'CST'+IntToStr(c); inc(c);
         TargetProgram.emit_createVar(vl,'double');
-        TargetProgram.emit_assignVarConst(vl,StrToInt(TTokenItem(l[i-2]).item));
+        TargetProgram.emit_assignVarConst(vl,'double',TTokenItem(l[i-2]).item);
       end
       else
       begin
@@ -152,7 +152,7 @@ var i: integer;
       begin
         vr := 'CST'+IntToStr(c); inc(c);
         TargetProgram.emit_createVar(vr,'double');
-        TargetProgram.emit_assignVarConst(vr,StrToInt(TTokenItem(l[i-1]).item));
+        TargetProgram.emit_assignVarConst(vr, 'double', TTokenItem(l[i-1]).item);
       end
       else
       begin
@@ -253,6 +253,7 @@ var t : String;
 begin
   FLastError := '';
   t := trim(_formula);
+
   if t<>'' then
     fformula := t;
 
@@ -286,7 +287,7 @@ end;
 procedure TFormulaSolver.updateVar(_varName: string; value: integer);
 begin
   fprog.emit_createVar(_varName);
-  fprog.emit_assignVarConst(_varName,value);
+  fprog.emit_assignVarConst(_varName,'integer',inttostr(value));
 end;
 
 end.

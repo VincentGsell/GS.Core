@@ -85,7 +85,7 @@ end;
 
 procedure TPixelDrawable.ResetMeshFromAsset;
 begin
-  FAsset.MeshData.copy(fCurrentProcessedMesh);
+  FAsset.MeshData.copy(fCurrentProcessedMesh);{ TODO : HERE }
 end;
 
 

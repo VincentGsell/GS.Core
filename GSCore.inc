@@ -14,6 +14,13 @@
 {$IFDEF DCC}
 {$extendedsyntax on}
 {$writeableconst on}
+
+{$IF DECLARED(FireMonkeyVersion)}
+  {$DEFINE HAS_FMX}
+{$ELSE}
+  {$DEFINE HAS_VCL}
+{$IFEND}
+
 {$ENDIF}
 
 {$IF DEFINED(Win32) or DEFINED(Win64)}
@@ -32,20 +39,6 @@
 {$varstringchecks on}
 {$typeinfo on}
 {$scopedenums on}
-
-//Third part cyphers lib : Custom cypher system.
-{.$DEFINE LIB_CIPHERS_ENABLED}
-
-//Generic.
-// Disable for FPC : We use FPC "Stable" - And on above version (3.3/trunk) - Link error persists when we used Generics heavely.
-// Disable for DELPHI too : We fellow FPC for instance to not have 2 codes version to manage.
-// TODO : Evaluate eventual Side effect : Is "No generic mode" more speed and/or less memory usage regarding to support and code facilities ?
-{.$DEFINE USE_GENERIC}
-
-//Service support. Enable this service, it will be automaticaly start.
-{.$DEFINE WEBSOCKET_SUPPORT}
-{$DEFINE HYPERVISOR_SUPPORT}
-{$DEFINE UDP_SERVER_SUPPORT} //Discovery, udp support.
 
 {$IFDEF FPC}
   {$IFDEF CPUARM}

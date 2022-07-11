@@ -6,16 +6,29 @@ uses SysUtils, Classes,
      GS.Geometry;
 
 type
+TGSRawMesh2D = class;
+IGSRawMesh = interface
+  procedure reset;
+  procedure SetUpQuad(side : single);
+  procedure SetUpRect(width,height : single);
+  procedure Rotate(angle : single); //Todo : Specify a center ??
+  procedure Scale(x,y : single);
+  procedure Pan(x,y : single);
+  procedure Modify(xpos,ypos,angle : single); overload;
+  procedure Modify(xpos,ypos,angle,xscale,yscale : single); overload;
+  procedure UpdateVertices(const matrix : Mat3);
+  procedure reCenter; //Back all coordinate surround (0,0)
+  procedure Merge(from : TGSRawMesh2D);
+end;
 
-
-TGSRawMesh2D = class
+TGSRawMesh2D = class(TInterfacedObject, IGSRawMesh)
 private
 protected
 public
   BoundingBox : Vec4;
   vertices : array of vec2;
   uvs : array of vec2;       //...
-  cols : array of vec4;      //... Synchro with vertices.
+//  cols : array of vec4;      //... Synchro with vertices.
   indexes : array of Uint32;
 
   Constructor Create; virtual;
@@ -23,7 +36,9 @@ public
   procedure reset;
   procedure SetUpQuad(side : single);
   procedure SetUpRect(width,height : single);
+
   procedure Merge(from : TGSRawMesh2D);
+
   //Setup....
 
   //This modify the vertices ! No way to return exactly due to processing approx..
@@ -41,6 +56,7 @@ public
   function BoudingCenter : vec2;
   procedure resetBoundingBox;
 
+  procedure reCenter; //Back all coordinate surround (0,0)
 
   function getVerticeCount : Uint32;
   function getIndicesCount : Uint32;
@@ -49,7 +65,6 @@ public
   procedure Triangle(const index : Uint32; out a,b,c, uva,uvb,uvc : vec2; out ca,cb,cc : vec4);
 
   procedure copy(var destination : TGSRawMesh2D);
-
 end;
 
 
@@ -58,12 +73,12 @@ implementation
 { TGSRawMesh2D }
 
 procedure TGSRawMesh2D.Modify(xpos, ypos, angle: single);
-var fLocalMatrix : Mat3;
+var lLocalMatrix : Mat3;
 begin
-  FLocalMatrix := Mat3Identity;
-  FLocalMatrix := FLocalMatrix * Mat3CreateRotation(angle);
-  FLocalMatrix := FLocalMatrix * Mat3CreateTranslation(xpos,ypos);
-  UpdateVertices(fLocalMatrix);
+  lLocalMatrix := Mat3Identity;
+  lLocalMatrix := lLocalMatrix * Mat3CreateRotation(angle);
+  lLocalMatrix := lLocalMatrix * Mat3CreateTranslation(xpos,ypos);
+  UpdateVertices(lLocalMatrix);
 end;
 
 function TGSRawMesh2D.BoudingCenter: vec2;
@@ -77,11 +92,11 @@ begin
   SetLength(destination.vertices,length(vertices));
   SetLength(destination.indexes,length(indexes));
   SetLength(destination.uvs,length(uvs));
-  SetLength(destination.cols,length(cols));
+//  SetLength(destination.cols,length(cols));
 
   Move(vertices[0],destination.vertices[0],length(vertices)*sizeOf(vec2));
   Move(uvs[0],destination.uvs[0],length(uvs)*sizeOf(vec2));
-  Move(cols[0],destination.cols[0],length(cols)*sizeOf(vec2));
+//  Move(cols[0],destination.cols[0],length(cols)*sizeOf(vec2));
   Move(indexes[0],destination.indexes[0],length(indexes)*SizeOf(Uint32));
 
   destination.BoundingBox := BoundingBox;
@@ -90,7 +105,7 @@ end;
 constructor TGSRawMesh2D.create;
 begin
   Inherited;
-  SetUpQuad(1);
+//  SetUpQuad(1);
 end;
 
 
@@ -98,7 +113,7 @@ function TGSRawMesh2D.FullRefreshBounding: vec4;
 var i : integer;
     p : vec2;
 begin
-  result.create(0,0,0,0);
+  result.create(999999,99999,-999999,-999999);
   for i := 0 to length(vertices)-1 do
   begin
     p.create(vertices[i].x,vertices[i].y);
@@ -146,8 +161,10 @@ end;
 procedure TGSRawMesh2D.Merge(from: TGSRawMesh2D);
 var cp : integer;
   I: Integer;
+  vold, iold : integer;
+  iv : integer;
 begin
-  if (from.getVerticeCount=0) or (from.getIndicesCount=0) then
+{  if (from.getVerticeCount=0) or (from.getIndicesCount=0) then
     exit;
   //vetices copy.
   cp := System.Length(vertices);
@@ -160,9 +177,9 @@ begin
   move(from.uvs[0],uvs[cp],length(from.uvs)*Sizeof(from.uvs[0]));
 
   //cols
-  cp := System.Length(cols);
-  SetLength(cols,Length(cols)+length(from.cols));
-  move(from.cols[0],cols[cp],length(from.cols)*Sizeof(from.cols[0]));
+//  cp := System.Length(cols);
+//  SetLength(cols,Length(cols)+length(from.cols));
+//  move(from.cols[0],cols[cp],length(from.cols)*Sizeof(from.cols[0]));
 
   cp := System.Length(indexes);
   SetLength(indexes,System.Length(indexes)+System.length(from.indexes));
@@ -171,6 +188,29 @@ begin
     for i := cp-1 to System.length(indexes)-1 do
       indexes[i] := indexes[i] + cp;
   FullRefreshBounding;
+}
+
+    vold := getVerticeCount;
+    iv := 0;
+
+    SetLength(vertices,vold+from.getVerticeCount);
+
+    for I := vold to getVerticeCount- 1 do
+    begin
+      Vertices[I].x :=  from.vertices[iv].X;
+      Vertices[I].y :=  from.vertices[iv].Y;
+      iv := iv + 1;
+    end;
+
+    iold := getIndicesCount;
+    iv := 0;
+
+    setLength(indexes,iold + length(from.indexes));
+    for I := iold to getIndicesCount - 1 do
+    begin
+      indexes[I] := vold + from.indexes[iv];
+      iv := iv+1;
+    end;
 end;
 
 procedure TGSRawMesh2D.Modify(xpos, ypos, angle, xscale, yscale: single);
@@ -191,12 +231,18 @@ begin
   UpdateVertices(fLocalMatrix);
 end;
 
+procedure TGSRawMesh2D.reCenter;
+begin
+  fullRefreshBounding;
+  Pan(-BoudingCenter.x,-BoudingCenter.y);
+end;
+
 procedure TGSRawMesh2D.reset;
 begin
   vertices := nil;
   indexes := nil;
   uvs := nil;
-  cols := nil;
+//  cols := nil;
   resetBoundingBox;
 end;
 
@@ -251,7 +297,7 @@ begin
 
   setLength(indexes,6);
   setLength(uvs,4);
-  setLength(cols,4);
+//  setLength(cols,4);
 
   indexes[0] := 0;
   indexes[1] := 1;
@@ -265,10 +311,10 @@ begin
   uvs[2] := vec2.create(1,1);
   uvs[3] := vec2.create(0,1);
 
-  cols[0] := vec4.create(1,0,0,1);
-  cols[1] := vec4.create(0,1,0,1);
-  cols[2] := vec4.create(0,0,1,1);
-  cols[3] := vec4.create(1,1,1,1);
+//  cols[0] := vec4.create(1,0,0,1);
+//  cols[1] := vec4.create(0,1,0,1);
+//  cols[2] := vec4.create(0,0,1,1);
+//  cols[3] := vec4.create(1,1,1,1);
 
   BoundingBox.create(-width/2,-height/2,width/2,height/2);
 end;
@@ -289,9 +335,9 @@ begin
   uva := uvs[ai];
   uvb := uvs[bi];
   uvc := uvs[ci];
-  ca := cols[ai];
-  cb := cols[bi];
-  cc := cols[ci];
+//  ca := cols[ai];
+//  cb := cols[bi];
+//  cc := cols[ci];
 end;
 
 end.

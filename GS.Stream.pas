@@ -62,6 +62,86 @@ Type TUint32Array = Array of Uint32;
 function ReadArrayOfUINT32(Stream : TStream) :  TUint32Array;
 procedure WriteArrayOfUINT32(Stream : TStream; Const Source : Array of UINT32);
 
+Type
+  TGSStream = class helper For TStream
+    procedure stringWrite(str : String);
+    procedure int32write(aInt : Int32);
+    procedure int64write(aInt : Int64);
+    procedure singleWrite(aSingle : single);
+    procedure singleArrayWrite(aSingleArray : TArray<Single>);
+
+    function stringRead : string;
+    function int32Read : Int32;
+    function int64Read : Int64;
+    function singleRead: single;
+    function singleArrayRead : TArray<Single>;
+  end;
+
+  IGSStream = interface
+    procedure stringWrite(str : String);
+    procedure int32write(aInt : Int32);
+    procedure int64write(aInt : Int64);
+    procedure singleWrite(aSingle : single);
+    procedure singleArrayWrite(aSingleArray : TArray<Single>);
+
+    function stringRead : string;
+    function  int32Read : Int32;
+    function int64Read : Int64;
+    function  singleRead: single;
+    function singleArrayRead : TArray<Single>;
+
+    procedure loadFromStream(aStream : TStream);
+    procedure loadFromBytes(aBytes : TBytes);
+    procedure saveToStream(aStream : TStream);
+    procedure loadFromFile(aFile : String);
+    procedure SaveToFile(aFile : String);
+
+    procedure setPos(pos : Int64);
+    function getPos : Int64;
+
+    function AsStream : TStream;
+    function AsBytes : TBytes;
+
+    procedure clear;
+  end;
+
+  TGSStreamImpl = class(TInterfacedObject, IGSStream)
+  private
+  protected
+    FMustDispose : Boolean;
+    FMem : TStream;
+  public
+    Constructor Create(Const SourceStream : TStream = Nil); reintroduce; overload;
+    Constructor Create(Const SourceFile : String); reintroduce; Overload;
+    Destructor Destroy; Override;
+
+    procedure stringWrite(str : String);
+    procedure int32write(aInt : Int32);
+    procedure int64write(aInt : Int64);
+    procedure singleWrite(aSingle : single);
+    procedure singleArrayWrite(aSingleArray : TArray<Single>);
+
+    function stringRead : string;
+    function int32Read : Int32;
+    function int64Read : Int64;
+    function singleRead: single;
+    function singleArrayRead : TArray<Single>;
+
+    procedure loadFromStream(aStream : TStream);
+    procedure loadFromBytes(aBytes : TBytes);
+    procedure saveToStream(aStream : TStream);
+    procedure loadFromFile(aFile : String);
+    procedure SaveToFile(aFile : String);
+
+    procedure setPos(pos : Int64);
+    function getPos : Int64;
+
+    procedure clear;
+
+    function AsStream : TStream;
+    function AsBytes : TBytes;
+  end;
+
 implementation
 
 //Procedure Write_UTF82Bytes(var Buffer : TBytes; const Data : UTF8String);
@@ -174,7 +254,7 @@ end;
 
 procedure WriteByte(Stream: TStream; const Value: Byte);
 begin
-  Stream.Write(Value, 1);
+  Stream.Write(Value,1);
 end;
 
 procedure WriteBoolean(Stream: TStream; const Value: Boolean);
@@ -292,7 +372,7 @@ begin
   if i>0 then
   begin
     {$ifdef FPC}
-    b := TStringStream.Create(UTF8String(' ')); //TODO lencoding , EncodingUTF8, GetEncoding(Encoding)));
+    b := TStringStream.Create; //(UTF8String(' ')); //TODO lencoding , EncodingUTF8, GetEncoding(Encoding)));
     {$else}
     b := TStringStream.Create(' ',GetEncoding(Encoding));
     {$endif}
@@ -363,5 +443,216 @@ begin
 end;
 
 
+
+{ TGSStream }
+
+
+function TGSStream.int32Read: Int32;
+begin
+  result := ReadInt32(Self);
+end;
+
+procedure TGSStream.int32write(aInt: Int32);
+begin
+  WriteInt32(Self,aInt);
+end;
+
+function TGSStream.int64Read: Int64;
+begin
+  result := ReadInt64(Self);
+end;
+
+procedure TGSStream.int64write(aInt: Int64);
+begin
+  WriteInt64(Self,aInt);
+end;
+
+function TGSStream.singleArrayRead: TArray<Single>;
+var l : single;
+    li : Int32;
+    i : Integer;
+begin
+  i := ReadInt32(Self);
+  SetLength(result,i);
+  for i := 0 to length(result)-1 do
+    result[i] := readInt32(self);
+end;
+
+procedure TGSStream.singleArrayWrite(aSingleArray: TArray<Single>);
+var l : single;
+begin
+  WriteInt32(Self,length(aSingleArray));
+  for l in aSingleArray do
+    WriteSingle(Self,l);
+end;
+
+function TGSStream.singleRead: single;
+begin
+  result := ReadSingle(self);
+end;
+
+procedure TGSStream.singleWrite(aSingle: single);
+begin
+  WriteSingle(Self,aSingle);
+end;
+
+function TGSStream.stringRead: string;
+begin
+  result := ReadString(self);
+end;
+
+procedure TGSStream.stringWrite(str: String);
+begin
+  WriteString(Self,str);
+end;
+
+
+{ TGSStreamImpl }
+
+function TGSStreamImpl.AsBytes: TBytes;
+var l : int64;
+begin
+  l := FMem.Position;
+  FMem.Position := 0;
+  result := StreamToBytes(FMem);
+  FMem.Position := l;
+end;
+
+function TGSStreamImpl.AsStream: TStream;
+begin
+  result := FMem;
+end;
+
+constructor TGSStreamImpl.Create(const SourceStream: TStream);
+begin
+  Inherited Create;
+  FMustDispose := Not Assigned(SourceStream);
+  if Assigned(SourceStream) then
+    FMem := SourceStream
+  else
+    FMem := TMemoryStream.Create;
+end;
+
+procedure TGSStreamImpl.clear;
+begin
+  FMem.Size := 0;
+end;
+
+constructor TGSStreamImpl.Create(const SourceFile: String);
+begin
+  Inherited Create;
+  FMustDispose := True;
+  FMem := TFileStream.Create(SourceFile,fmOpenReadWrite);
+end;
+
+destructor TGSStreamImpl.Destroy;
+begin
+  if FMustDispose then
+    FreeAndNil(FMem);
+  inherited;
+end;
+
+function TGSStreamImpl.getPos: Int64;
+begin
+  result := FMem.Position;
+end;
+
+function TGSStreamImpl.int32Read: Int32;
+begin
+  result := FMem.int32Read;
+end;
+
+procedure TGSStreamImpl.int32write(aInt: Int32);
+begin
+  FMem.int32write(aInt);
+end;
+
+function TGSStreamImpl.int64Read: Int64;
+begin
+  result := FMem.int64Read;
+end;
+
+procedure TGSStreamImpl.int64write(aInt: Int64);
+begin
+  FMem.int64write(aInt);
+end;
+
+procedure TGSStreamImpl.loadFromBytes(aBytes: TBytes);
+begin
+  BytesToStream(FMem,aBytes);
+  FMem.Position := 0;
+end;
+
+procedure TGSStreamImpl.loadFromFile(aFile: String);
+var l : TMemoryStream;
+begin
+  l := TMemoryStream.Create;
+  try
+    l.LoadFromFile(aFile);
+    LoadFromStream(l);
+    setPos(0);
+  finally
+    FreeAndNil(l);
+  end;
+end;
+
+procedure TGSStreamImpl.loadFromStream(aStream: TStream);
+begin
+  FMem.CopyFrom(aStream);
+end;
+
+procedure TGSStreamImpl.SaveToFile(aFile: String);
+var l : TMemoryStream;
+begin
+  l := TMemoryStream.Create;
+  try
+    setPos(0);
+    saveToStream(l);
+    l.SaveToFile(aFile);
+  finally
+    FreeAndNil(l);
+  end;
+end;
+
+procedure TGSStreamImpl.saveToStream(aStream: TStream);
+begin
+  FMem.Position := 0;
+  aStream.CopyFrom(FMem);
+end;
+
+procedure TGSStreamImpl.setPos(pos: Int64);
+begin
+  FMem.Position := pos;
+end;
+
+function TGSStreamImpl.singleArrayRead: TArray<Single>;
+begin
+  result := FMem.singleArrayRead;
+end;
+
+procedure TGSStreamImpl.singleArrayWrite(aSingleArray: TArray<Single>);
+begin
+  FMem.singleArrayWrite(aSingleArray);
+end;
+
+function TGSStreamImpl.singleRead: single;
+begin
+  result := FMem.singleRead;
+end;
+
+procedure TGSStreamImpl.singleWrite(aSingle: single);
+begin
+  FMem.singleWrite(aSingle);
+end;
+
+function TGSStreamImpl.stringRead: string;
+begin
+  result := FMem.stringRead;
+end;
+
+procedure TGSStreamImpl.stringWrite(str: String);
+begin
+  FMem.stringWrite(str);
+end;
 
 end.

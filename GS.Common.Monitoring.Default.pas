@@ -1,3 +1,10 @@
+///
+///
+/// Native/Naive in mem only monitoring.
+/// Warning : Mechanism only. Not threadsafe.
+///
+///
+
 unit GS.Common.Monitoring.Default;
 
 interface
@@ -6,307 +13,205 @@ uses SysUtils,
      Classes,
      Generics.Collections,
      GS.Common.Monitoring;
-
 Type
 
-//Abstract
 
-TMonitoringItem = class
+TMonItems = class
 private
-  flastticks : Int64;
-  fOneSec : Uint32;
-  fCall : Uint32;
+  Const
+    CST_GROW = 1000; //Array grow size when no more room.
+  Var
+  Findex : Uint32;
+  Fbuffer : Array of TMonitoringItem;
 public
-  Ticks : Int64;
-  TicksBetweenCall : Int64;
-  DateTime : TDateTime;
-  CallCount : Uint32;
-  CallBySecond : Uint32;
+  procedure Add(aMonItem : TMonitoringItem);
+  function Get(index : integer) : PMonitoringItem;
+  function count : Integer;
+
   Constructor Create; virtual;
-  procedure UpdateMetrics;
-  function Category : TMonCat; virtual; abstract;
-  function GetValueAsString : String; virtual; abstract;
+  Destructor Destroy; Override;
 end;
 
-TMonitoringItemString = class(TMonitoringItem)
-public
-  Value : String;
-  function GetValueAsString : String; override;
-end;
-TMonitoringItemNativeInt = class(TMonitoringItem)
-public
-  Value : NativeInt;
-  function GetValueAsString : String; override;
-end;
 
-//To use.
-
-  TMonitoringEnter = class(TMonitoringItemString)
-  protected
-    FCorrespondingExitEncountered : Boolean;
-    FCorrespondingExit_Ticks : NativeInt;
-    FCorrespondingExit_DateTime : TDateTime;
-  public
-    Constructor Create; Override;
-    function Category : TMonCat; override;
-
-    procedure SetExitEncountered;
-
-    property CorrespondingExitEncountered : Boolean read FCorrespondingExitEncountered;
-    property CorrespondingExit_Ticks : NativeInt read FCorrespondingExit_Ticks;
-    property CorrespondingExit_DateTime : TDateTime read FCorrespondingExit_DateTime;
-  end;
-  TMonitoringExit = class(TMonitoringItemString)
-    function Category : TMonCat; override;
-  end;
-  TMonitoringWatch = class(TMonitoringItemString)
-    function Category : TMonCat; override;
-  end;
-  TMonitoringWatchNativeInt = class(TMonitoringItemNativeInt)
-    function Category : TMonCat; override;
-  end;
-
-TMonitoringManager = Class(TObjectDictionary<string,TMonitoringItem>)
-End;
-
-
-TMonitoringImplementationDefault = Class(TMonitoringImplementation)
+///
+/// Keep Mon in memory (one by id).
+///
+TGSMonImplementationInMemory = class(TGSCustomMonitoringImplementation)
 protected
-  FActive : Boolean;
-  FList : TMonitoringManager;
-  FCurrentTickValue : int64;
+  FMonItems : TMonItems;
 public
   Constructor Create; Virtual;
   Destructor Destroy; Override;
 
-  Procedure watch(const code : String); Overload; Override;
-  Procedure enter(const code : String);  Override;
-  Procedure exit(const code : String);  Override;
-  procedure watch(value : NativeInt; const code : String); Overload;  Override;
+  procedure writeMonStr(monCat : TMonCat; id : String; value : String); Override;
+  procedure writeMonUInt(monCat : TMonCat; id : String; value : UInt64); Override;
+  procedure writeMonInt(monCat : TMonCat; id : String; value : Int64); Override;
+  procedure writeMonDouble(monCat : TMonCat; id : String; value : Double); Override;
 
-  function GetIsActive : boolean;  Override;
-  procedure SetIsActive(Value : boolean);  Override;
+  function lookForId(id : string; out _monitoredItem : PMonitoringItem) : Boolean; Override;
+  function Count : integer; Override;
+  function QueryIds(Const FromDateTime : TDateTime = 0) : TArray<String>; Override;
+end;
 
-  function ReportLogAsString : String; override;
+///
+///   Idea : Keep Mon in memory : Log (expl : Keep proc value in each sec. , temp value etc etc.
+///  TODO : Specialiued datat entry such as : One value table behinf a TMonItem. (1 TmonItem, and a table of value behind. [[TIMESTAMP,VALUE][TIMESTAMP,VALUE]...]
+///
 
-  //Called automaticaly by Monitor manager.
-  procedure SetSystemTick(value : Int64); Override;
-
-  Property Active : boolean read GetIsActive Write SetIsActive;
-End;
+///
+/// other impl : Put the same stuff in a file.
+///
 
 implementation
 
-{ TMonitoringImplementationDefault }
 
-constructor TMonitoringImplementationDefault.Create;
+{ TMonItems }
+
+procedure TMonItems.Add(aMonItem : TMonitoringItem);
+var lb,li : Int64;
 begin
-  Inherited;
-  FList := TMonitoringManager.Create([doOwnsValues]);
-  FActive := true;
+  lb := Length(Fbuffer);
+  if Not(Findex < lb-1) then
+    SetLength(FBuffer,length(Fbuffer)+CST_GROW);
+  li := Findex;
+  Inc(FIndex);
+  Fbuffer[li] := aMonItem;
 end;
 
-destructor TMonitoringImplementationDefault.Destroy;
+function TMonItems.count: Integer;
 begin
-  FreeAndNil(FList);
+  result := length(Fbuffer);
+end;
+
+constructor TMonItems.Create;
+begin
+  Findex := 0;
+end;
+
+destructor TMonItems.Destroy;
+begin
+  Fbuffer := nil;
   inherited;
 end;
 
-function TMonitoringImplementationDefault.GetIsActive: boolean;
+
+
+function TMonItems.Get(index: integer): PMonitoringItem;
 begin
-  result := Factive;
+  result := @Fbuffer[index];
 end;
 
-function TMonitoringImplementationDefault.ReportLogAsString: String;
-var v : TStringList;
-    l : TPair<string,TMonitoringItem>;
-    i : integer;
+{ TGSMonImplementationInMemory }
+
+function TGSMonImplementationInMemory.Count: integer;
 begin
-  Result := '';
-  v :=TStringList.Create;
-  try
-    i := 1;
-    v.Add(Format('"%s","%s","%s","%s","%s","%s","%s","%s"',['n#','Ticks','CallCount','TicksBetweenCall','CallbySecond','Key','Class','ValueAsString']));
-    for l in FList do
-    begin
-      v.Add(Format('%d,%d,%d,%d,%d,"%s",%s,%s',[i,l.Value.Ticks,l.Value.CallCount,l.Value.TicksBetweenCall,l.Value.CallBySecond, l.Key,l.Value.ClassName,l.Value.GetValueAsString]));
-      inc(i);
+  result := FMonItems.count;
+end;
+
+constructor TGSMonImplementationInMemory.Create;
+begin
+  inherited;
+  fActive := true;
+  FMonItems := TMonItems.Create;
+end;
+
+destructor TGSMonImplementationInMemory.Destroy;
+begin
+  FreeAndNil(FMonItems);
+  inherited;
+end;
+
+function TGSMonImplementationInMemory.lookForId(id : string; out _monitoredItem : PMonitoringItem) : Boolean;
+var i : integer;
+begin
+  result := false;
+  for i := FMonItems.count-1 downto 0 do
+    if FMonItems.Get(i).id = id then begin
+      _monitoredItem := FMonItems.Get(i);
+      result := true;
+      break
     end;
-    Result := Trim(v.Text);
-  finally
-    FreeAndNil(v);
+end;
+
+function TGSMonImplementationInMemory.QueryIds(
+  const FromDateTime: TDateTime): TArray<String>;
+var i : integer;
+begin
+  setLength(Result,FMonItems.count);
+  for i := 0 to FMonItems.count-1 do
+    result[i] := FMonItems.Get(i).id;
+end;
+
+procedure TGSMonImplementationInMemory.writeMonDouble(monCat: TMonCat; id: String;
+  value: Double);
+var l : PMonitoringItem;
+    lp : TMonitoringItem;
+begin
+  if lookForId(id,l) then begin
+    l.doubleValue := value;
+    l.UpdateMetrics;
+    exit;
   end;
+  lp.init;
+  lp.id := id;
+  lp.monCat := monCat;
+  lp.doubleValue := value;
+  lp.UpdateMetrics;
+  FMonItems.Add(lp);
 end;
 
-procedure TMonitoringImplementationDefault.SetIsActive(Value: boolean);
+procedure TGSMonImplementationInMemory.writeMonInt(monCat: TMonCat; id: String;
+  value: Int64);
+var l : PMonitoringItem;
+    lp : TMonitoringItem;
 begin
-  FActive := Value;
-end;
-
-
-procedure TMonitoringImplementationDefault.SetSystemTick(value: Int64);
-begin
-  FCurrentTickValue := value;
-end;
-
-procedure TMonitoringImplementationDefault.enter(const code: String);
-var l : TMonitoringItem;
-begin
-  if Not FList.TryGetValue(code+'_enter',l) then
-  begin
-    l := TMonitoringEnter.Create;
-    FList.Add(code+'_enter',l);
+  if lookForId(id,l) then begin
+    l.intValue := value;
+    l.UpdateMetrics;
+    exit;
   end;
-
-  l.Ticks := FCurrentTickValue;
-  l.UpdateMetrics;
-  if l is TMonitoringEnter then
-    TMonitoringEnter(l).Value := code
-  else
-    raise Exception.Create('Monitoring Enter : found '+l.ClassName+' expected "TMonitoringEnter"');
+  lp.init;
+  lp.id := id;
+  lp.monCat := monCat;
+  lp.intValue := value;
+  lp.UpdateMetrics;
+  FMonItems.Add(lp);
 end;
 
-procedure TMonitoringImplementationDefault.exit(const code: String);
-var l : TMonitoringItem;
+procedure TGSMonImplementationInMemory.writeMonStr(monCat: TMonCat; id,
+  value: String);
+var l : PMonitoringItem;
+    lp : TMonitoringItem;
 begin
-  if Not FList.TryGetValue(code+'_exit',l) then
-  begin
-    l := TMonitoringExit.Create;
-    FList.Add(code+'_exit',l);
+  if lookForId(id,l) then begin
+    l.StringValue := value;
+    l.UpdateMetrics;
+    exit;
   end;
-
-  l.Ticks := FCurrentTickValue;
-  l.UpdateMetrics;
-  if l is TMonitoringExit then
-    TMonitoringExit(l).Value := code
-  else
-  if l is TMonitoringEnter then
-    TMonitoringEnter(l).SetExitEncountered
-  else
-    raise Exception.Create('Monitoring Exit : found '+l.ClassName+' expected "TmonitoingEnter or TMonitoringExit"');
+  lp.init;
+  lp.id := id;
+  lp.monCat := monCat;
+  lp.StringValue := value;
+  lp.UpdateMetrics;
+  FMonItems.Add(lp);
 end;
 
-procedure TMonitoringImplementationDefault.watch(const code: String);
-var l : TMonitoringItem;
+procedure TGSMonImplementationInMemory.writeMonUInt(monCat: TMonCat; id: String;
+  value: UInt64);
+var l : PMonitoringItem;
+    lp : TMonitoringItem;
 begin
-  if Not FList.TryGetValue(code+'_watch',l) then
-  begin
-    l := TMonitoringWatch.Create;
-    FList.Add(code+'_watch',l);
+  if lookForId(id,l) then begin
+    l.uIntValue := value;
+    l.UpdateMetrics;
+    exit;
   end;
-
-  l.Ticks := FCurrentTickValue;
-  l.UpdateMetrics;
-  if l is TMonitoringWatch then
-    TMonitoringWatch(l).Value := code
-  else
-    raise Exception.Create('Monitoring Watch : found '+l.ClassName+' expected "TMonitoringWatch"');
-end;
-
-procedure TMonitoringImplementationDefault.watch(value: NativeInt;
-  const code: String);
-var l : TMonitoringItem;
-begin
-  if Not FList.TryGetValue(code+'_watchval',l) then
-  begin
-    l := TMonitoringWatchNativeInt.Create;
-    FList.Add(code+'_watchval',l);
-  end;
-
-  l.Ticks := FCurrentTickValue;
-  l.UpdateMetrics;
-  if l is TMonitoringWatchNativeInt then
-    TMonitoringWatchNativeInt(l).Value := Value
-  else
-    raise Exception.Create('Monitoring WatchNativeInt : found '+l.ClassName+' expected "TMonitoringWatchNativeInt"');
-end;
-
-{ TMonitoringWatchNativeInt }
-
-function TMonitoringWatchNativeInt.Category: TMonCat;
-begin
-  result := TMonCat.mcWatchNativeInt;
-end;
-
-{ TMonitoringWatch }
-
-function TMonitoringWatch.Category: TMonCat;
-begin
-  result := TMonCat.mcWatch;
-end;
-
-{ TMonitoringEnter }
-
-function TMonitoringEnter.Category: TMonCat;
-begin
-  result := TMonCat.mcEnter;
-end;
-
-constructor TMonitoringEnter.Create;
-begin
-  Inherited;
-  FCorrespondingExitEncountered:= false;;
-  FCorrespondingExit_Ticks := 0;
-  FCorrespondingExit_DateTime := 0;
-end;
-
-procedure TMonitoringEnter.SetExitEncountered;
-begin
-  FCorrespondingExitEncountered := true;
-  FCorrespondingExit_Ticks := Ticks;
-  FCorrespondingExit_DateTime := Now;
-end;
-
-{ TMonitoringExit }
-
-function TMonitoringExit.Category: TMonCat;
-begin
-  result := TMonCat.mcExit;
-end;
-
-{ TMonitoringItemNativeInt }
-
-function TMonitoringItemNativeInt.GetValueAsString: String;
-begin
-  result := IntToStr(Value);
-end;
-
-{ TMonitoringItemString }
-
-function TMonitoringItemString.GetValueAsString: String;
-begin
-  result := Value;
-end;
-
-{ TMonitoringItem }
-
-constructor TMonitoringItem.Create;
-begin
-  Inherited;
-  Ticks := 0;
-  flastticks := Ticks;
-  fOneSec := 0;
-  fCall := 0;
-  TicksBetweenCall := 0;
-  DateTime := Now;
-  CallCount := 0;
-  CallBySecond := 0;
-end;
-
-procedure TMonitoringItem.UpdateMetrics;
-begin
-  DateTime := Now;
-  TicksBetweenCall := (Ticks-flastticks);
-  flastticks := Ticks;
-  fOneSec := fOneSec + TicksBetweenCall;
-  Inc(CallCount);
-  inc(fCall);
-  if fOneSec>=1000 then
-  begin
-    CallBySecond := fCall;
-    fOneSec := 0;
-    fCall := 0;
-  end;
+  lp.init;
+  lp.id := id;
+  lp.monCat := monCat;
+  lp.uIntValue := value;
+  lp.UpdateMetrics;
+  FMonItems.Add(lp);
 end;
 
 end.

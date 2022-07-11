@@ -13,11 +13,21 @@ uses Classes, SysUtils,
 Type
 
 TGSAssetType = (gsatText, gsatImage, gsatAtlas, gsatSound, gsatMesh2d, gsaComposed);
-
 TGSAssetString = String;
 TGSAssetInt = NativeInt;
 
-TGSAssetBase = class
+IGSAsset = interface
+  function GetAssetType: TGSAssetType;
+  function GetAssetHumanName: TGSAssetString;
+  function GetAssetID: TGSAssetString;
+  function GetAssetMemorySize: TGSAssetInt;
+
+  procedure SaveToStream(aStream : TStream);
+  procedure LoadFromStream(aStream : TStream);
+end;
+
+
+TGSAssetBase = class(TInterfacedObject, IGSAsset)
 protected
   FID : TGUID;
   function GetAssetType: TGSAssetType; virtual; abstract;
@@ -58,26 +68,51 @@ public
 end;
 
 TGSAsset2DMeshedObject = class(TGSAssetObject)
+private
 protected
-  fMesh : TGSRawMesh2D;
+  const cstHeaderMagicNumber = -42;
+        cstHeaderSign = 'GSMSH';
+        cstHeaderV1dot0 = 10;
+  var
+    fMesh : TGSRawMesh2D;
+    fBorders: Vec2sArray; //Raw poly.
+    FVersion: Integer;
+
   function GetAssetType: TGSAssetType; override;
   function GetAssetHumanName: TGSAssetString; override;
   function GetAssetMemorySize: TGSAssetInt; override;
+
+  //Load.
+  procedure internalReadAdvMesh(aStream : TStream); //Border and mesh.
+  procedure internalWriteAdvMesh(aStream : TStream); //Border and mesh.
+
+  procedure internalReadRawMesh(aStream : TStream); //Mesh only.
+  procedure internalReadRawPolys(aStream : TStream); //Borders only.
+
+  procedure internalWriteRawMesh(aStream : TStream); //Mesh only
+  procedure internalWriteRawPolys(aStream : TStream); //Borders only.
 public
   Constructor Create; override;
   Destructor Destroy; override;
   procedure SaveToStream(aStream : TStream); override;
   procedure LoadFromStream(aStream : TStream); override;
 
+  procedure SaveToStreamMeshPart(aStream : TStream);
+  procedure LoadFromStreamMeshPart(aStream : TStream);
+
+  procedure BordersCopyFrom(var aSource : Vec2sArray);
+
   property MeshData : TGSRawMesh2D read fMesh;
+  property Borders : Vec2sArray read fBorders write fBorders;
+  property Version : Integer read FVersion;
 end;
 
-TGSAsset2DMeshedBorderedObject = Class(TGSAsset2DMeshedObject)
 
-  //property BoderData : read fMesh;
-End;
+TGSAssetShapeMesh = class(TGSAsset2DMeshedObject)
+end;
 
-TGSAssetSquareMesh = Class(TGSAsset2DMeshedObject)
+
+TGSAssetSquareMesh = Class(TGSAssetShapeMesh)
 private
   FSide: TVecType;
   procedure SetSide(const Value: TVecType);
@@ -85,9 +120,6 @@ protected
 public
   Constructor Create; override;
   property Side : TVecType read FSide write SetSide;
-end;
-
-TGSAssetShapeMesh = class(TGSAsset2DMeshedObject)
 end;
 
 TGSAssetRoundedShapeMesh = class(TGSAssetShapeMesh)
@@ -270,8 +302,8 @@ begin
   SetLength(zones,l+1);
   zones[l].Left := x;
   zones[l].top := y;
-  zones[l].Width := w;
-  zones[l].height := h;
+  zones[l].right := x+w;
+  zones[l].bottom := y+h;
   names.Add(UTF8String(name));
 end;
 
@@ -435,7 +467,7 @@ end;
 
 function TGSAssetText.GetAssetHumanName: TGSAssetString;
 begin
-  result := 'Text (Pure UTF8 text data)'
+  result := 'Text (UTF8 text data)'
 end;
 
 function TGSAssetText.GetAssetMemorySize: TGSAssetInt;
@@ -460,6 +492,11 @@ begin
 end;
 
 { TGSAsset2DMeshedObject }
+
+procedure TGSAsset2DMeshedObject.BordersCopyFrom(var aSource: Vec2sArray);
+begin
+  _vect2sArrayCopy(aSource,fBorders);
+end;
 
 constructor TGSAsset2DMeshedObject.Create;
 begin
@@ -490,36 +527,40 @@ begin
   result := TGSAssetType.gsatMesh2d;
 end;
 
-procedure TGSAsset2DMeshedObject.LoadFromStream(aStream: TStream);
-var i : integer;
-    fv,fu,fi : Int32;
+procedure TGSAsset2DMeshedObject.internalReadRawPolys(aStream : TStream); //Borders.
+var i,j : integer;
+    lpc,luc : Int32;
+    lindex : Integer;
 begin
-  fv := ReadInt32(aStream);
-  fu := ReadInt32(aStream);
-  fi := ReadInt32(aStream);
-
-  SetLength(fMesh.vertices,fv);
-  SetLength(fMesh.uvs,fu);
-  SetLength(fMesh.indexes,fi);
-
-  for i := 0 to Length(fMesh.vertices)-1 do
-  begin
-    fmesh.vertices[i].x := ReadDouble(aStream);
-    fmesh.vertices[i].y := ReadDouble(aStream);
-  end;
-  for i := 0 to length(FMesh.uvs)-1 do
-  begin
-    fmesh.uvs[i].x := ReadDouble(aStream);
-    fmesh.uvs[i].y := ReadDouble(aStream);
-  end;
-  for i := 0 to length(FMesh.indexes)-1 do
-  begin
-    fmesh.indexes[i] := ReadInt32(aStream);
-    fmesh.indexes[i] := ReadInt32(aStream);
+  lpc := ReadInt32(aStream); //Polys count.
+  lindex := length(fBorders); //Merge compatible.
+  SetLength(fBorders,lindex+lpc);
+  for i := 0 to lpc-1 do begin
+    luc := ReadInt32(aStream); //units count.
+    SetLength(fBorders[lindex+i],luc);
+    for j := 0 to luc-1 do begin
+      fBorders[lindex+i][j].x := ReadDouble(aStream);
+      fBorders[lindex+i][j].y := ReadDouble(aStream);
+    end;
   end;
 end;
 
-procedure TGSAsset2DMeshedObject.SaveToStream(aStream: TStream);
+procedure TGSAsset2DMeshedObject.internalWriteRawPolys(aStream : TStream); //Borders.
+var i,j : integer;
+begin
+  WriteInt32(aStream,length(fBorders));
+  for i := 0 to length(fBorders)-1 do begin
+    WriteInt32(aStream,Length(fBorders[i]));
+    for j := 0 to length(fBorders[i])-1 do begin
+       WriteDouble(aStream,fBorders[i][j].x);
+       WriteDouble(aStream,fBorders[i][j].y);
+    end;
+  end;
+end;
+
+
+
+procedure TGSAsset2DMeshedObject.internalWriteRawMesh(aStream: TStream);
 var i : integer;
 begin
   WriteInt32(aStream,Length(fMesh.vertices));
@@ -540,6 +581,94 @@ begin
     WriteInt32(aStream,FMesh.indexes[i]);
     WriteInt32(aStream,FMesh.indexes[i]);
   end;
+end;
+
+procedure TGSAsset2DMeshedObject.internalReadRawMesh(aStream: TStream);
+var i : integer;
+    fv,fu,fi : Int32;
+    lvi, lii : Int32;
+begin
+  fv := ReadInt32(aStream);
+  fu := ReadInt32(aStream);
+  fi := ReadInt32(aStream);
+
+  lvi := length(fMesh.vertices);
+  lii := length(fMesh.indexes);
+
+  SetLength(fMesh.vertices,lvi+fv);
+  SetLength(fMesh.uvs,fu);
+//  SetLength(fMesh.cols,fu);
+  SetLength(fMesh.indexes,lii+fi);
+  fBorders := Nil;
+
+  for i := 0 to Length(fMesh.vertices)-1 do
+  begin
+    fmesh.vertices[lvi+i].x := ReadDouble(aStream);
+    fmesh.vertices[lvi+i].y := ReadDouble(aStream);
+  end;
+  for i := 0 to length(FMesh.uvs)-1 do
+  begin
+    fmesh.uvs[i].x := ReadDouble(aStream);
+    fmesh.uvs[i].y := ReadDouble(aStream);
+  end;
+  for i := 0 to length(FMesh.indexes)-1 do
+  begin
+    fmesh.indexes[lii+i] := ReadInt32(aStream);
+    fmesh.indexes[lii+i] := ReadInt32(aStream);
+  end;
+end;
+
+
+procedure TGSAsset2DMeshedObject.internalReadAdvMesh(aStream: TStream);
+begin
+  //header.
+  ReadInt32(aStream);
+  ReadString(aStream);
+  FVersion := ReadInt32(aStream);
+  //Payload.
+  internalReadRawPolys(aStream);
+  internalReadRawMesh(aStream);
+end;
+
+procedure TGSAsset2DMeshedObject.internalWriteAdvMesh(aStream: TStream);
+begin
+  Writeint32(aStream,cstHeaderMagicNumber);
+  WriteString(aStream,cstHeaderSign);
+  Writeint32(aStream,cstHeaderV1dot0);
+  internalWriteRawPolys(aStream);
+  internalWriteRawMesh(aStream);
+end;
+
+procedure TGSAsset2DMeshedObject.LoadFromStream(aStream: TStream);
+  function IsAssetMeshFileHeader : boolean;
+  var l : NativeInt;
+  begin
+    l := aStream.Position;
+    FVersion := 10; //Simplest file : Mesh only.
+    result := (ReadInt32(aStream)= cstHeaderMagicNumber) And (ReadString(aStream) = cstHeaderSign);
+    aStream.Position := l;
+  end;
+begin
+  Assert(aStream.size>0);
+  if IsAssetMeshFileHeader then
+    internalReadAdvMesh(aStream)
+  else
+    raise Exception.Create('TGSAsset2DMeshedObject.LoadFromStream Error : Wrong file type');
+end;
+
+procedure TGSAsset2DMeshedObject.SaveToStream(aStream: TStream);
+begin
+  internalWriteAdvMesh(aStream);
+end;
+
+procedure TGSAsset2DMeshedObject.LoadFromStreamMeshPart(aStream: TStream);
+begin
+  internalReadRawMesh(aStream);
+end;
+
+procedure TGSAsset2DMeshedObject.SaveToStreamMeshPart(aStream: TStream);
+begin
+  internalWriteRawMesh(aStream);
 end;
 
 { TGSAssetImageContainer }

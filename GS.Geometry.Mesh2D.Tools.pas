@@ -15,18 +15,6 @@ uses Types,
      GS.Geometry,
      Gs.Geometry.Mesh2D;
 type
-TGSTriangle = Record
-  P1,P2,P3 : TPointf;
-End;
-TGSTriangleArray = Array of TGSTriangle;
-
-TGSEdgeCode = (fecDraw, fecIgnore);
-TGSEdge = Record
-  P1 : TPointf;
-  Code : TGSEdgeCode;
-End;
-TGSEdgeArray = Array of TGSEdge;
-
 
 TGSShape2dType = (triangleOneOneOne,
                       quadOneOne,
@@ -83,31 +71,61 @@ public
   property Mesh : TGSRawMesh2D read FMesh;
 end;
 
+iGSMeshGrapher = interface
+  function rect(x,y,width,height : single) : iGSMeshGrapher;
+  function moveTo(x,y : single) : iGSMeshGrapher;
+  function lineTo(x,y : single; const thickness : single = 0) : iGSMeshGrapher;
+end;
+
+TGSMeshGrapher = Class(TInterfacedObject, iGSMeshGrapher)
+private
+  FTool : TDirectionalObject;
+  FX,FY : Single;
+public
+  Mesh : TGSRawMesh2D;
+
+  Constructor Create; virtual;
+  Destructor Destroy; override;
+  function rect(x,y,width,height : single) : iGSMeshGrapher;
+  function moveTo(x,y : single) : iGSMeshGrapher;
+  function lineTo(x,y : single; const thickness : single = 0) : iGSMeshGrapher;
+End;
+
+IGSGeometryData = interface
+  procedure clear;
+  Procedure SetCapacity(aCapa : Integer);
+  function getBorder : Vec2sp;
+  function GetMesh : TGSRawMesh2D;
+  Procedure Scale(xScale, yScale : Single);
+  Procedure Translate(xAmount, yAmount : Single);
+end;
+
+TGSGeometry2DData = Class(TInterfacedObject, IGSGeometryData)
+Private
+  FBorder : Vec2s;
+  Procedure ClearArray;
+Public
+  function getBorder : Vec2sp;
+  Procedure Clear;
+  Procedure SetCapacity(aCapa : Integer);
+  Procedure Scale(xScale, yScale : Single);
+  Procedure Translate(xAmount, yAmount : Single);
+  function GetMesh : TGSRawMesh2D;
+End;
+
 ///
 ///
 ///  GENERATOR
 ///
 ///
 
+IGSGeometryGenerator = interface
+ Procedure Generate(var aData : IGSGeometryData);
+end;
 
-TGSGeometry2DData = Class
-Private
-  Procedure ClearArray;
+TGSGeometryGenerator = Class(TInterfacedObject, IGSGeometryGenerator)
 Public
-  Mesh : TGSTriangleArray;
-  Border : TGSEdgeArray;
-
-  Procedure Clear;
-  Procedure SetCapacity(aCapa : Integer);
-
-  Procedure Scale(xScale, yScale : Single);
-  Procedure Translate(xAmount, yAmount : Single);
-
-  function GetMesh : TGSRawMesh2D;
-End;
-
-TGSGeometryGenerator = Class
-Public
+  Procedure Generate(var aData : IGSGeometryData); Virtual; Abstract;
 End;
 
 TGS2DGeometryGenerator = Class(TGSGeometryGenerator)
@@ -117,7 +135,6 @@ Protected
 Public
   Constructor Create; Virtual;
   Destructor Destroy; Override;
-  Procedure Generate(var aData : TGSGeometry2DData); Virtual; Abstract;
 End;
 
 //--------------------------------------------------- Disk.
@@ -126,7 +143,7 @@ Private
   FRadius: Single;
   FSubdivision: Integer;
 Public
-  Procedure Generate(var aData : TGSGeometry2DData); Override;
+  Procedure Generate(var aData : IGSGeometryData); Override;
   Constructor Create; Override;
 
   Property Radius : Single read FRadius WRite FRadius;
@@ -141,7 +158,7 @@ Private
 
   procedure SetInnerRadius(const Value: Single);
 Public
-  Procedure Generate(var aData : TGSGeometry2DData); Override;
+  Procedure Generate(var aData : IGSGeometryData); Override;
   Constructor Create; override;
   Destructor Destroy; Override;
 
@@ -149,18 +166,23 @@ Public
 End;
 
 //------------------------------------------------- Sub Operation.
-TGS2DSubOpp = Class(TGS2DGeometryGenerator)
+TGS2DSubOpp = Class(TGSGeometryGenerator)
 private
-  FSubject: TGSGeometry2DData;
-  FSubOp: TGSGeometry2DData;
+  FSubject: IGSGeometryData;
+  FSubOp: IGSGeometryData;
 Public
-  Procedure Generate(var aData : TGSGeometry2DData); Override;
+  Procedure Generate(var aData : IGSGeometryData); Override;
 
-  Property Subject : TGSGeometry2DData Read FSubject Write FSubject;
-  Property SubOp : TGSGeometry2DData read FSubOp Write FSubOp;
+  Property Subject : IGSGeometryData Read FSubject Write FSubject;
+  Property SubOp : IGSGeometryData read FSubOp Write FSubOp;
 End;
 
-
+TGSMesh2dToolsFactory = class
+  class function CreateDiskGenerator(radius : single) : IGSGeometryGenerator;
+  class function CreateDiskGeneratorAndGetResult(radius : single) : IGSGeometryData;
+  class function CreateBooleanSubOpGenerator(subject, clipped : IGSGeometryData) : IGSGeometryGenerator;
+  class function CreateBooleanSubOpGeneratorAndGetResult(subject, clipped : IGSGeometryData) : IGSGeometryData;
+end;
 
 implementation
 
@@ -241,27 +263,32 @@ end;
 { TGSMesh2dHelper }
 
 procedure TGSMesh2dHelper.addTriangle(a, b, c: vec2);
-var l : Uint32;
+var l,i : Uint32;
 begin
   l := Length(vertices);
+  i := Length(indexes);
+
   SetLength(vertices,l+3);
   SetLength(uvs,l+3);
-  SetLength(cols,l+3);
-  SetLength(indexes,l+3);
+  SetLength(indexes,i+3);
+//  SetLength(cols,l+3);
+
   vertices[l] := a;
-  indexes[l] := l;
+  indexes[i] := l;
   uvs[l].create(0,0);
-  cols[l].create(1,0,0,1);
+//  cols[l].create(1,0,0,1);
   inc(l);
+  inc(i);
   vertices[l] := b;
-  indexes[l] := l;
+  indexes[i] := l;
   uvs[l].create(1,0);
-  cols[l].create(0,1,0,1);
+//  cols[l].create(0,1,0,1);
   inc(l);
+  inc(i);
   vertices[l] := c;
-  indexes[l] := l;
+  indexes[i] := l;
   uvs[l].create(1,1);
-  cols[l].create(0,0,1,1);
+//  cols[l].create(0,0,1,1);
   ProgressiveRefreshBounding(a);
   ProgressiveRefreshBounding(b);
   ProgressiveRefreshBounding(c);
@@ -292,25 +319,21 @@ end;
 
 procedure TGSMesh2dHelper.Build_SetRoundShape(subdivision : UInt32; len : single);
 var generator : TGSDiskGenerator;
-    dta : TGSGeometry2DData;
+    dta : IGSGeometryData;
     m : TGSRawMesh2D;
 begin
   reset;
   dta := TGSGeometry2DData.Create;
+  generator := TGSDiskGenerator.Create;
   try
-    generator := TGSDiskGenerator.Create;
-    try
-      generator.Subdivision := subdivision;
-      generator.Radius := len;
-      generator.Generate(dta);
-    finally
-      freeAndNil(generator);
-    end;
-
-    m := dta.GetMesh;
+    generator.Subdivision := subdivision;
+    generator.Radius := len;
+    generator.Generate(dta);
   finally
-    FreeAndNil(dta);
+    freeAndNil(generator);
   end;
+
+  m := dta.GetMesh;
 
   try
     m.copy(Self);
@@ -397,6 +420,7 @@ end;
 procedure TGSGeometry2DData.ClearArray;
 var i : Integer;
 begin
+{
   for i := Low(Mesh) to High(Mesh) do
   begin
     Mesh[i].P1.X:= 0;
@@ -406,12 +430,17 @@ begin
     Mesh[i].P3.X:= 0;
     Mesh[i].P3.y:= 0;
   end;
-  for i := Low(Border) to High(Border) do
+}
+  for i := Low(FBorder) to High(FBorder) do
   begin
-    Border[i].P1.X:= 0;
-    Border[i].P1.y:= 0;
-    Border[i].Code := TGSEdgeCode.fecDraw;
+    FBorder[i].X:= 0;
+    FBorder[i].y:= 0;
   end;
+end;
+
+function TGSGeometry2DData.getBorder: Vec2sp;
+begin
+  result := @FBorder;
 end;
 
 function TGSGeometry2DData.GetMesh: TGSRawMesh2D;
@@ -420,50 +449,34 @@ var i : Integer;
 begin
   result := TGSRawMesh2D.Create;
   Result.reset;
-  for i := Low(Mesh) to High(Mesh) do
-  begin
-    pa.create(Mesh[i].P1.X,Mesh[i].P1.Y);
-    pb.create(Mesh[i].P2.X,Mesh[i].P2.Y);
-    pc.create(Mesh[i].P3.X,Mesh[i].P3.Y);
-    result.addTriangle(pa,pb,pc)
+  SetLength(result.vertices,length(FBorder));
+  for i := Low(FBorder) to High(FBorder) do begin
+    result.vertices[i].x := FBorder[i].X;
+    result.vertices[i].y := FBorder[i].Y;
   end;
 end;
 
 procedure TGSGeometry2DData.Scale(xScale, yScale: Single);
 var i : Integer;
 begin
-  for i := Low(Mesh) to High(Mesh) do
+  for i := Low(FBorder) to High(FBorder) do
   begin
-    Mesh[i].P1:= Pointf(Mesh[i].P1.X * xScale, Mesh[i].P1.Y * yScale);
-    Mesh[i].P2:= Pointf(Mesh[i].P2.X * xScale, Mesh[i].P2.Y * yScale);
-    Mesh[i].P3:= Pointf(Mesh[i].P3.X * xScale, Mesh[i].P3.Y * yScale);
-  end;
-  for i := Low(Border) to High(Border) do
-  begin
-    Border[i].P1:= Pointf(Border[i].P1.X * xScale, Border[i].P1.Y * yScale);
-    //Border[i].Code := fecDraw;
+    FBorder[i] := vec2.create(FBorder[i].X * xScale, FBorder[i].Y * yScale);
   end;
 end;
 
 procedure TGSGeometry2DData.SetCapacity(aCapa: Integer);
 begin
-  SetLength(Mesh,aCapa);
-  SetLength(Border,aCapa);
+  SetLength(FBorder,aCapa);
   ClearArray;
 end;
 
 procedure TGSGeometry2DData.Translate(xAmount, yAmount: Single);
 var i : Integer;
 begin
-  for i := Low(Mesh) to High(Mesh) do
+  for i := Low(FBorder) to High(FBorder) do
   begin
-    Mesh[i].P1:= Pointf(Mesh[i].P1.X + xAmount, Mesh[i].P1.Y + yAmount);
-    Mesh[i].P2:= Pointf(Mesh[i].P2.X + xAmount, Mesh[i].P2.Y + yAmount);
-    Mesh[i].P3:= Pointf(Mesh[i].P3.X + xAmount, Mesh[i].P3.Y + yAmount);
-  end;
-  for i := Low(Border) to High(Border) do
-  begin
-    Border[i].P1:= Pointf(Border[i].P1.X + xAmount, Border[i].P1.Y + yAmount);
+    FBorder[i]:= vec2.create(FBorder[i].X + xAmount, FBorder[i].Y + yAmount);
   end;
 end;
 
@@ -491,13 +504,13 @@ begin
   Radius := 1;
 end;
 
-procedure TGSDiskGenerator.Generate(var aData : TGSGeometry2DData);
+procedure TGSDiskGenerator.Generate(var aData : IGSGeometryData);
 var i : integer;
     FStepAngle : Single;
 begin
   aData.SetCapacity(FSubdivision);
 
-  LocalGeometryTool.SetOrigin(0,0,0);
+  LocalGeometryTool.SetOrigin(0,0);
   LocalGeometryTool.Norm := FRadius;
   LocalGeometryTool.Angle := 0;
 
@@ -505,12 +518,11 @@ begin
 
   for i := 0 to FSubdivision-1 do
   begin
-    aData.Mesh[i].P1 := Pointf(0,0);
-    aData.Mesh[i].P2 := Pointf(LocalGeometryTool.GetPointedCoord.X,LocalGeometryTool.GetPointedCoord.Y);
     LocalGeometryTool.TurnBy(FStepAngle);
-    aData.Mesh[i].P3 := Pointf(LocalGeometryTool.GetPointedCoord.X,LocalGeometryTool.GetPointedCoord.Y);
-    aData.Border[i].P1 := aData.Mesh[i].P2;
+    aData.getBorder^[i].X := LocalGeometryTool.GetPointedCoord.X;
+    aData.getBorder^[i].Y := LocalGeometryTool.GetPointedCoord.Y;
   end;
+  aData.getBorder^[FSubdivision-1] := aData.getBorder^[0];
 end;
 
 { TGSDiskDonutGenerator }
@@ -528,17 +540,17 @@ begin
   inherited;
 end;
 
-procedure TGSDiskDonutGenerator.Generate(var aData: TGSGeometry2DData);
+procedure TGSDiskDonutGenerator.Generate(var aData: IGSGeometryData);
 var i,j : integer;
     FStepAngle : Single;
 begin
   aData.SetCapacity(FSubdivision*2); //2 Circles. = twice triangle quantity, and twice border long.
 
-  LocalGeometryTool.SetOrigin(0,0,0);
+  LocalGeometryTool.SetOrigin(0,0);
   LocalGeometryTool.Norm := FRadius;
   LocalGeometryTool.Angle := 0;
 
-  FSecondaryGeometryTool.SetOrigin(0,0,0);
+  FSecondaryGeometryTool.SetOrigin(0,0);
   FSecondaryGeometryTool.Norm := FInnerRadius;
   FSecondaryGeometryTool.Angle := 0;
 
@@ -549,23 +561,23 @@ begin
   j := 0;
   for i := 0 to FSubdivision-1 do
   begin
-    aData.Border[j].Code := TGSEdgeCode.fecDraw;
-    aData.Border[j].P1 := Pointf(LocalGeometryTool.GetPointedCoord.X,LocalGeometryTool.GetPointedCoord.Y);
+//    aData.Border[j].Code := TGSEdgeCode.fecDraw;
+    aData.getBorder^[j] := Vec2.create(LocalGeometryTool.GetPointedCoord.X,LocalGeometryTool.GetPointedCoord.Y);
     LocalGeometryTool.TurnBy(FStepAngle);
     inc(j);
   end;
 
   //Jump !
-  aData.Border[j].P1 := Pointf(FSecondaryGeometryTool.GetPointedCoord.X,FSecondaryGeometryTool.GetPointedCoord.Y);
-  aData.Border[j].Code := TGSEdgeCode.fecIgnore;
+  aData.getBorder^[j] := vec2.create(FSecondaryGeometryTool.GetPointedCoord.X,FSecondaryGeometryTool.GetPointedCoord.Y);
+//  aData.Border[j].Code := TGSEdgeCode.fecIgnore;
   FSecondaryGeometryTool.TurnBy(FStepAngle);
   inc(j);
 
   //Inner circle.
   for i := 0 to FSubdivision-1 do
   begin
-    aData.Border[j].Code := TGSEdgeCode.fecDraw;
-    aData.Border[j].P1 := Pointf(FSecondaryGeometryTool.GetPointedCoord.X,FSecondaryGeometryTool.GetPointedCoord.Y);
+//    aData.Border[j].Code := TGSEdgeCode.fecDraw;
+    aData.getBorder^[j] := vec2.create(FSecondaryGeometryTool.GetPointedCoord.X,FSecondaryGeometryTool.GetPointedCoord.Y);
     FSecondaryGeometryTool.TurnBy(FStepAngle);
     inc(j);
   end;
@@ -581,9 +593,10 @@ end;
 
 { TGS2DSubOpp }
 
-procedure TGS2DSubOpp.Generate(var aData: TGSGeometry2DData);
+procedure TGS2DSubOpp.Generate(var aData: IGSGeometryData);
 var c : TClipper;
-    a,b,r : TPaths;
+    a,b : TPath;
+    r : TPaths;
 
     i : integer;
 begin
@@ -591,38 +604,139 @@ begin
   Assert(Assigned(SubOp));
 
   //Todo : Paths with other dim (Jump sequence in border)
-  SetLength(a, 1);
-  SetLength(a[0], Length(Subject.Border));
-  SetLength(b, 1);
-  SetLength(b[0], Length(SubOp.Border));
+  SetLength(a, Length(Subject.getBorder^));
+  SetLength(b, Length(SubOp.getBorder^));
 
-  for I := Low(Subject.Border) to High(Subject.Border) do
+  for I := Low(Subject.getBorder^) to High(Subject.getBorder^) do
   begin
-    a[0][i].X := Round(Subject.Border[i].P1.X*1000);
-    a[0][i].Y := Round(Subject.Border[i].P1.Y*1000);
+    a[i].X := Round(Subject.getBorder^[i].X*1000);
+    a[i].Y := Round(Subject.getBorder^[i].Y*1000);
   end;
 
-  for I := Low(SubOp.Border) to High(SubOp.Border) do
+  for I := Low(SubOp.getBorder^) to High(SubOp.getBorder^) do
   begin
-    b[0][i].X := Round(SubOp.Border[i].P1.X*1000);
-    b[0][i].Y := Round(SubOp.Border[i].P1.Y*1000);
+    b[i].X := Round(SubOp.getBorder^[i].X*1000);
+    b[i].Y := Round(SubOp.getBorder^[i].Y*1000);
   end;
 
   //Use Clipper lib to generate aData starting from Subject and SubOp.
   c := TClipper.Create;
-  c.AddPaths(a,ptSubject,true);
-  c.AddPaths(b,ptClip,true);
+  c.AddPath(a,ptSubject);
+  c.AddPath(b,ptClip);
   c.Execute(ctDifference,frEvenOdd,r);
 
   aData.SetCapacity(LEngth(r[0]));
   for I := Low(r[0]) to High(r[0]) do
   begin
-    aData.Border[i].P1.X := r[0][i].X/1000;
-    aData.Border[i].P1.Y := r[0][i].Y/1000;
+    aData.getBorder^[i].X := r[0][i].X/1000;
+    aData.getBorder^[i].Y := r[0][i].Y/1000;
   end;
 
   c.Free;
 end;
 
+
+{ TGSMesh2dToolsFactory }
+
+class function TGSMesh2dToolsFactory.CreateBooleanSubOpGenerator(subject,
+  clipped: IGSGeometryData): IGSGeometryGenerator;
+
+begin
+  result := TGS2DSubOpp.Create;
+  TGS2DSubOpp(result).Subject := subject;
+  TGS2DSubOpp(result).SubOp := clipped;
+end;
+
+class function TGSMesh2dToolsFactory.CreateBooleanSubOpGeneratorAndGetResult(
+  subject, clipped: IGSGeometryData): IGSGeometryData;
+begin
+  result := TGSGeometry2DData.Create;
+  CreateBooleanSubOpGenerator(subject,clipped).Generate(result);
+end;
+
+class function TGSMesh2dToolsFactory.CreateDiskGenerator(
+  radius: single): IGSGeometryGenerator;
+begin
+  result := TGSDiskGenerator.Create;
+  TGSDiskGenerator(result).Radius := radius;
+end;
+
+class function TGSMesh2dToolsFactory.CreateDiskGeneratorAndGetResult(
+  radius: single): IGSGeometryData;
+var lgenerator : IGSGeometryGenerator;
+begin
+  result := TGSGeometry2DData.Create;
+  lgenerator := CreateDiskGenerator(radius);
+  lgenerator.Generate(result);
+end;
+
+{ TGSMeshGrapher }
+
+constructor TGSMeshGrapher.Create;
+begin
+  Mesh := TGSRawMesh2D.Create;
+  FTool := TDirectionalObject.Create(0,0,1);
+  FX := 0;
+  FY := FX;
+end;
+
+destructor TGSMeshGrapher.Destroy;
+begin
+  FreeAndNil(Mesh);
+  FreeAndNil(FTool);
+  inherited;
+end;
+
+function TGSMeshGrapher.lineTo(x, y: single;
+  const thickness: single): iGSMeshGrapher;
+var v1,v2,v3,v4 : Vec2;
+    lpt : TPt;
+begin
+  if thickness>0 then
+  begin
+    FTool.SetOrigin(FX,FY);
+    FTool.SetPointedCoord(point(x,y));
+    FTool.Norm := thickness;
+    FTool.TurnLeft;
+    lpt := FTool.GetPointedCoord;
+    v1.x := lpt.X; v1.y := lpt.Y;
+    FTool.TurnHalf;
+    lpt := FTool.GetPointedCoord;
+    v2.x := lpt.X; v2.y := lpt.Y;
+    FTool.SetPointedCoord(point(x,y));
+    FTool.MoveAhead;
+    FTool.Norm := thickness;
+    FTool.TurnLeft;
+    lpt := FTool.GetPointedCoord;
+    v3.x := lpt.X; v3.y := lpt.Y;
+    FTool.TurnHalf;
+    lpt := FTool.GetPointedCoord;
+    v4.x := lpt.X; v4.y := lpt.Y;
+
+    Mesh.addTriangle(v1,v2,v3);
+    Mesh.addTriangle(v2,v4,v3);
+    //2 sides ?
+    //Mesh.addTriangle(v3,v2,v1);
+    //Mesh.addTriangle(v3,v4,v2);
+  end;
+  result := self;
+end;
+
+function TGSMeshGrapher.moveTo(x, y: single): iGSMeshGrapher;
+begin
+  FX := x;
+  FY := y;
+  result := self;
+end;
+
+function TGSMeshGrapher.rect(x, y, width, height: single): iGSMeshGrapher;
+var l : IGSRawMesh;
+begin
+  l := TGSRawMesh2D.Create;
+  l.SetUpRect(width,height);
+  l.Pan(x,y);
+  Mesh.Merge(l as TGSRawMesh2D);
+  result := self;
+end;
 
 end.

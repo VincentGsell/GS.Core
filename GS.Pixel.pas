@@ -121,7 +121,6 @@ iPixDrawable = interface
   function getShader : iPixShader;
 end;
 
-
 iPixService = interface
   function uri : string;
   function id : string;

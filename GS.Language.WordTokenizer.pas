@@ -30,6 +30,9 @@ type
     function getIsWord: boolean;
   public
     constructor create(_tokType : TTokenType; _item : String; _line : integer; _col : integer); virtual;
+
+    procedure ChangeValueRequest(_newItem : string);
+
     property TokType : TTokenType read FType;
     property item : string read FItem;
     property line : integer read FLine;
@@ -113,6 +116,11 @@ end;
 
 
 { TTokenItem }
+
+procedure TTokenItem.ChangeValueRequest(_newItem: string);
+begin
+  FItem := _newItem;
+end;
 
 constructor TTokenItem.create(_tokType: TTokenType; _item: String;
   _line: integer; _col: integer);

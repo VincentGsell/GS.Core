@@ -53,7 +53,6 @@ Type
     procedure reset;
     function build(source : TAlgoProgram) : boolean;
 
-
     property InstructionCode[Index : Integer] : TAlgoProcessBase read GetInstructionCode;
     property InstructionCodeCount : integer read GetInstructionCodeCount;
 

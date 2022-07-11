@@ -46,11 +46,11 @@ Uses System.SysUtils, System.Classes, System.SyncObjs, System.SysConst, System.T
 {$ENDIF}
 
  {$IFDEF WINDOWS}
- ,Windows,
- Messages
+ ,Windows
+ ,Messages
  {$ENDIF}
  {$IFDEF POSIX}
-  ,Posix.SysTypes,
+ ,Posix.SysTypes,
   Posix.UniStd,
   Posix.Signal,
   Posix.Dlfcn,
@@ -63,9 +63,9 @@ Uses System.SysUtils, System.Classes, System.SyncObjs, System.SysConst, System.T
  {$ENDIF}
  ;
 {$ENDIF}
+
+
 Type
-
-
 
 //TODO : Dig into GetSystemTimes to separate Kernel time for Linux, android and MacOSX.
 TgsCPUUsage = Class
@@ -155,34 +155,31 @@ begin
 end;
 
 
-
+{$IFDEF FPC}
 function gsGetTickCount : Int64;
-{$IFDEF WINDOWS}
-var l : Int64;
-begin
-  if QueryPerformanceCounter(Result) and  QueryPerformanceFrequency(l) then
-    result := Round(1000 * Result / l)
-  else
-    Result := GetTickCount64;
-end;
-{$ELSE}
-{$IFDEF LINUX}
-var tv : timeval;
-Begin
-  if {$IFDEF FPC}fpgettimeofday(@tv,nil){$ELSE}gettimeofday(tv,nil){$ENDIF} <>0 then
-    result := 0
-  else
-    Result := (tv.tv_sec * 1000) + round((tv.tv_usec / 1000));
-end;
-{$ELSE}
-{$IFDEF USE_FMX}
-begin
-  Result := Round(PlatformTimer.GetTick * 1000);
-end;
-  {$ELSE}
-   {$MESSAGE Fatal 'Method not implemented on current platform'}
+  {$IFDEF MSWINDOWS}
+  var l : Int64;
+  begin
+    if QueryPerformanceCounter(Result) and  QueryPerformanceFrequency(l) then
+      result := Round(1000 * Result / l)
+    else
+      Result := GetTickCount64;
+  end;
   {$ENDIF}
-{$ENDIF}
+  {$IFDEF LINUX}
+  var tv : timeval;
+  Begin
+    if fpgettimeofday(@tv,nil) then
+      result := 0
+    else
+      Result := (tv.tv_sec * 1000) + round((tv.tv_usec / 1000));
+  end;
+  {$ENDIF}
+{$ELSE}
+function gsGetTickCount : Int64;
+begin
+  Result := TThread.GetTickCount;
+end;
 {$ENDIF}
 
 { TgsCPUUsage }

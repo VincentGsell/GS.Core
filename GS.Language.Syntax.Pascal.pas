@@ -465,28 +465,28 @@ begin
     end;
   end;
 
-      if lr.SyntaxCheck.isPascalKeyWord(local.item) then
-      begin
-        if local.item = 'uses' then
-          Next := TGSCNode_checkProgramUses.Create(lr,'program main "Uses" part',self)
-        else
-        if local.item = 'type' then
-          Next := TGSCNode_checkProgramType.Create(lr,'program main "types" part',self)
-        else
-        if local.item = 'var' then
-          Next := TGSCNode_checkProgramVar.Create(lr,'program main "var" part',self)
-        else
-        if local.item = 'begin' then
-          Next := TGSCNode_checkProgramBegin.Create(lr,'program main "begin" part',self)
-        else
-        begin
-          lr.log('Expected uses, types, var or begin part : "'+local.item+'" encountered');
-        end;
-      end
-      else
-      begin
-        lr.log('Header statement : unkown expression "'+local.item+'"');
-      end;
+  if lr.SyntaxCheck.isPascalKeyWord(local.item) then
+  begin
+    if local.item = 'uses' then
+      Next := TGSCNode_checkProgramUses.Create(lr,'program main "Uses" part',self)
+    else
+    if local.item = 'type' then
+      Next := TGSCNode_checkProgramType.Create(lr,'program main "types" part',self)
+    else
+    if local.item = 'var' then
+      Next := TGSCNode_checkProgramVar.Create(lr,'program main "var" part',self)
+    else
+    if local.item = 'begin' then
+      Next := TGSCNode_checkProgramBegin.Create(lr,'program main "begin" part',self)
+    else
+    begin
+      lr.log('Expected uses, types, var or begin part : "'+local.item+'" encountered');
+    end;
+  end
+  else
+  begin
+    lr.log('Header statement : unkown expression "'+local.item+'"');
+  end;
 
 end;
 
@@ -594,7 +594,7 @@ begin
           end
           else
           begin
-            lr.log('Type not found "'+local.item+'"');
+            lr.log('[ERROR] Type not found "'+local.item+'"');
             exit;
           end;
         end; //endof while true.
@@ -715,7 +715,7 @@ var saved : TPascalTokenItem;
             Next := TGSCNode_checkSyntax_CodeAnalyze_VarAffectation.Create(lr,lv,self);
             TGSCNode_checkSyntax_CodeAnalyze_VarAffectation(Next).op := TVarAffectationOp.vaoPlus;
           end
-          else //check add (-=);
+          else //check less (-=);
           begin
             local := lr.Tokenizer.SetCursorTo(saved);
             NextToken;
@@ -927,7 +927,8 @@ begin
         begin
           //TODO if result Generate INTEGER assignation. (Check type --> Semantic.)
           fFormula := false;
-          lr.SemanticProcessor.AddElement(TS_VarAssignation_PascalconstInteger.create(NodeName,strToInt(saved.item)))
+          lr.SemanticProcessor.AddElement(TS_VarAssignation_PascalconstInteger.create(NodeName,strToInt(saved.item)));
+          lr.log(format('[OK] SyntaxCheck/CodeAnalyze_VarAffectation : Integer assignation %s %d',[NodeName, strToInt(saved.item)]));
         end
       end;
       pttnumberConstFloat:
@@ -938,6 +939,7 @@ begin
           fFormula := false;
           //if result Generate FLOAT assignation. (Check type --> Semantic.)
           lr.SemanticProcessor.AddElement(TS_VarAssignation_PascalConstFloat.create(NodeName,StrToFloat(saved.item)));
+          lr.log(format('[OK] SyntaxCheck/CodeAnalyze_VarAffectation : double assignation %s %d',[NodeName, StrToFloat(saved.item)]));
         end;
       end;
       pttstringConst:
@@ -948,6 +950,7 @@ begin
           fFormula := false;
           //if result Generate STRING assignation. (Check type --> Semantic.)
           lr.SemanticProcessor.AddElement(TS_VarAssignation_PascalconstString.create(NodeName,saved.item));
+          lr.log(format('[OK] SyntaxCheck/CodeAnalyze_VarAffectation : String assignation %s %d',[NodeName, saved.item]));
         end;
       end;
     end;

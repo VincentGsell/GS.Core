@@ -400,7 +400,6 @@ begin
     if not TSemanticItem(FElements.Objects[i]).process then
       l := false;
   end;
-
   result := l;
 end;
 

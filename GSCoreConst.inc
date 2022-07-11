@@ -38,5 +38,5 @@
   {$IFDEF ver300} {$DEFINE Delphi101}  GLS_COMPILERNAME = 'Delphi 10.1 Berlin'; {$ENDIF}
   {$IFDEF ver300} {$DEFINE Delphi102}  GLS_COMPILERNAME = 'Delphi 10.2 Tokyo'; {$ENDIF}
   {$IFDEF ver330} {$DEFINE Delphi103}  GLS_COMPILERNAME = 'Delphi 10.3 Rio'; {$ENDIF}
-  {$IFDEF ver340} {$DEFINE Delphi104}  GLS_COMPILERNAME = 'Delphi 10.4 Paris'; {$ENDIF}
+  {$IFDEF ver340} {$DEFINE Delphi104}  GLS_COMPILERNAME = 'Delphi 10.4 '; {$ENDIF}
 {$ENDIF}

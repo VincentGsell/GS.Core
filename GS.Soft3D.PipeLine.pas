@@ -85,7 +85,7 @@ procedure TS3DPipeline.Process;
 begin
   Assert(Assigned(fRasterOpCtrl),'TS3DPipeline.Process : RasterOperation controler not assigned.');
   { TODO 1 -oVGS -cmetrics : error ctrl, timing each steps. Info logs. }
-  TMonitoring.enter('process');
+//  TMonitoring.enter('process');
   try
 
     InputData.MatrixProcess;
@@ -100,7 +100,7 @@ begin
     end;
 
   finally
-    TMonitoring.exit('process');
+//    TMonitoring.exit('process');
   end;
 end;
 

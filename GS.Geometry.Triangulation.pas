@@ -3,6 +3,7 @@ unit GS.Geometry.Triangulation;
 interface
 
 uses Classes, SysUtils,
+     Math.Vectors,
      GS.Geometry,
      GS.Geometry.Mesh2D,
      GS.Geometry.Mesh2D.Tools,
@@ -38,20 +39,18 @@ Type TTiangulationMethod = (tmDelaunay, tmSeibel, tmBeRo);
 
 //Use that for "One time call".
 TGSTriangulationPortal = class
-  class function Delaunay(cloudPoint : array of vec2; var resultMesh : TGSRawMesh2D) : UInt32;
-  class function PolygoneTriangulation(orderedCloudPoint : array of vec2; var resultMesh : TGSRawMesh2D;Const TriangulationMethod : TTiangulationMethod = tmBeRo) : UInt32;
+  class function Delaunay(var cloudPoint : array of vec2; var resultMesh : TGSRawMesh2D) : UInt32;
+//  class function PolygoneTriangulation(var orderedCloudPoint : array of vec2; resultMesh : TGSRawMesh2D;Const TriangulationMethod : TTiangulationMethod = tmBeRo) : UInt32; Overload;
+  class function PolygoneTriangulation(var orderedCloudPoint : array of vec2s; resultMesh : TGSRawMesh2D;Const TriangulationMethod : TTiangulationMethod = tmBeRo) : UInt32; Overload;
   //class function Delaunay(cloudPoint : array of vec2; var resultMesh : TGSRawMesh2D) : boolean;
 end;
-
-
-
 
 
 implementation
 
 { TGSTriangulationPortal }
 
-class function TGSTriangulationPortal.Delaunay(cloudPoint: array of vec2;
+class function TGSTriangulationPortal.Delaunay(var cloudPoint: array of vec2;
   var resultMesh: TGSRawMesh2D): Uint32;
 var l : TDelaunay; //Direct by delaunay, to avoid uselsee copy.
     i : integer;
@@ -87,8 +86,10 @@ begin
   end;
 end;
 
-class function TGSTriangulationPortal.PolygoneTriangulation(
-  orderedCloudPoint: array of vec2; var resultMesh: TGSRawMesh2D; Const TriangulationMethod : TTiangulationMethod): UInt32;
+{
+
+class function TGSTriangulationPortal.PolygoneTriangulation(var
+  orderedCloudPoint: array of vec2; resultMesh: TGSRawMesh2D; Const TriangulationMethod : TTiangulationMethod): UInt32;
 var
   pb : TBeRoTriangulationPolygons;
   outpb : TBeRoTriangulationTriangles;
@@ -105,6 +106,51 @@ begin
   begin
     pb[0][i].X := Trunc(orderedCloudPoint[i].x);
     pb[0][i].Y := Trunc(orderedCloudPoint[i].y);
+  end;
+
+  case TriangulationMethod of
+    tmDelaunay: res := TriangulateDelaunayClipping(pb,outpb);
+    tmSeibel: res := TriangulateSeidel(pb,outpb);
+    tmBeRo: res := TriangulateBeRo(pb,outpb);
+  end;
+
+  if res then
+  begin
+    for i := 0 to length(outpb)-1 do
+    begin
+      a.x := outpb[i][0].x;
+      a.y := outpb[i][0].y;
+      b.x := outpb[i][1].x;
+      b.y := outpb[i][1].y;
+      c.x := outpb[i][2].x;
+      c.y := outpb[i][2].y;
+      resultMesh.addTriangle(a,b,c);
+    end;
+  end;
+  result := resultMesh.getTriangleCount;
+end;
+}
+
+class function TGSTriangulationPortal.PolygoneTriangulation(
+  var orderedCloudPoint: array of vec2s; resultMesh: TGSRawMesh2D;
+  const TriangulationMethod: TTiangulationMethod): UInt32;
+var
+  pb : TBeRoTriangulationPolygons;
+  outpb : TBeRoTriangulationTriangles;
+  res : boolean;
+  a,b,c : vec2;
+  i,j : integer;
+begin
+  assert(assigned(resultMesh));
+  resultMesh.reset;
+  SetLength(pb,Length(orderedCloudPoint));
+  for j := 0 to length(orderedCloudPoint)-1 do begin
+    SetLength(pb[j],length(orderedCloudPoint[j]));
+    for i := 0 to length(orderedCloudPoint[j])-1 do
+    begin
+      pb[j][i].X := Trunc(orderedCloudPoint[j][i].x);
+      pb[j][i].Y := Trunc(orderedCloudPoint[j][i].y);
+    end;
   end;
 
   case TriangulationMethod of
@@ -183,3 +229,4 @@ begin
 end;
 
 end.
+

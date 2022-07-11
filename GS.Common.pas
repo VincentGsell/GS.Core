@@ -79,7 +79,7 @@ public
   Property Items[Index : Uint32] : TObject read GetItem Write SetItem; default;
 end;
 
-//Key Values (basic replacement for Generic Dictionnary key paired String/Object
+//Key Values (basic replacement for Generic Dictionnary key paired String/Object, binSearch support.
 TKeysValues_UTF8StringToObject = Class
 private
 protected
@@ -88,18 +88,21 @@ protected
   FIndex : UInt32;
   FInitialized : Boolean;
   FSorted: Boolean;
+  FOwned : Boolean;
 
   function GetItem(Index: UInt32): TKeyValueStringItem;
   procedure SetItem(Index: UInt32; const Value: TKeyValueStringItem);
   function GetCount: Uint32;
+
+  procedure InternalClearObject;
 public
-  Constructor Create; Virtual;
+  Constructor Create(Const Owned : Boolean = false); Reintroduce; Virtual;
   Destructor Destroy; Override;
 
   Function TryGetValue(aKey : String; var aResult : TObject) : Boolean; virtual;
   Procedure Add(aKey : String; aObject : TObject); virtual;
-  Procedure Remove(Index : UInt32; const FreeObject : Boolean = true); Overload;
-  Procedure Remove(aKey : String; const FreeObject : Boolean = true); Overload;
+  Procedure Remove(Index : UInt32); Overload;
+  Procedure Remove(aKey : String); Overload;
 
   Procedure Clear; Virtual;
 
@@ -129,6 +132,106 @@ Public
   Property Count : Uint32 read GetUTF8StringCount;
   Property Sorted : Boolean read FSorted Write FSorted;
 end;
+
+IGSStringList = interface
+  procedure add(aString : String);
+  function count : uint32;
+  procedure clear;
+  function lines(index : uint32) : string; overload;
+  procedure lines(index  : uint32; value : string); overload;
+  function text : string;
+  procedure setText(aTxt : string);
+  procedure saveToFile(afileName : string);
+  procedure loadFromFile(aFileName : string);
+  function ValueFromIndex(index : integer) : String;
+  function Values(key : string) : String;
+  function Names(index : integer) : String;
+  function indexOf(astring : string) : Integer;
+  procedure insert(index : integer; value : String);
+  function ToStringArray : TArray<String>;
+  procedure SetDelimiter(aDelimiter : char);
+  procedure SetDelimitedText(aText : String);
+  function DelimitedText : string;
+  procedure setTrailinglineBreak(value : Boolean);
+  procedure setEncoding(value : TEncoding); //Convert. Fix it on start. Default : UTF8.
+end;
+
+IGSThreadSafeList = interface
+  procedure lock;
+  procedure unlock;
+end;
+
+TGSStringList = class(TInterfacedObject,IGSStringList)
+private
+  FST : TStringList;
+public
+  //IGSStringList
+  procedure add(aString : String);
+  function count : uint32;
+  procedure clear;
+  function lines(index : uint32) : string; overload;
+  procedure lines(index : uint32; value : string); overload;
+  function text : string;
+  procedure setText(aTxt : string);
+  procedure saveToFile(afileName : string);
+  procedure loadFromFile(aFileName : string);
+  function ValueFromIndex(index : integer) : String;
+  function Values(key : string) : String;
+  function Names(index : integer) : String;
+  function indexOf(astring : string) : Integer;
+  procedure insert(index : integer; value : String);
+  function ToStringArray : TArray<String>;
+  procedure SetDelimiter(aDelimiter : char);
+  procedure SetDelimitedText(aText : String);
+  function DelimitedText : string;
+  procedure setTrailinglineBreak(value : Boolean); //True by default in EMB StringList.
+  procedure setEncoding(value : TEncoding);
+
+  Constructor Create; virtual;
+  Destructor Destroy; override;
+End;
+
+TGSStringListWithThreadAutoLock = class(TInterfacedObject,IGSStringList, IGSThreadSafeList)
+private
+  FCS : TCriticalSection;
+  FST : TStringList;
+
+  //IGSThreadSafeList
+  procedure lock;
+  procedure unlock;
+Public
+  //IGSStringList
+  procedure add(aString : String);
+  function count : uint32;
+  procedure clear;
+  function lines(index : uint32) : string; overload;
+  procedure lines(index : uint32; value : string); overload;
+  function text : string;
+  procedure setText(aTxt : string);
+  procedure saveToFile(afileName : string);
+  procedure loadFromFile(aFileName : string);
+  function Values(key : string) : String;
+  function ValueFromIndex(index : integer) : String;
+  function Names(index : integer) : String;
+  function indexOf(astring : string) : Integer;
+  procedure insert(index : integer; value : String);
+  function ToStringArray : TArray<String>;
+  procedure SetDelimiter(aDelimiter : char);
+  procedure SetDelimitedText(aText : String);
+  function DelimitedText : string;
+  procedure setTrailinglineBreak(value : Boolean);
+  procedure setEncoding(value : TEncoding);
+
+
+  Constructor Create; virtual;
+  Destructor Destroy; override;
+end;
+
+TGSFactory = Class
+  Class function GetStringList_ThreadSafeAuto : IGSStringList;
+  class function GetStringList : IGSStringList;
+End;
+
 
 {$IFDEF USE_GENERIC}
 TObjectDictionnaryWithSequentialMode = class(TObjectDictionary<String,TObject>)
@@ -177,42 +280,40 @@ begin
 end;
 
 procedure BetterThanNothingEncryptDecrypt(aStreamToEncrypt : TMemoryStream);
-var b,c : TBytesStream;
+var b : TMemoryStream;
     Key,r : TBytes;
 
     function GetOTPfile : TBytes;
+    var c : TMemoryStream;
     begin
       if FileExists(GLB_OTP_FILE) then
       begin
-        c := TBytesStream.Create;
+        c := TMemoryStream.Create;
         try
           c.LoadFromFile(GLB_OTP_FILE);
-          result := c.Bytes;
+          SetLEngth(result,c.Size);
+          c.Read(result,c.Size);
         finally
           FreeAndNil(c);
         end;
       end
       else
       begin
-        Key:= BytesOf(CST_DEFAULT_CYPH_KEY); //-/
+        Result := BytesOf(CST_DEFAULT_CYPH_KEY); //-/
       end;
     end;
+
 begin
-  b := TBytesStream.Create;
+  b := TMemoryStream.Create;
   try
     b.LoadFromStream(aStreamToEncrypt);
     key := GetOTPFile;
-    r := sencrypt_XorCipher(Key,b.Bytes);
+    SetLength(r,b.Size);
+    b.Read(r,b.Size);
+    r := sencrypt_XorCipher(Key,r);
     b.Clear;
     aStreamToEncrypt.Clear;
-    c := TBytesStream.Create(r);
-    try
-      b.LoadFromStream(c);
-    finally
-      FreeAndNil(c);
-    end;
-    b.Position := 0;
-    aStreamToEncrypt.LoadFromStream(b);
+    aStreamToEncrypt.Write(r,length(r));
   finally
     FreeAndNil(b);
   end;
@@ -550,22 +651,25 @@ end;
 
 procedure TKeysValues_UTF8StringToObject.Clear;
 begin
+  InternalClearObject;
   FArray := nil;
   SetLength(FArray,CST_ARRAY_INIT_QTE);
   FIndex := 0;
   FInitialized := False;
 end;
 
-constructor TKeysValues_UTF8StringToObject.Create;
+constructor TKeysValues_UTF8StringToObject.Create(Const Owned : Boolean = false);
 begin
+  Inherited Create;
+  FOwned := Owned;
   FThreadProtector := TCriticalSection.Create;
   Clear;
 end;
 
 destructor TKeysValues_UTF8StringToObject.Destroy;
 begin
+  InternalClearObject;
   FThreadProtector.Free;
-  //Object Not Owned. Override if needed.
   inherited;
 end;
 
@@ -581,22 +685,29 @@ begin
   result := FArray[Index];
 end;
 
+procedure TKeysValues_UTF8StringToObject.InternalClearObject;
+var i : integer;
+begin
+  if FOwned then
+    if FIndex>0 then
+      for i := FIndex-1 downto 0 do
+        FArray[i].Value.Free;
+end;
+
 procedure TKeysValues_UTF8StringToObject.lock;
 begin
   FThreadProtector.Enter;
 end;
 
-procedure TKeysValues_UTF8StringToObject.Remove(aKey: String;
-  const FreeObject: Boolean);
+procedure TKeysValues_UTF8StringToObject.Remove(aKey: String);
 var l : int32;
 begin
   l := BinSearch(FArray,UTF8String(aKey),FIndex);
   if l>-1 then
-    Remove(l,FreeObject);
+    Remove(l);
 end;
 
-procedure TKeysValues_UTF8StringToObject.Remove(Index: UInt32;
-  const FreeObject: Boolean);
+procedure TKeysValues_UTF8StringToObject.Remove(Index: UInt32);
 var llength : UInt32;
     i : integer;
 begin
@@ -606,7 +717,7 @@ begin
 
   if Index<llength then
   begin
-    if FreeObject then
+    if FOwned then
       Items[Index].Value.Free;
 
     for i := Index + 1 to lLength - 1 do
@@ -655,6 +766,370 @@ begin
 end;
 
 {$ENDIF}
+
+{ TGSStringListWithThreadAutoLock }
+
+procedure TGSStringListWithThreadAutoLock.add(aString: String);
+begin
+  lock;
+  try
+    FST.Add(aString);
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.clear;
+begin
+  lock;
+  try
+    FST.Clear;
+  finally
+    unlock;
+  end;
+end;
+
+function TGSStringListWithThreadAutoLock.count: uint32;
+begin
+  lock;
+  try
+    result := FST.Count;
+  finally
+    unlock;
+  end;
+end;
+
+constructor TGSStringListWithThreadAutoLock.Create;
+begin
+  Inherited Create;
+  FCS := TCriticalSection.Create;
+  FST := TStringList.Create;
+  setEncoding(TEncoding.UTF8);
+end;
+
+function TGSStringListWithThreadAutoLock.DelimitedText: string;
+begin
+  lock;
+  try
+    result := FST.DelimitedText;
+  finally
+    unlock;
+  end;
+end;
+
+destructor TGSStringListWithThreadAutoLock.Destroy;
+begin
+  FreeAndNil(FCS);
+  FreeAndNil(FST);
+  inherited;
+end;
+
+function TGSStringListWithThreadAutoLock.indexOf(astring: string): Integer;
+begin
+  lock;
+  try
+    result := FST.IndexOf(astring);
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.insert(index: integer; value: String);
+begin
+  lock;
+  try
+    FST.Insert(index,value);
+  finally
+    unlock;
+  end;
+end;
+
+function TGSStringListWithThreadAutoLock.lines(index: uint32): string;
+begin
+  lock;
+  try
+    result := FST[index];
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.lines(index: uint32; value: string);
+begin
+  lock;
+  try
+    FST[index] := value;
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.loadFromFile(aFileName: string);
+begin
+  lock;
+  try
+    FST.LoadFromFile(aFileName);
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.lock;
+begin
+  FCS.Acquire;
+end;
+
+function TGSStringListWithThreadAutoLock.Names(index: integer): String;
+begin
+  lock;
+  try
+    result := FST.Names[index];
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.saveToFile(afileName: string);
+begin
+  lock;
+  try
+    FST.SaveToFile(aFileName);
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.SetDelimitedText(aText: String);
+begin
+  lock;
+  try
+    FST.DelimitedText := aText;
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.SetDelimiter(aDelimiter: char);
+begin
+  lock;
+  try
+    FST.Delimiter := aDelimiter;
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.setEncoding(value: TEncoding);
+begin
+  lock;
+  try
+    FST.DefaultEncoding := value;
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.setText(aTxt: string);
+begin
+  lock;
+  try
+    FST.Text := aTxt;
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.setTrailinglineBreak(value: Boolean);
+begin
+  lock;
+  try
+    FST.TrailingLineBreak := value;
+  finally
+    unlock;
+  end;
+end;
+
+function TGSStringListWithThreadAutoLock.text: string;
+begin
+  lock;
+  try
+    result := FST.Text;
+  finally
+    unlock;
+  end;
+end;
+
+function TGSStringListWithThreadAutoLock.ToStringArray: TArray<String>;
+var
+  i: Integer;
+begin
+  lock;
+  try
+    begin
+      SetLength(Result,FST.Count);
+      for i := 0 to FST.Count-1 do
+        result[i] := FST[i];
+    end;
+  finally
+    unlock;
+  end;
+end;
+
+procedure TGSStringListWithThreadAutoLock.unlock;
+begin
+  FCS.Leave;
+end;
+
+function TGSStringListWithThreadAutoLock.ValueFromIndex(index: integer): String;
+begin
+  lock;
+  try
+    result := FST.ValueFromIndex[index];
+  finally
+    unlock;
+  end;
+end;
+
+function TGSStringListWithThreadAutoLock.Values(key: string): String;
+begin
+  lock;
+  try
+    result := FST.Values[key];
+  finally
+    unlock;
+  end;
+end;
+
+{ TGSFactory }
+
+class function TGSFactory.GetStringList: IGSStringList;
+begin
+  result := TGSStringList.Create;
+end;
+
+class function TGSFactory.GetStringList_ThreadSafeAuto: IGSStringList;
+begin
+  result := TGSStringListWithThreadAutoLock.Create;
+end;
+
+{ TGSStringList }
+
+procedure TGSStringList.add(aString: String);
+begin
+  FST.Add(aString);
+end;
+
+procedure TGSStringList.clear;
+begin
+  FST.Clear;
+end;
+
+function TGSStringList.count: uint32;
+begin
+  result := FST.Count
+end;
+
+constructor TGSStringList.Create;
+begin
+  inherited;
+  FST := TStringList.Create;
+  setEncoding(TEncoding.UTF8);
+end;
+
+function TGSStringList.DelimitedText: string;
+begin
+  result := FST.DelimitedText;
+end;
+
+destructor TGSStringList.Destroy;
+begin
+  FreeAndNil(FST);
+  inherited;
+end;
+
+function TGSStringList.indexOf(astring: string): Integer;
+begin
+  result := FST.IndexOf(astring);
+end;
+
+procedure TGSStringList.insert(index : integer; value: String);
+begin
+  FST.Insert(index,value);
+end;
+
+procedure TGSStringList.lines(index: uint32; value: string);
+begin
+  FST[Index] := value;
+end;
+
+procedure TGSStringList.loadFromFile(aFileName: string);
+begin
+  FST.LoadFromFile(aFileName);
+end;
+
+function TGSStringList.Names(index: integer): String;
+begin
+  result := FST.Names[index];
+end;
+
+procedure TGSStringList.saveToFile(afileName: string);
+begin
+  FST.SaveToFile(afileName);
+end;
+
+procedure TGSStringList.SetDelimitedText(aText: String);
+begin
+  FST.DelimitedText := aText;
+end;
+
+procedure TGSStringList.SetDelimiter(aDelimiter: char);
+begin
+  FSt.Delimiter := aDelimiter;
+end;
+
+procedure TGSStringList.setEncoding(value: TEncoding);
+begin
+  FST.DefaultEncoding := Value;
+end;
+
+procedure TGSStringList.setText(aTxt: string);
+begin
+  FST.Text := aTxt;
+end;
+
+procedure TGSStringList.setTrailinglineBreak(value: Boolean);
+begin
+  FST.TrailingLineBreak := value;
+end;
+
+function TGSStringList.lines(index: uint32): string;
+begin
+  result := FST[Index];
+end;
+
+function TGSStringList.text: string;
+begin
+  result := FST.Text;
+end;
+
+function TGSStringList.ToStringArray: TArray<String>;
+var
+  i: Integer;
+begin
+  SetLength(Result,count);
+  for i := 0 to count-1 do
+    result[i] := lines(i);
+end;
+
+function TGSStringList.Values(Key: string): String;
+begin
+  result := FST.Values[Key];
+end;
+
+function TGSStringList.ValueFromIndex(index: integer): String;
+begin
+  result := FST.ValueFromIndex[index];
+end;
 
 end.
 

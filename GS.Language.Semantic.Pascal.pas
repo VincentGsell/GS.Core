@@ -45,7 +45,7 @@ Type
 
 implementation
 
-const localconst_logStr = 'SemanticCheck/Error/type incompatible : ';
+const localconst_logStr = '[ERROR] SemanticCheck/Error/type : ';
       localconst_logDetailvar = 'Try to assign const %s to "%s" var, which is "%s" type';
       localcont_logStrNone = 'Variable does not exists';
 
@@ -57,6 +57,12 @@ begin
     Sem.log(localconst_logStr+localcont_logStrNone);
 end;
 
+procedure logSemanticInfo(Sem : TSemanticProcessor; txt : string);
+begin
+  Sem.log(format('[INFO] %s',[txt]))
+end;
+
+
 
 { TS_VarAssignation_PascalConstFloat }
 
@@ -66,7 +72,7 @@ begin
   result := false;
   if SemProc.getVar(fname,l) then
   begin
-    result := l.varType = 'double';
+    result := (l.varType = 'double')
   end;
 
   if not result then
@@ -81,7 +87,15 @@ begin
   result := false;
   if SemProc.getVar(fname,l) then
   begin
-    result := l.varType = 'integer';
+    result := (l.varType = 'integer');
+
+    if not result then begin
+      result := (l.varType = 'double'); //other compativle type
+
+    if result then
+      logSemanticInfo(SemProc, format('"%s" is %s - type is compatible with integer affectation',[fname,l.varType]));
+    end;
+
   end;
 
   if not result then
@@ -164,16 +178,16 @@ var l,h : TVarStruct;
 
 begin
   inherited;
-  SemProc.log('SemanticCheck/Assigned Formula : '+Name+' | '+Formula+' '+intToStr(Length(FormulaElements))+' element(s)');
+  SemProc.log('[OK] SemanticCheck/Assigned Formula : '+Name+' | '+Formula+' '+intToStr(Length(FormulaElements))+' element(s)');
   if Name <> 'RESULT' then
   begin
     if semProc.getVar(Name,l) then
     begin
-      //SCan all const, var, and '/' sign to detect other stuf than type
+      //Scan all const, var, and '/' sign to detect other stuf than type
       ft := GetFormulaResultType;
       result := typeaffinity(l.vartype,ft);
-      if not result then //todo : Add test type compatibility. (integer assigne to double)
-        SemProc.log('SemanticCheck/Assigned Formula : '+Formula+' send "'+ft+'" type, result "'+l.varName+'" is a "'+l.varType+'"');
+      if not result then //todo : Add test type compatibility. (integer assigneg to double)
+        SemProc.log('[ERROR] SemanticCheck/Assigned Formula : '+Formula+' send "'+ft+'" type, result "'+l.varName+'" is a "'+l.varType+'"');
     end;
   end
   else

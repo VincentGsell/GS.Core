@@ -74,7 +74,7 @@ procedure TS3DInputData3D.MatrixProcess;
 var aspectRatio, ZFar, ZNear, FOV : single;
     Rot : Mat4;
 begin
-  TMonitoring.enter('TS3DInputData3D.MatrixProcess');
+//  TMonitoring.enter('TS3DInputData3D.MatrixProcess');
   try
 
   CameraMatrix := mat4Identity;
@@ -130,7 +130,7 @@ begin
 //  FViewMatrix := mat4CreateRotationY(DegToRad(GTest)) * FViewMatrix;
 
   finally
-    TMonitoring.exit('TS3DInputData3D.MatrixProcess');
+//    TMonitoring.exit('TS3DInputData3D.MatrixProcess');
   end;
 end;
 

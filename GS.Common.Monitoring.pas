@@ -7,214 +7,284 @@ interface
 
 uses SysUtils,
      Classes,
-     GS.System.CPU,
+     syncObjs,
+     GS.Common,
+     GS.JSON,
      Generics.Collections;
 
 Type
-TMonCat = (mcWatch,mcEnter,mcExit,mcWatchNativeInt);
+TMonCat = (mcWatch,mcEnter,mcLeave);
+Const
+CstMonCat : Array[TMonCat] of string = ('watch','enter','leave');
+Type
 
+TMonitoringExtDataItem = record
+D : TDateTime;
+V : Double;
+end;
 
-TMonitoring = Class
-  Class Procedure watch(const code : String); Overload;
-  Class Procedure enter(const code : String);
-  Class Procedure exit(const code : String);
+IGSMonitoringExtensionData = interface
+  function getCount : Uint32;
+  function getData : TArray<TMonitoringExtDataItem>;
+end;
 
-  Class procedure watch(value : NativeInt; const code : String); Overload;
-
-  Class Function Reports : String;
-End;
-
-//Implementation.
-
-TMonitoringImplementation = Class
+TMonitoringItem = Record
+private
+  flastticks : Int64;
+  fOneSec : Uint32;
+  fCall : Uint32;
 public
-  Procedure watch(const code : String); Overload; Virtual; abstract;
-  Procedure enter(const code : String); Virtual; abstract;
-  Procedure exit(const code : String); Virtual; abstract;
-  procedure watch(value : NativeInt; const code : String); Overload; Virtual; abstract;
+  id : String;
+  monCat : TMonCat;
+  StringValue : string;
+  doubleValue : double;
+  intValue : int64;
+  uIntValue : uInt64;
+  Ticks : Int64;
+  TicksBetweenCall : Int64;
+  CreateDateTime : TDateTime;
+  DateTime : TDateTime;
+  CallCount : Uint32;
+  CallBySecond : Uint32;
+  ExtensionData : IGSMonitoringExtensionData;
+  procedure init;
+  procedure UpdateMetrics;
+  function AsString : String;
+end;
+PMonitoringItem = ^TMonitoringItem;
 
-  function GetIsActive : boolean; virtual; abstract;
-  procedure SetIsActive(Value : boolean); virtual; abstract;
+IGSMonitoring = interface
+  procedure writeMonStr(monCat : TMonCat; id : String; value : String);
+  procedure writeMonUInt(monCat : TMonCat; id : String; value : UInt64);
+  procedure writeMonInt(monCat : TMonCat; id : String; value : Int64);
+  procedure writeMonDouble(monCat : TMonCat; id : String; value : Double);
+end;
 
-  procedure SetSystemTick(value : Int64); virtual; abstract;
+TGSCustomMonitoringImplementation = Class(TInterfacedObject, IGSMonitoring)
+protected
+  FActive : Boolean;
+public
+  //IGSMonitoring
+  procedure writeMonStr(monCat : TMonCat; id : String; value : String); virtual; abstract;
+  procedure writeMonUInt(monCat : TMonCat; id : String; value : UInt64); virtual; abstract;
+  procedure writeMonInt(monCat : TMonCat; id : String; value : Int64); virtual; abstract;
+  procedure writeMonDouble(monCat : TMonCat; id : String; value : Double); virtual; abstract;
 
-  function ReportLogAsString : String; virtual; abstract;
+  //Enhancement
+  function lookForId(id : string; out _monitoredItem : PMonitoringItem) : Boolean; virtual; abstract;
+  function Count : integer; virtual; abstract;
+  function QueryIds(Const FromDateTime : TDateTime = 0) : TArray<String>; virtual; abstract;
 
+  //..
+  function GetIsActive : boolean; virtual;
+  procedure SetIsActive(Value : boolean); virtual;
   Property Active : boolean read GetIsActive Write SetIsActive;
 End;
 
-TMonitoringManager = Class
+IGSMonitoringManager = Interface
+  procedure addImplementation(_MonImpl : TGSCustomMonitoringImplementation);
+  procedure watch(id : string; value : string);
+  procedure enter(id : string);
+  procedure leave(id : string);
+  function GetImpl(index : integer) : TGSCustomMonitoringImplementation;
+  function GetImplcount : integer;
+End;
+
+TGSMonManager = Class(TInterfacedObject,IGSMonitoringManager)
 private
 protected
-  fMonImpl : TObjectList<TMonitoringImplementation>;
-  FAutomaticAddDefaulMonitoringIfNoOtherImplementation: boolean;
-
-  function GetMoncount: UInt32;
-  function GetMonitoringInstance(Index: Uint32): TMonitoringImplementation;
-
-  procedure MonDispatch(const _Cat : TMonCat; const _MonCode : String);
-  procedure MonDispatchWatchNativeIntValue(const Value : NativeInt; const _MonCodeText : String);
+  fMonImpl : TObjectList<TGSCustomMonitoringImplementation>;
+  FCS : TCriticalSection;
+  procedure MonDispatch(Const _MonCat : TMonCat; const _Id : String; const _value : string); overload;
+  procedure MonDispatch(Const _MonCat : TMonCat; const _Id : String; const _value : double); overload;
+  //TODO : int64
 Public
   Constructor Create; virtual;
   Destructor Destroy; Override;
 
-  procedure addImplementation(_MonImpl : TMonitoringImplementation);
+  procedure addImplementation(_MonImpl : TGSCustomMonitoringImplementation);
 
-  Procedure watch(const code : String); Overload;
-  Procedure enter(const code : String);
-  Procedure exit(const code : String);
-  procedure watch(value : NativeInt; const code : String); Overload;
+  procedure watch(id : string; value : string);
+  procedure enter(id : string);
+  procedure leave(id : string);
 
-  Property AutomaticAddDefaulMonitoringIfNoOtherImplementation : boolean read FAutomaticAddDefaulMonitoringIfNoOtherImplementation Write FAutomaticAddDefaulMonitoringIfNoOtherImplementation;
-
-  Property MonitoringCount : UInt32 read GetMoncount;
-  Property Montorings[Index : Uint32] : TMonitoringImplementation read GetMonitoringInstance;
+  function GetImpl(index : integer) : TGSCustomMonitoringImplementation;
+  function GetImplcount : integer;
 End;
 
-var GS_Global_Mon : TMonitoringManager;
+//singleton. If needed. Not a mandatory.
+function MonManager : IGSMonitoringManager;
 
 implementation
 
-Uses GS.Common.Monitoring.Default;
+var GS_Global_Mon : IGSMonitoringManager;
 
-{ TMonitoring }
-
-class procedure TMonitoring.enter(const code: String);
+function MonManager : IGSMonitoringManager;
 begin
-  GS_Global_Mon.enter(code);
+  if Not Assigned(GS_Global_Mon) then
+    GS_Global_Mon := TGSMonManager.Create;
+  result := GS_Global_Mon;
 end;
 
-class procedure TMonitoring.exit(const code: String);
+{ TMonitoringItem }
+
+function TMonitoringItem.AsString: String;
+var l : IGSJsonObject;
 begin
-  GS_Global_Mon.exit(code);
+  l := TGSJsonImpl.Create;
+  l.Put('id',id);
+  l.Put('category',CstMonCat[monCat]);
+  l.Put('doubleValue',doubleValue);
+  l.Put('intValue',intValue);
+  l.Put('uIntValue',uIntValue);
+  l.Put('StringValue',StringValue);
+  l.Put('Ticks',Ticks);
+  l.Put('TicksBetweenCall',TicksBetweenCall);
+  l.Put('CreateDateTime',TGSJSonTool.DataTimeToJSONStr(CreateDateTime));
+  l.Put('DateTime',TGSJSonTool.DataTimeToJSONStr(DateTime));
+  l.Put('CallCount',CallCount);
+  l.Put('CallBySecond',CallBySecond);
+  l.Put('ExtendionDataAssigned',Assigned(ExtensionData));
+  if Assigned(ExtensionData) then
+    l.Put('ExtensionDataClassName',(ExtensionData as TObject).ClassName);
+  result := l.Stringify;
 end;
 
-class function TMonitoring.Reports: String;
-var l : TStringList;
-    i : integer;
+procedure TMonitoringItem.init;
 begin
-  Result := '';
-  l := TStringList.Create;
-  try
-    l.Add(Format('Report Monitoring (%d)',[GS_Global_Mon.MonitoringCount]));
-    for I := 0 to GS_Global_Mon.MonitoringCount-1 do
-    begin
-      l.Add(Format(' Monitoring (%s)',[GS_Global_Mon.Montorings[i].ClassName]));
-      l.Add(GS_Global_Mon.Montorings[i].ReportLogAsString);
-    end;
-    Result := trim(l.Text);
-  finally
-    FreeAndNil(l);
+  flastticks :=0;
+  fOneSec :=0;
+  fCall :=0;
+  id:='';
+  monCat:=TMonCat.mcWatch;
+  StringValue :='';
+  doubleValue :=0;
+  intValue :=0;
+  uIntValue :=0;
+  Ticks :=0;
+  TicksBetweenCall :=0;
+  CreateDateTime :=0;
+  DateTime :=0;
+  CallCount :=0;
+  CallBySecond :=0;
+end;
+
+procedure TMonitoringItem.UpdateMetrics;
+begin
+  if CreateDateTime=0 then
+    CreateDateTime := Now;
+  DateTime := Now;
+  TicksBetweenCall := (Ticks-flastticks);
+  flastticks := Ticks;
+  Ticks := TThread.GetTickCount;
+  fOneSec := fOneSec + TicksBetweenCall;
+  Inc(CallCount);
+  inc(fCall);
+  if fOneSec>=1000 then
+  begin
+    CallBySecond := fCall;
+    fOneSec := 0;
+    fCall := 0;
   end;
 end;
 
-class procedure TMonitoring.watch(value: NativeInt; const code: String);
-begin
-  GS_Global_Mon.watch(value,code);
-end;
 
-class procedure TMonitoring.watch(const code: String);
-begin
-  GS_Global_Mon.watch(code);
-end;
+{ TGSMonManager }
 
-
-{ TMonitoringManager }
-
-procedure TMonitoringManager.addImplementation(
-  _MonImpl: TMonitoringImplementation);
+procedure TGSMonManager.addImplementation(
+  _MonImpl: TGSCustomMonitoringImplementation);
 begin
   Assert(assigned(_MonImpl));
-  if fMonImpl.IndexOf(_MonImpl)=-1 then
-    fMonImpl.Add(_MonImpl);
+  FCS.Enter;
+  try
+    if fMonImpl.IndexOf(_MonImpl)=-1 then begin
+      fMonImpl.Add(_MonImpl);
+    end;
+  finally
+    FCS.Leave;
+  end;
 end;
 
-constructor TMonitoringManager.Create;
+constructor TGSMonManager.Create;
 begin
   inherited;
-  fMonImpl := TObjectList<TMonitoringImplementation>.Create;
-  FAutomaticAddDefaulMonitoringIfNoOtherImplementation := True;
+  FCS := TCriticalSection.Create;
+  fMonImpl := TObjectList<TGSCustomMonitoringImplementation>.Create(True);
 end;
 
-destructor TMonitoringManager.Destroy;
+destructor TGSMonManager.Destroy;
 begin
   FreeAndNil(fMonImpl);
+  FreeAndNil(FCS);
   inherited;
 end;
 
-procedure TMonitoringManager.MonDispatch(const _Cat : TMonCat; const _MonCode: String);
-var l : TMonitoringImplementation;
+function TGSMonManager.GetImpl(
+  index: integer): TGSCustomMonitoringImplementation;
 begin
-  Assert(_Cat < TMonCat.mcWatchNativeInt,'Error : use MonDispatchWatchNativeIntValue');
-  if fMonImpl.Count=0 then
-    if FAutomaticAddDefaulMonitoringIfNoOtherImplementation then
-      fMonImpl.Add(TMonitoringImplementationDefault.Create);
+  result := fMonImpl[index];
+end;
 
+function TGSMonManager.GetImplcount: integer;
+begin
+  result:= fMonImpl.Count;
+end;
+
+procedure TGSMonManager.enter(id: string);
+begin
+  MonDispatch(TMonCat.mcEnter,id,'');
+end;
+
+procedure TGSMonManager.leave(id: string);
+begin
+  MonDispatch(TMonCat.mcLeave,id,'');
+end;
+
+procedure TGSMonManager.watch(id, value: string);
+begin
+  MonDispatch(TMonCat.mcWatch,id,value);
+end;
+
+
+procedure TGSMonManager.MonDispatch(const _MonCat: TMonCat; const _Id,
+  _value: string);
+var l : TGSCustomMonitoringImplementation;
+    h : IGSStringList;
+    i : integer;
+begin
+  h := TGSStringList.Create;
+  if _value.Trim = '' then
+    h.setText(' ')
+  else
+    h.setText(_value);
+
+  for i:= 0 to h.count-1 do
+    for l in fMonImpl do
+      if l.Active then
+        l.writeMonStr(_MonCat,_id,h.lines(i));
+end;
+
+procedure TGSMonManager.MonDispatch(const _MonCat: TMonCat; const _Id: String;
+  const _value: double);
+var l : TGSCustomMonitoringImplementation;
+    i : integer;
+begin
   for l in fMonImpl do
     if l.Active then
-    begin
-      l.SetSystemTick(gsGetTickCount);
-      case _Cat of
-        mcWatch: l.watch(_MonCode);
-        mcEnter: l.enter(_MonCode);
-        mcExit: l.exit(_MonCode);
-      end;
-    end;
+      l.writeMonDouble(_MonCat,_id,_value);
 end;
 
 
-procedure TMonitoringManager.MonDispatchWatchNativeIntValue(const Value: NativeInt;
-  const _MonCodeText: String);
-var l : TMonitoringImplementation;
+{ TGSCustomMonitoringImplementation }
+
+function TGSCustomMonitoringImplementation.GetIsActive: boolean;
 begin
-  if fMonImpl.Count=0 then
-    if FAutomaticAddDefaulMonitoringIfNoOtherImplementation then
-      fMonImpl.Add(TMonitoringImplementationDefault.Create);
-  for l in fMonImpl do
-    if l.Active then
-    begin
-      l.SetSystemTick(gsGetTickCount);
-      l.watch(Value,_MonCodeText);
-    end;
+  result := FActive;
 end;
 
-procedure TMonitoringManager.watch(const code: String);
+procedure TGSCustomMonitoringImplementation.SetIsActive(Value: boolean);
 begin
-  MonDispatch(TMonCat.mcWatch,code);
+  FActive := Value;
 end;
-
-procedure TMonitoringManager.enter(const code: String);
-begin
-  MonDispatch(TMonCat.mcEnter,code);
-end;
-
-procedure TMonitoringManager.exit(const code: String);
-begin
-  MonDispatch(TMonCat.mcExit,code);
-end;
-
-function TMonitoringManager.GetMoncount: UInt32;
-begin
-  result := fMonImpl.Count;
-end;
-
-function TMonitoringManager.GetMonitoringInstance(
-  Index: Uint32): TMonitoringImplementation;
-begin
-  Result := fMonImpl[Index];
-end;
-
-procedure TMonitoringManager.watch(value: NativeInt; const code: String);
-begin
-  MonDispatchWatchNativeIntValue(value,code);
-end;
-
-Initialization
-
-GS_Global_Mon := TMonitoringManager.Create;
-
-Finalization
-
-FreeAndNil(GS_Global_Mon);
 
 end.

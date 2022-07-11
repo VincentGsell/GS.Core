@@ -53,7 +53,7 @@ var s,l : TS3DObject;
     transformationMatrix : Mat4;
 
 begin
-  TMonitoring.enter('S3DVertexShaderControl.Run');
+//  TMonitoring.enter('S3DVertexShaderControl.Run');
   try
     //HERE : Frustrum culling, sorting, simplying etc. etc.
     //In order to give an "lighten" transformed mesh.
@@ -106,7 +106,7 @@ begin
       end;
     end;
   finally
-    TMonitoring.exit('S3DVertexShaderControl.Run');
+//    TMonitoring.exit('S3DVertexShaderControl.Run');
   end;
 end;
 

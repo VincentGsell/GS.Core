@@ -19,7 +19,7 @@ Uses Classes,
      SysUtils,
      Math,
      Generics.Collections,
-     GS.CPUUsage
+     GS.System.CPU
  {$IFDEF MSWINDOWS}
      ,Windows
  {$ENDIF}

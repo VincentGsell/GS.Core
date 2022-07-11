@@ -39,29 +39,25 @@ Const GLB_Math_PrecisionTolerance = 1.0E-12;
       GLB_RadianCst : Double = Pi / 180;
 
 Type
-TPt2f = Record
-  X,Y : Single;
-end;
-
 TPt = Record
-  X,Y,Z : Single;
+  X,Y : Single;
 end;
 
 TLn = Record
 case integer of
 0: (A, B : TPt);
-1: (X1, Y1, Z1, X2, Y2, Z2 : Single)
+1: (X1, Y1, X2, Y2 : Single)
 end;
 
 TRct = Record
  Left, Top, Right, Bottom : Single;
 end;
 
-TVectorArray = array [0..2] of Single;
+TVectorArray = array [0..1] of Single;
 TVector = Record
 case Integer of
   0: (V :TVectorArray);
-  1: (X,Y,Z : Single);
+  1: (X,Y : Single);
 end;
 
 TVectorObject = class
@@ -70,6 +66,9 @@ Public
   Direction : TVector;
   Constructor Create(X,Y,Norm : Double);
 end;
+
+
+TDirectionalObjectCompass = (dcE,dcESE,dcSE,dcSSE,dcS,dcSSW,dcSW,dcWSW,dcW,dcWNW,dcNW,dcNNW,dcN,dcNNE,dcNE,dcENE);
 
 //In simple case, can be used instead of matrix.
 TDirectionalObject =Class(TVectorObject)
@@ -102,7 +101,9 @@ Public
 
   Function GetPointedCoord : TPt; Virtual;
   Procedure SetPointedCoord(aPoint : TPt); Virtual;
-  Procedure SetOrigin(x,y,z : Double); Virtual;
+  Procedure SetOrigin(x,y : Double); Virtual;
+
+  function slope : single;
 
   Property Norm : Double read GetNorm Write SetNorm;
   Property Angle : Double read GetAngle Write SetAngle;
@@ -112,10 +113,8 @@ Public
 end;
 
 function Line(var P1, P2: TPt): TLn; Overload; inline;
-function Line(X, Y, Z, X1, Y1, Z1: Single): TLn; Overload; inline;
-function Point(X, Y, Z: Single): TPt; Overload;inline;
-function Point(X,Y : Single) : TPt; Overload;inline;
-function Point2f(X,Y : Single) : TPt2f; Overload;inline;
+function Line(X, Y, X1, Y1: Single): TLn; Overload; inline;
+function Point(X, Y: Single): TPt; Overload;inline;
 function Rect(Left,Top, Right, Bottom : Single) : TRct;inline;
 
 Procedure vInit(var vector : TVector);inline;
@@ -133,8 +132,8 @@ Procedure vNormDec(var Vector : TVector; PercentAmount : Integer);
 Procedure vAngle(var Vector : TVector; Const NewAngle : Extended); Overload; inline;
 
 Procedure vStepPoint(Var aP : TPt; Vector : TVector); Overload;
-Procedure vStepPoint(Var X,Y,Z : Double; Vector : TVector); Overload;
-Procedure vStepPointby(Var X,Y,Z : Double; Vector : TVector; Amount : Double);
+Procedure vStepPoint(Var X,Y : Double; Vector : TVector); Overload;
+Procedure vStepPointby(Var X,Y : Double; Vector : TVector; Amount : Double);
 Procedure vRotate(Var Vector : TVector; Const ByAngle : Double);
 Procedure vTurnLeft(Var Vector : TVector); OVerload;
 Procedure vTurnRight(Var Vector : TVector); Overload;
@@ -157,6 +156,7 @@ Procedure vSub(Var ResultVector, VectorA,VectorB : TVector); Overload;
 Function vSub(VectorA,VectorB : TVector) : TVector; Overload;
 Procedure vInvert(var Vector : TVector);
 Function vEqualNorm(Tolerance : Double; v1,v2 : TVector) : Boolean;
+function vlerp(va,vb : TVector; percent : single) : TVector;
 
 // for TPointVector
 //Procedure ovStep(var ov : TPointVector);
@@ -199,7 +199,6 @@ begin
   n:=vNorm(Vector);
   Vector.X:=X;
   Vector.Y:=Y;
-  Vector.Z:=Z;
   vNorm(Vector,n);
 end;
 
@@ -209,7 +208,6 @@ begin
   n:=vNorm(Vector);
   Vector.X:=P.X;
   Vector.Y:=P.Y;
-  Vector.Z:=P.Z;
   vNorm(Vector,n);
 end;
 
@@ -238,14 +236,12 @@ function vSimulStep(var Vector: TVector): TPt;
 begin
   Result.X:=Vector.X+Vector.X;
   Result.Y:=Vector.Y+Vector.Y;
-  Result.Z:=Vector.Z+Vector.Z;
 end;
 
 function vSimulStepBy(var Vector : TVector; Amount: Double): TPt;
 begin
   Result.X:=Vector.X+Amount;
   Result.Y:=Vector.Y+Amount;
-  Result.Z:=Vector.Z+Amount;
 end;
 
 
@@ -313,36 +309,19 @@ begin
   Result.B:=P2;
 end;
 
-function Line(X, Y, Z, X1, Y1, Z1: Single): TLn;
+function Line(X, Y, X1, Y1: Single): TLn;
 begin
   Result.A.X:=X;
   Result.A.Y:=Y;
-  Result.A.Z:=Z;
   Result.B.X:=X1;
   Result.B.Y:=Y1;
-  Result.B.Z:=Z1;
 end;
 
-function Point(X, Y, Z: Single): TPt;
+function Point(X, Y: Single): TPt;
 begin
   Result.X:=X;
   Result.Y:=Y;
-  Result.Z:=Z;
 end;
-
-function Point(X,Y : Single) : TPt;
-begin
-  Result.X:=X;
-  Result.Y:=Y;
-  Result.Z:=0;
-end;
-
-function Point2f(X,Y : Single) : TPt2f; Overload;inline;
-begin
-  result.X := X;
-  result.Y := Y;
-end;
-
 
 function Rect(Left,Top, Right, Bottom : Single) : TRct;
 begin
@@ -367,24 +346,21 @@ Procedure vStepPoint(Var aP : TPt; Vector : TVector);
 begin
   aP.X:=aP.X+Vector.X;
   aP.Y:=aP.Y+Vector.Y;
-  aP.Z:=aP.Z+Vector.Z;
 end;
 
-Procedure vStepPoint(Var X,Y,Z : Double; Vector : TVector);
+Procedure vStepPoint(Var X,Y : Double; Vector : TVector);
 begin
   X:=X+Vector.X;
   Y:=Y+Vector.Y;
-  Z:=Z+Vector.Z;
 end;
 
-Procedure vStepPointby(Var X,Y,Z : Double; Vector : TVector; Amount : Double);
+Procedure vStepPointby(Var X,Y : Double; Vector : TVector; Amount : Double);
 var v : TVector;
 begin
   v:=Vector;
   vNorm(v,amount);
   X:=X+V.X;
   Y:=Y+V.Y;
-  Z:=Z+V.Z;
 end;
 
 
@@ -399,14 +375,12 @@ procedure vReset(var Point: TPt);
 begin
   Point.X:=0;
   Point.Y:=0;
-  Point.Z:=0;
 end;
 
 procedure vReset(var Point: TVector);
 begin
   Point.X:=0;
   Point.Y:=0;
-  Point.Z:=0;
 end;
 
 procedure vNorm(var Vector: TVector;
@@ -428,25 +402,22 @@ begin
   begin
     x:=0;
     y:=0;
-    z:=0;
   end;
 end;
 
 function vNorm(var Vector: TVector): Double;
 begin
   With Vector do
-    Result:=Sqrt(x*x+y*y+z*z);
+    Result:=Sqrt(x*x+y*y);
 end;
 
 Procedure vNormalyze(var Vector : TVector);
 var d : Double;
 begin
   d := vNorm(Vector);
-  if d<>0 then
-  begin
+  if d<>0 then  begin
     Vector.X := Vector.X / d;
     Vector.Y := Vector.Y / d;
-    Vector.Z := Vector.Z / d;
   end;
 
 end;
@@ -467,28 +438,24 @@ procedure vAdd(var ResultVector, VectorA, VectorB : TVector);
 begin
   ResultVector.X:=VectorA.X+Vectorb.X;
   ResultVector.Y:=VectorA.Y+Vectorb.Y;
-  ResultVector.Z:=VectorA.Z+Vectorb.Z;
 end;
 
 procedure vMultiply(var ResultVector, VectorA,  VectorB : TVector);
 begin
   ResultVector.X:=VectorA.X*Vectorb.X;
   ResultVector.Y:=VectorA.Y*Vectorb.Y;
-  ResultVector.Z:=VectorA.Z*Vectorb.Z;
 end;
 
 procedure vSub(var ResultVector, VectorA, VectorB : TVector);
 begin
   ResultVector.X:=VectorA.X-Vectorb.X;
   ResultVector.Y:=VectorA.Y-Vectorb.Y;
-  ResultVector.Z:=VectorA.Z-Vectorb.Z;
 end;
 
 Function vSub(VectorA,VectorB : TVector) : TVector;
 begin
   Result.X:=VectorA.X-Vectorb.X;
   Result.Y:=VectorA.Y-Vectorb.Y;
-  Result.Z:=VectorA.Z-Vectorb.Z;
 end;
 
 procedure vNormOn2(var Vector: TVector);
@@ -511,7 +478,6 @@ begin
   n:=vNorm(Vector);
   Vector.X:=P.X-Origin.x;
   Vector.Y:=P.Y-Origin.Y;
-  Vector.Z:=P.Z-Origin.Z;
   vNorm(Vector,n);
 end;
 
@@ -530,14 +496,12 @@ procedure vInvert(var Vector: TVector);
 begin
   Vector.X:=Vector.X*-1;
   Vector.Y:=Vector.Y*-1;
-  Vector.Z:=Vector.Z*-1;
 end;
 
 procedure vAdd(var AddedVector, VectorA: TVector);
 begin
   AddedVector.X:=AddedVector.X+VectorA.X;
   AddedVector.Y:=AddedVector.Y+VectorA.Y;
-  AddedVector.Z:=AddedVector.Z+VectorA.Z;
 end;
 
 function vEqualNorm(Tolerance: Double; v1,
@@ -549,6 +513,13 @@ begin
 
   Result:=(a>(b-tolerance)) and (a<=(b+tolerance));
 end;
+
+function vlerp(va,vb : TVector; percent : single) : TVector;
+begin
+  result.X := va.x + (vb.X-va.X) * percent;
+  result.Y := va.y + (vb.X-va.X) * percent;
+end;
+
 
 { TDirectionalObject }
 
@@ -567,7 +538,6 @@ begin
   //origin.Z:=Origin.Z+a.Z;
   origin.X:=Origin.X+Direction.X;
   origin.Y:=Origin.Y+Direction.Y;
-  origin.Z:=Origin.Z+Direction.Z;
 end;
 
 procedure TDirectionalObject.MoveAheadBy(Amount: Double);
@@ -575,7 +545,6 @@ begin
   //Origin:=vSimulStep(Direction);
   origin.X:=Origin.X+Direction.X*Amount;
   origin.Y:=Origin.Y+Direction.Y*Amount;
-  origin.Z:=Origin.Z+Direction.Z*Amount;
 end;
 
 procedure TDirectionalObject.TurnBy(AmountInDegree: Double);
@@ -615,7 +584,7 @@ end;
 
 function TDirectionalObject.GetPointedCoord: TPt;
 begin
-  Result:=Point(Origin.X+Direction.X,Origin.Y+Direction.Y,Origin.Z+Direction.Z);
+  Result:=Point(Origin.X+Direction.X,Origin.Y+Direction.Y);
 end;
 
 procedure TDirectionalObject.SetAngle(const Value: Double);
@@ -645,11 +614,10 @@ begin
   vNorm(direction,Sqrt(a+b));
 end;
 
-procedure TDirectionalObject.SetOrigin(x, y, z : Double);
+procedure TDirectionalObject.SetOrigin(x, y : Double);
 begin
   Origin.X:=x;
   Origin.Y:=Y;
-  Origin.Z:=Z;
 end;
 
 procedure TDirectionalObject.PointAt(aPoint: TPt);
@@ -676,6 +644,19 @@ end;
 procedure TDirectionalObject.SetPositionY(const Value: Double);
 begin
   Origin.Y:=Value;
+end;
+
+function TDirectionalObject.slope: single;
+var x1,x2,y1,y2 : single;
+begin
+  x1 := Origin.X;
+  x2 := Origin.X+Direction.X;
+  if InternalIsEqual(x1-x2,0,GLB_Math_PrecisionTolerance) then
+    result := 0;
+  y1 := Origin.Y;
+  y2 := Origin.Y+Direction.Y;
+
+  result := y2-y1/x2-x1;
 end;
 
 procedure TDirectionalObject.ResetDirection;
@@ -935,7 +916,7 @@ function vPtInRect(aPoint : TPt; aRect : TRct; Var aLocalResult : TPt) : Boolean
 begin
   Result := (aPoint.X>=aRect.Left) and (aPoint.X<=aRect.Right) And (aPoint.Y<=aRect.Bottom) and (aPoint.Y>=aRect.top);
   if Result then
-    aLocalResult := Point(aPoint.x-aRect.Left,aPoint.Y-aRect.Top,0);
+    aLocalResult := Point(aPoint.x-aRect.Left,aPoint.Y-aRect.Top);
 end;
 
 { TVectorObject }
@@ -944,10 +925,8 @@ constructor TVectorObject.Create(X, Y, Norm: Double);
 begin
   Origin.X:=X;
   Origin.Y:=Y;
-  Origin.Z:=0;
   Direction.X:=Norm;
   Direction.Y:=0;
-  Direction.Z:=0;
 end;
 
 end.

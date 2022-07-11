@@ -174,11 +174,11 @@ begin
     FInMemoryOnly := False;
     if Not(FileExists(FFileName)) then
     begin
-      FFileBuffer := TFileStream.Create(FFileName,fmCreate);
+      FFileBuffer := TBufferedFileStream.Create(FFileName,fmCreate);
     end
     else
     begin
-      FFileBuffer := TFileStream.Create(FFileName,fmOpenReadWrite);
+      FFileBuffer := TBufferedFileStream.Create(FFileName,fmOpenReadWrite);
     end;
   end;
 end;
@@ -215,10 +215,9 @@ begin
 
       FInMemoryAllocation.Add(lEntry.Key,lEntry);
       lPercent := FFileBuffer.Position*100/FFileBuffer.Size;
-      if lEntry.Next>-1 then
+      if (lEntry.Next>-1) then
       begin
         InternalInitialLoading(lPercent);
-
         FFileBuffer.Position := lEntry.Next;
       end
       else
@@ -271,7 +270,7 @@ begin
     end;
     ctStream:
     begin
-      ReadStream(FFileBuffer,StreamData);
+      ReadStream(FFileBuffer,TStream(StreamData));
     end;
     ctInteger: WriteInteger(StreamData,ReadInteger(FFileBuffer));
     ctUINT32: WriteUInt32(StreamData,ReadUINT32(FFileBuffer));
@@ -457,6 +456,11 @@ begin
     finally
       FreeAndNil(ls);
     end;
+  end;
+
+  //Write immediately.
+  if FFileBuffer is TBufferedFileStream then begin
+    TBufferedFileStream(FFileBuffer).FlushBuffer;
   end;
 end;
 

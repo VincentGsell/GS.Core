@@ -54,7 +54,6 @@ Type
     function Normalize: PVec2;{$IFDEF DO_INLINE} inline;{$ENDIF}
     function Cross(const b: Vec2): Vec2;{$IFDEF DO_INLINE} inline;{$ENDIF}
     function Dot(const b: Vec2): TVecType; overload;{$IFDEF DO_INLINE} inline;{$ENDIF}
-    procedure LoadTextures;
     constructor create(ax, ay: TVecType);overload;
     constructor create(ax: TVecType);overload;
     class operator explicit(const b:TVecType):Vec2;{$IFDEF DO_INLINE} inline;{$ENDIF}
@@ -79,6 +78,10 @@ Type
     property r:TVecType read x write x;
     property g:TVecType read y write y;
   end;
+
+  Vec2s = array of Vec2;
+  Vec2sp = ^Vec2s;
+  Vec2sArray = Array of Vec2s;
 
   Vec3 = record
     function Length: TVecType;{$IFDEF DO_INLINE} inline;{$ENDIF}
@@ -137,6 +140,8 @@ Type
     class operator Add(const a:Vec4; b: TVecType): Vec4;{$IFDEF DO_INLINE} inline;{$ENDIF}
     class operator Subtract(const a,b: Vec4): Vec4;{$IFDEF DO_INLINE} inline;{$ENDIF}
     class operator Negative(const a: Vec4): Vec4;{$IFDEF DO_INLINE} inline;{$ENDIF}
+    function getHeight: TVecType;
+    function getWidth: TVecType;
 
 {
     case RecType: byte of
@@ -153,10 +158,11 @@ Type
 
     property Left:TVecType read x write x;
     property top:TVecType read y write y;
-    property Width:TVecType read z write z;
-    property height:TVecType read w write w;
     property right:TVecType read z write z;
     property bottom:TVecType read w write w;
+
+    property Width:TVecType read getWidth;
+    property height:TVecType read getHeight;
   end;
 
   Mat3 = record
@@ -174,13 +180,10 @@ Type
     class operator Add(const a:Mat3;const b:Vec3):Vec3;{$IFDEF DO_INLINE} inline;{$ENDIF}
     class operator Negative(const a: Mat3): Mat3;{$IFDEF DO_INLINE} inline;{$ENDIF}
 
-    property m11 : TVecType read getm11 write setmm11;
-    //property m12 : TVecType read getm12 write setmm12;
-    //property m13 : TVecType read getm13 write setmm13;
-    //property m21 : TVecType read getm21 write setmm21;
-    //property m22 : TVecType read getm22 write setmm22;
-    //property m23 : TVecType read getm23 write setmm23;
-    //....
+    function Determinant : TVecType;
+    function Adjoint : Mat3;
+    function Inverse : Mat3;
+    function Scale(factor : TVecType) : Mat3;
   end;
 
   Mat4 = record
@@ -435,6 +438,7 @@ function _hash(const n:vec4):vec4;overload;{$IFDEF DO_INLINE} inline;{$ENDIF} ov
 
 function _lerp(a,b : TVecType; rel : TVecType) : TVecType;
 
+procedure _vect2sArrayCopy(var source,target : Vec2sArray);
 
 
 
@@ -457,7 +461,11 @@ const
   vec4Gray:Vec4=(x:0.5;y:0.5;z:0.5;w:0.5);
 
 
+
+
 implementation
+
+
 
 function Mat3Identity : Mat3;
 begin
@@ -1903,10 +1911,6 @@ begin
   Result := System.sqrt(x * x + y * y)
 end;
 
-procedure Vec2.LoadTextures;
-begin
-end;
-
 class operator Vec2.Multiply(const a, b: Vec2): Vec2;
 begin
   Result.x := a.x * b.x;
@@ -2472,6 +2476,16 @@ begin
 end;
 
 
+function Vec4.getHeight: TVecType;
+begin
+  result := abs(bottom-top);
+end;
+
+function Vec4.getWidth: TVecType;
+begin
+  result := abs(Right-left);
+end;
+
 class operator Vec4.Implicit(const a: Vec3): Vec4;
 begin
   Result.x := a.x;
@@ -2654,8 +2668,8 @@ begin
   Result.x := a.r1.x * b.x + a.r1.y * b.y + a.r1.z * b.z;
   Result.y := a.r2.x * b.x + a.r2.y * b.y + a.r2.z * b.z;
   Result.z := a.r3.x * b.x + a.r3.y * b.y + a.r3.z * b.z;
-
 end;
+
 
 constructor Mat3.Create(const a, b, c: Vec3);
 begin
@@ -2664,9 +2678,64 @@ begin
   r3 := c;
 end;
 
+
 function Mat3.getm11: TVecType;
 begin
   result := r1.x
+end;
+
+function DetInternal(const a1, a2, a3, b1, b2, b3, c1, c2, c3: Single): Single;
+begin
+  Result := a1 * (b2 * c3 - b3 * c2) - b1 * (a2 * c3 - a3 * c2) + c1 * (a2 * b3 - a3 * b2);
+end;
+
+
+function Mat3.Determinant: TVecType;
+begin
+  Result := r1.x * DetInternal(r2.y, r2.y, r3.y, r2.z,  r2.z, r3.z, r2.z, r2.z, r3.z)
+            - r1.y * DetInternal(r2.x, r2.x, r3.x, r2.z, r2.z, r3.z, r2.z, r2.z, r3.z)
+            + r1.z * DetInternal(r2.x, r2.x, r3.x, r2.y, r2.y, r3.y, r2.z, r2.z, r3.z);
+end;
+
+function Mat3.Adjoint: Mat3;
+var
+  a1, a2, a3,
+  b1, b2, b3,
+  c1, c2, c3 : TVecType;
+begin
+  a1 := Self.r1.x;
+  a2 := Self.r1.y;
+  a3 := Self.r1.z;
+  b1 := Self.r2.x;
+  b2 := Self.r2.y;
+  b3 := Self.r2.z;
+  c1 := Self.r3.x;
+  c2 := Self.r3.y;
+  c3 := Self.r3.z;
+
+
+  self.r1.x := (b2 * c3 - c2 * b3);
+  self.r2.x := -(b1 * c3 - c1 * b3);
+  self.r3.x := (b1 * c2 - c1 * b2);
+
+  self.r1.y := -(a2 * c3 - c2 * a3);
+  self.r2.y := (a1 * c3 - c1 * a3);
+  self.r3.y := -(a1 * c2 - c1 * a2);
+
+  self.r1.z := (a2 * b3 - b2 * a3);
+  self.r2.z := -(a1 * b3 - b1 * a3);
+  self.r3.z := (a1 * b2 - b1 * a2);
+end;
+
+function Mat3.Inverse: Mat3;
+var
+  Det: TVecType;
+begin
+  Det := Self.Determinant;
+  if Abs(Det) < _EPSILON_ then
+    Result := Mat3Identity
+  else
+    Result := self.Adjoint.Scale(1 / Det);
 end;
 
 class operator Mat3.Multiply(const a: Vec2; const b: Mat3): Vec2;
@@ -2675,6 +2744,7 @@ begin
   Result.X := a.X * b.r1.x + a.Y * b.r2.x + b.r3.x;
   Result.Y := a.X * b.r1.y + a.Y * b.r2.y + b.r3.y;
 end;
+
 
 class operator Mat3.Multiply(const a, b: Mat3): Mat3;
 begin
@@ -2694,6 +2764,19 @@ begin
   Result.r1 := -a.r1;
   Result.r2 := -a.r2;
   Result.r3 := -a.r3;
+end;
+
+function Mat3.Scale(factor: TVecType): Mat3;
+begin
+  Result.r1.x := r1.x * factor;
+  Result.r1.y := r1.y * factor;
+  Result.r1.z := r1.z * factor;
+  Result.r2.x := r2.x * factor;
+  Result.r2.y := r2.y * factor;
+  Result.r2.z := r2.z * factor;
+  Result.r3.x := r3.x * factor;
+  Result.r3.y := r3.y * factor;
+  Result.r3.z := r3.z * factor;
 end;
 
 procedure Mat3.setmm11(const Value: TVecType);
@@ -2720,11 +2803,6 @@ begin
   Result.w := (b.X * a.r1.w) + (b.Y * a.r2.w) + (b.Z * a.r3.w) + (b.W * a.r4.w);
 end;
 
-
-function DetInternal(const a1, a2, a3, b1, b2, b3, c1, c2, c3: Single): Single;
-begin
-  Result := a1 * (b2 * c3 - b3 * c2) - b1 * (a2 * c3 - a3 * c2) + c1 * (a2 * b3 - a3 * b2);
-end;
 
 function Mat4.Determinant: TVecType;
 begin
@@ -2885,6 +2963,19 @@ function _lerp(a,b : TVecType; rel : TVecType) : TVecType;
 begin
   assert((rel>=0) and (rel<=1));
   result := _min(a,b) + (abs(a-b) * rel);
+end;
+
+procedure _vect2sArrayCopy(var source,target : Vec2sArray);
+var i,j : integer;
+begin
+  if length(source)=0 then
+    exit;
+  setlength(target,length(source));
+  for i := 0 to length(source)-1 do
+    setlength(target[i],length(source[i]));
+  for i := 0 to length(source)-1 do
+    for j := 0 to length(source[i])-1 do
+      target[i][j] := source[i][j];
 end;
 
 end.

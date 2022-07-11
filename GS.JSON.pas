@@ -21,7 +21,9 @@ Uses
 {$ENDIF}
   Jsons,
   JsonsUtilsEx,
+{$IFDEF BCPBASE64}
   BcpBase64,
+{$ENDIF}
   GS.Common;
 
 Type
@@ -49,34 +51,81 @@ Type
   end;
   {$ENDIF}
 
+  TGSJsonArray = TJsonArray;
+  TGSJsonObject = TJsonObject;
+
   TGSJson = class(TJson)
+  private
+    function GetJson: TJson;
   Protected
-    class var FListOfProperty : TGSJsonListOfProperty;
+    class var FListOfProperty : TGSJsonListOfProperty; { TODO : TO REMOVE PLZ ! }
     class function CheckInstance : Boolean;
     class Procedure Init;
     class Procedure Release;
   Public
+{$IFDEF BCPBASE64}
     class var base64 : TBase64;
+    class Function Base64StringToBytes(Const aBase64String : String) : TBytes;
+    class function BytesToBase64String(const aBytes : TBytes) : String;
+{$ENDIF}
     {$IFDEF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
     class Procedure JsonToObject(Const aJSONString : String; var aObject : TObject);
     class Function ObjectToJson(aObject : TObject) : String;
     {$ENDIF DCC} //Currently, this compile on FPC work only for trunck. But Trunck is broken on ARM. :(
 
+    class function JSONDateToString(aDate : TDateTime) : String;
+    class function JSONStringToDate(aDate : String) : TDateTime;
+
     class Function Configuration : TGSJsonListOfProperty;
 
     function Path(jsonPath : string) : TJsonValue;
-
-    class Function Base64StringToBytes(Const aBase64String : String) : TBytes;
-    class function BytesToBase64String(const aBytes : TBytes) : String;
   end;
 
-  TGSJsonArray = TJsonArray;
+  IGSJsonObject = interface;
+  IGSJsonObject = interface
+    function Put(const Name: String; const Value: Boolean): TJsonValue; overload;
+    function Put(const Name: String; const Value: Integer): TJsonValue; overload;
+    function Put(const Name: String; const Value: Extended): TJsonValue; overload;
+    function Put(const Name: String; const Value: String): TJsonValue; overload;
+    function Stringify : string;
+    procedure parser(aJsonString : String);
+    function get(const name : String) : String;
+    function getAsValue(const name : String) : TJsonValue;
+    function getAsArray(const name : String) : TJsonArray;
+    function exists(const name : string) : boolean;
+  end;
+
+  TGSJsonImpl = class(TInterfacedObject, IGSJsonObject)
+  private
+    FJson : TGSJSONObject;
+  public
+    constructor Create; virtual;
+    destructor Destroy; Override;
+
+    //IGSJsonObject
+    function Put(const Name: String; const Value: Boolean): TJsonValue; overload;
+    function Put(const Name: String; const Value: Integer): TJsonValue; overload;
+    function Put(const Name: String; const Value: Extended): TJsonValue; overload;
+    function Put(const Name: String; const Value: String): TJsonValue; overload;
+    function Stringify : string;
+    procedure parser(aJsonString : String);
+    function get(const name : String) : String;
+    function getAsValue(const name : String) : TJsonValue;
+    function getAsArray(const name : String) : TGSJsonArray;
+    function exists(const name : string) : boolean;
+  end;
+
+  TGSJsonTool = class
+    class function JSONStrToDateTime(aJsonStr : string) : TDateTime;
+    class function DataTimeToJSONStr(aDataTime : TDateTime) : String;
+  end;
 
 implementation
 
 
 { TGSJson }
 
+{$IFDEF BCPBASE64}
 class function TGSJson.Base64StringToBytes(const aBase64String: String): TBytes;
 begin
   result := base64.Decode(aBase64String);
@@ -86,7 +135,7 @@ class function TGSJson.BytesToBase64String(const aBytes: TBytes): String;
 begin
   result := base64.Encode(aBytes);
 end;
-
+{$ENDIF}
 class function TGSJson.CheckInstance: Boolean;
 begin
   result :=true;
@@ -102,10 +151,27 @@ begin
   Result := FListOfProperty;
 end;
 
+function TGSJson.GetJson: TJson;
+begin
+  result := TJson(Self);
+end;
+
 class procedure TGSJson.Init;
 begin
   FListOfProperty := Nil;
+{$IFDEF BCPBASE64}
   base64 := TBase64.Create;
+{$ENDIF}
+end;
+
+class function TGSJson.JSONDateToString(aDate: TDateTime): String;
+begin
+  result := jsonsUtilsEx.JSONDateToString(aDate);
+end;
+
+class function TGSJson.JSONStringToDate(aDate: String): TDateTime;
+begin
+  result := jsonsUtilsEx.JSONStringToDate(aDate);
 end;
 
 {$IFDEF DCC} //Currently, this compile on FPC work only for trunk. But Trunk is broken on ARM. :(
@@ -177,7 +243,9 @@ begin
      end;
   {$ENDIF}
   end;
+{$IFDEF BCPBASE64}
   FreeAndNil(base64);
+{$ENDIF}
 end;
 
 { TGSJsonListOfProperty }
@@ -295,6 +363,87 @@ begin
   end;
 end;
 }
+
+{ TGSJsonImpl }
+
+constructor TGSJsonImpl.Create;
+begin
+  inherited;
+  FJson := TGSJSONObject.Create;
+end;
+
+destructor TGSJsonImpl.Destroy;
+begin
+  FreeAndNil(FJson);
+  inherited;
+end;
+
+
+function TGSJsonImpl.exists(const name: string): boolean;
+begin
+  result := FJson.Find(name)>-1;
+end;
+
+function TGSJsonImpl.get(const name: String): String;
+begin
+  result := FJson.Values[name].AsString;
+end;
+
+function TGSJsonImpl.getAsArray(const name: String): TGSJsonArray;
+begin
+  result := FJson.Values[name].AsArray;
+end;
+
+function TGSJsonImpl.getAsValue(const name: String): TJsonValue;
+begin
+  result := FJson.Values[name];
+end;
+
+procedure TGSJsonImpl.parser(aJsonString: String);
+begin
+  FJson.Parse(aJsonString);
+end;
+
+function TGSJsonImpl.Put(const Name: String; const Value: Boolean): TJsonValue;
+begin
+  result := FJson.Put(Name,Value);
+end;
+
+function TGSJsonImpl.Put(const Name: String; const Value: Integer): TJsonValue;
+begin
+  result := FJson.Put(Name,Value);
+end;
+
+function TGSJsonImpl.Put(const Name: String; const Value: Extended): TJsonValue;
+begin
+  result := FJson.Put(Name,Value);
+end;
+
+function TGSJsonImpl.Put(const Name, Value: String): TJsonValue;
+begin
+  result := FJson.Put(Name,Value);
+end;
+
+function TGSJsonImpl.Stringify: string;
+begin
+  result := FJson.Stringify;
+end;
+
+{ TGSJSonTool }
+
+class function TGSJSonTool.DataTimeToJSONStr(aDataTime: TDateTime): String;
+begin
+  result := JSONDateToString(aDataTime);
+end;
+
+class function TGSJSonTool.JSONStrToDateTime(aJsonStr: string): TDateTime;
+begin
+  if aJsonStr.Trim.Length=0 then
+    result := 0.0
+  else
+    result := JSONStringToDate(aJsonStr);
+end;
+
 
 Initialization
 

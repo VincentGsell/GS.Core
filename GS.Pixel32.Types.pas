@@ -34,17 +34,17 @@ Type
   TSoftwareRasterizeOption = (roDirectMode, robasic, roBackBuffer);
 
 const
-  gspColorNone : TP32 = $00000000;
-  gspWhite : TP32 = $FFFFFFFF;
-  gspBlack : TP32 = $FF000000;
-  gspBlue : TP32 = $FF0000FF;
-  gspGreen : TP32 = $FF008000;
-  gspRed : TP32 = $FFFF0000;
-  gspOrange : TP32 = $FFFF7F00;
-  gspAqua :  TP32= $FF00FFFF;
-  gspNavy  : TP32 = $FF000080;
-  gspOlive : TP32 = $FF7F7F00;
-  gspYellow : TP32 = $FFFFFF00;
+  gspColorNone = $00000000;
+  gspWhite = $FFFFFFFF;
+  gspBlack = $FF000000;
+  gspBlue = $FF0000FF;
+  gspGreen = $FF008000;
+  gspRed = $FFFF0000;
+  gspOrange = $FFFF7F00;
+  gspAqua = $FF00FFFF;
+  gspNavy  = $FF000080;
+  gspOlive = $FF7F7F00;
+  gspYellow = $FFFFFF00;
 
 
 function P32Vertice( const x : single = 0;

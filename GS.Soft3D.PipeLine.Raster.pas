@@ -215,7 +215,7 @@ var s : TS3PLObject;
 
 begin
   //ZBuffer build.
-  TMonitoring.enter('TS3DRasterAndInterpolationControl.Run');
+//  TMonitoring.enter('TS3DRasterAndInterpolationControl.Run');
   try
     Result := WorkingData.Transformed.Count>0;
     w := InputData.Resolution.width;
@@ -287,7 +287,7 @@ begin
       Inc(oi); //Object index in transformed list.
     end;
   finally
-    TMonitoring.exit('TS3DRasterAndInterpolationControl.Run');
+//    TMonitoring.exit('TS3DRasterAndInterpolationControl.Run');
   end;
 end;
 

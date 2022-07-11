@@ -132,7 +132,7 @@ end;
 
 constructor TGSPlaneTriMesh.create;
 var i : Integer;
-    cloud : Array of vec2;
+    cloud : Array of vec2s;
     mesh2d : TGSRawMesh2d;
     a,b,c,d : vec2;
     uva,uvb,uvc : vec2;
@@ -146,16 +146,17 @@ begin
   Randomize;
   mesh2d :=TGSRawMesh2D.Create;
   try
-    SetLength(cloud,CST_POINT_COUNT);
-    cloud[0].x := -(CST_POINT_COUNT div 2);
-    cloud[0].y := 0;
-    cloud[CST_POINT_COUNT-1].x := (CST_POINT_COUNT div 2);
-    cloud[CST_POINT_COUNT-1].y := 0;
+    SetLength(cloud,1);
+    SetLength(cloud[0],CST_POINT_COUNT);
+    cloud[0][0].x := -(CST_POINT_COUNT div 2);
+    cloud[0][0].y := 0;
+    cloud[0][CST_POINT_COUNT-1].x := (CST_POINT_COUNT div 2);
+    cloud[0][CST_POINT_COUNT-1].y := 0;
 
     for i := 1 to CST_POINT_COUNT-2 do
     begin
-      cloud[i].x := i - (CST_POINT_COUNT div 2);
-      cloud[i].y := 5 + Random(10);
+      cloud[0][i].x := i - (CST_POINT_COUNT div 2);
+      cloud[0][i].y := 5 + Random(10);
     end;
 
     TGSTriangulationPortal.PolygoneTriangulation(cloud,mesh2d);
