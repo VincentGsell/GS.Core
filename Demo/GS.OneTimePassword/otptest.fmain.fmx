@@ -1,0 +1,108 @@
+object Form42: TForm42
+  Left = 0
+  Top = 0
+  Caption = 'Form42'
+  ClientHeight = 596
+  ClientWidth = 860
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 0
+  object Memo1: TMemo
+    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+    DataDetectorTypes = []
+    Lines.Strings = (
+      'MYBASE32SECRET')
+    OnChange = Memo1Change
+    Position.X = 56.000000000000000000
+    Position.Y = 64.000000000000000000
+    Size.Width = 345.000000000000000000
+    Size.Height = 129.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    Viewport.Width = 341.000000000000000000
+    Viewport.Height = 125.000000000000000000
+  end
+  object Label1: TLabel
+    Position.X = 56.000000000000000000
+    Position.Y = 40.000000000000000000
+    Text = 'Shared Secret'
+    TabOrder = 1
+  end
+  object Label2: TLabel
+    Position.X = 56.000000000000000000
+    Position.Y = 208.000000000000000000
+    Text = 'Token'
+    TabOrder = 3
+  end
+  object Edit1: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 5
+    Position.X = 56.000000000000000000
+    Position.Y = 227.000000000000000000
+    Size.Width = 345.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+  end
+  object Label3: TLabel
+    Position.X = 56.000000000000000000
+    Position.Y = 16.000000000000000000
+    Text = 'Hour'
+    TabOrder = 7
+  end
+  object Edit2: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    TabOrder = 4
+    Position.X = 56.000000000000000000
+    Position.Y = 379.000000000000000000
+    Size.Width = 241.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+  end
+  object Label4: TLabel
+    Position.X = 56.000000000000000000
+    Position.Y = 360.000000000000000000
+    Text = 'Enter a code...'
+    TabOrder = 2
+  end
+  object Button1: TButton
+    Position.X = 302.000000000000000000
+    Position.Y = 380.000000000000000000
+    TabOrder = 8
+    Text = 'Button1'
+    OnClick = Button1Click
+  end
+  object ListBox1: TListBox
+    Position.X = 387.000000000000000000
+    Position.Y = 377.000000000000000000
+    Size.Width = 166.000000000000000000
+    Size.Height = 200.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 10
+    DisableFocusEffect = True
+    DefaultItemStyles.ItemStyle = ''
+    DefaultItemStyles.GroupHeaderStyle = ''
+    DefaultItemStyles.GroupFooterStyle = ''
+    Viewport.Width = 162.000000000000000000
+    Viewport.Height = 196.000000000000000000
+  end
+  object ListBox2: TListBox
+    Position.X = 555.000000000000000000
+    Position.Y = 377.000000000000000000
+    Size.Width = 166.000000000000000000
+    Size.Height = 200.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 9
+    DisableFocusEffect = True
+    DefaultItemStyles.ItemStyle = ''
+    DefaultItemStyles.GroupHeaderStyle = ''
+    DefaultItemStyles.GroupFooterStyle = ''
+    Viewport.Width = 162.000000000000000000
+    Viewport.Height = 196.000000000000000000
+  end
+  object Timer: TTimer
+    OnTimer = TimerTimer
+    Left = 472
+    Top = 32
+  end
+end

@@ -23,7 +23,7 @@ uses
   GS.Pixel.Draw,
   GS.Pixel32,
   GS.Pixel32.Types,
-  GS.Pixel32.Win;
+  GS.Pixel32.Win, Vcl.Menus;
 
 type
   TShapeAssetManager = Class
@@ -36,7 +36,7 @@ type
     Constructor Create; virtual;
     Destructor Destroy; override;
 
-    function AssetFromMouseDrawing( data : array of vec2;
+    function AssetFromMouseDrawing( data : Vec2sArray;
                                        var newAsset : TGSAssetShapeMesh;
                                        const TriangulationMethod : TTiangulationMethod = TTiangulationMethod.tmDelaunay) : boolean;
 
@@ -65,6 +65,15 @@ type
     Button2: TButton;
     OpenDialog1: TOpenDialog;
     Button3: TButton;
+    GroupBox1: TGroupBox;
+    CheckBox1: TCheckBox;
+    PopupMenu1: TPopupMenu;
+    pmLoadMesh: TMenuItem;
+    PopupMenu2: TPopupMenu;
+    pmSaveMeshFile: TMenuItem;
+    cbLineMode: TCheckBox;
+    btnNewPoly: TButton;
+    cbDrawBorder: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -81,6 +90,9 @@ type
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
+    procedure pmLoadMeshClick(Sender: TObject);
+    procedure pmSaveMeshClick(Sender: TObject);
+    procedure btnNewPolyClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -98,7 +110,8 @@ type
     DrawList : Array of TPixelDrawable;
 
     //drawing manager.
-    CurrentDrawData : Array of Vec2;
+    CurrentDrawData : Vec2sArray;
+    CurrentPolyIndex : Integer;
     procedure addDrawPoint(x,y : single);
     procedure clearDraw;
 
@@ -119,9 +132,11 @@ implementation
 procedure TForm3.addDrawPoint(x, y : Single);
 var index : Uint32;
 begin
-  index := Length(CurrentDrawData);
-  SetLength(CurrentDrawData,index+1);
-  CurrentDrawData[index].create(x,y);
+  if length(CurrentDrawData)<CurrentPolyIndex then
+    raise Exception.Create('CurrentPolyIndex overlflow bug.');
+  index := Length(CurrentDrawData[CurrentPolyIndex]);
+  SetLength(CurrentDrawData[CurrentPolyIndex],index+1);
+  CurrentDrawData[CurrentPolyIndex][index].create(x,y);
 end;
 
 procedure TForm3.btnConvertClick(Sender: TObject);
@@ -129,6 +144,7 @@ var a,b,c : TGSAssetShapeMesh;
     sc,ind : Uint32;
 
 begin
+  Assert(Length(CurrentDrawData)>0);
   btnConvert.Enabled := false;
   a := nil;
   b := nil;
@@ -171,6 +187,7 @@ begin
       1:
       begin
         assetManager.addAsset(a);
+        a.BordersCopyFrom(CurrentDrawData);
         ListBox1.AddItem('Asset '+IntToStr(assetManager.AssetCount),a);
         if assigned(b) then freeAndNil(b);
         if assigned(c) then freeAndNil(c);
@@ -178,6 +195,7 @@ begin
       2:
       begin
         assetManager.addAsset(b);
+        b.BordersCopyFrom(CurrentDrawData);
         ListBox1.AddItem('Asset '+IntToStr(assetManager.AssetCount),b);
         if assigned(a) then freeAndNil(a);
         if assigned(c) then freeAndNil(c);
@@ -185,6 +203,7 @@ begin
       3:
       begin
         assetManager.addAsset(c);
+        c.BordersCopyFrom(CurrentDrawData);
         ListBox1.AddItem('Asset '+IntToStr(assetManager.AssetCount),c);
         if assigned(a) then freeAndNil(a);
         if assigned(b) then freeAndNil(b);
@@ -195,6 +214,7 @@ begin
   else
   begin
     raise Exception.Create('no result');
+    clearDraw;
   end;
 end;
 
@@ -208,8 +228,14 @@ begin
     index := Length(DrawList);
     SetLength(DrawList,index+1);
     DrawList[index] := TPixelShape.Create(asset);
-    ListBox2.AddItem('Shape'+InttoStr(index)+' ('+intToStr(DrawList[index].Mesh.getTriangleCount)+' tri.)',DrawList[index]);
+    ListBox2.AddItem(format('Shape %d (%d tri. | %d edge)',[index,DrawList[index].Mesh.getTriangleCount,length(DrawList[index].Asset.Borders)]),DrawList[index]);
+    clearDraw;
   end;
+end;
+
+procedure TForm3.btnNewPolyClick(Sender: TObject);
+begin
+  CurrentPolyIndex := -1;
 end;
 
 procedure TForm3.Button1Click(Sender: TObject);
@@ -289,6 +315,8 @@ end;
 procedure TForm3.clearDraw;
 begin
   CurrentDrawData := nil;
+  SetLength(CurrentDrawData,1); //At least 1.
+  CurrentPolyIndex := 0;
 end;
 
 procedure TForm3.FormCreate(Sender: TObject);
@@ -296,7 +324,7 @@ begin
   pixel := TPixel32.create;
   pixel.color_pen := pixel.colorSetAValue(gspBlack,100);
   assetManager := TShapeAssetManager.Create;
-
+  clearDraw;
   Application.OnIdle := OnAppIdle;
   FPS := 0;
 end;
@@ -325,6 +353,10 @@ var i : integer;
 begin
   if chkDrawMode.Checked then
   begin
+    if CurrentPolyIndex <> length(CurrentDrawData)-1 then begin
+      CurrentPolyIndex := length(CurrentDrawData);
+      SetLength(CurrentDrawData,CurrentPolyIndex+1);
+    end;
     addDrawPoint(x,y);
     btnConvert.Enabled := true;
   end
@@ -411,6 +443,9 @@ procedure TForm3.Image1MouseUp(Sender: TObject; Button: TMouseButton;
   Shift: TShiftState; X, Y: Integer);
 begin
   movObj := nil;
+  if chkDrawMode.Checked then
+    if not cbLineMode.Checked then
+      CurrentPolyIndex := -1;
 end;
 
 procedure TForm3.ListBox1Click(Sender: TObject);
@@ -423,7 +458,7 @@ end;
 
 procedure TForm3.OnAppIdle(Sender: TObject; var Done: Boolean);
 const cst_ct = 5;
-var i,j : integer;
+var i,j,k : integer;
     a,b,c : vec2;
     aa,bb,cc : vec2;
     ca,cb,cco : vec4;
@@ -455,12 +490,29 @@ begin
             pixel.setVertice(2,trunc(c.x),trunc(c.y));
             pixel.rasterize;
           end;
-        pixel.moveTo(trunc(a.x),trunc(a.y));
-        pixel.lineTo(trunc(b.x),trunc(b.y));
-        pixel.lineTo(trunc(c.x),trunc(c.y));
-        pixel.lineTo(trunc(a.x),trunc(a.y));
+
+        if  CheckBox1.Checked then
+        begin
+          pixel.moveTo(trunc(a.x),trunc(a.y));
+          pixel.lineTo(trunc(b.x),trunc(b.y));
+          pixel.lineTo(trunc(c.x),trunc(c.y));
+          pixel.lineTo(trunc(a.x),trunc(a.y));
+        end;
       end;
     end;
+
+   //Draw border.
+   if (cbDrawBorder.Checked) and (length(DrawList[i].Asset.Borders)>0) then begin
+     pixel.color_pen := pixel.colorSetAValue(gspRed,200);
+     for k := 0 to length(DrawList[i].Asset.Borders)-1 do begin
+       if length(DrawList[i].Asset.Borders[k])=0 then
+         continue;
+       pixel.moveTo(trunc(DrawList[i].Asset.Borders[k][0].x),trunc(DrawList[i].Asset.Borders[k][0].y));
+       for j:= 1 to length(DrawList[i].Asset.Borders[k])-1 do
+         pixel.lineTo(trunc(DrawList[i].Asset.Borders[k][j].x),trunc(DrawList[i].Asset.Borders[k][j].y));
+       pixel.lineto(trunc(DrawList[i].Asset.Borders[k][0].x),trunc(DrawList[i].Asset.Borders[k][0].y));
+     end;
+   end;
 
     //Draw boundingbox
     //if  CheckBox1.Checked then
@@ -475,18 +527,58 @@ begin
   end;
 
   //User drawing...
-  if length(CurrentDrawData)>0 then
-  begin
-    pixel.color_pen := pixel.colorSetAValue(gspBlack,150);
-    pixel.moveTo(trunc(currentDrawData[0].x),trunc(currentDrawData[0].y));
-    for I := 0 to length(CurrentDrawData)-1 do
-    begin
-      pixel.lineTo(trunc(currentDrawData[i].x),trunc(currentDrawData[i].y));
-    end;
+  if length(CurrentDrawData)>0 then begin
+    for j := 0 to length(CurrentDrawData)-1 do
+      if length(CurrentDrawData[j])>0 then begin
+        pixel.color_pen := pixel.colorSetAValue(gspBlack,150);
+        pixel.moveTo(trunc(currentDrawData[j][0].x),trunc(currentDrawData[j][0].y));
+        for i := 0 to length(CurrentDrawData[j])-1 do
+          pixel.lineTo(trunc(currentDrawData[j][i].x),trunc(currentDrawData[j][i].y));
+      end;
   end;
   pixel.CopyToDc(Image1.Picture.Bitmap.Canvas.Handle);
   Image1.Repaint;
   inc(FPS);
+end;
+
+procedure TForm3.pmLoadMeshClick(Sender: TObject);
+var asset : TGSAssetShapeMesh;
+    l : TFileStream;
+begin
+  if OpenDialog1.Execute then
+  begin
+    l := TFileStream.Create(OpenDialog1.FileName,fmOpenRead);
+    try
+      asset := TGSAssetShapeMesh.Create;
+      asset.LoadFromStreamMeshPart(l);
+      asset.MeshData.fullRefreshBounding;
+      assetManager.addAsset(asset);
+      ListBox1.AddItem('MeshAsset '+IntToStr(assetManager.AssetCount),asset);
+      ListBox1.PopupMenu := PopupMenu2;
+    finally
+      FreeAndNil(l);
+    end;
+  end;
+end;
+
+procedure TForm3.pmSaveMeshClick(Sender: TObject);
+var asset : TGSAssetShapeMesh;
+    l : TFileStream;
+begin
+  if ListBox1.ItemIndex>-1 then
+  begin
+    asset := TGSAssetShapeMesh(ListBox1.Items.Objects[ListBox1.ItemIndex]);
+    if SaveDialog1.Execute then
+    begin
+      l := TFileStream.Create(SaveDialog1.FileName,fmCreate);
+      try
+        asset.SaveToStreamMeshPart(l);
+        ShowMessage(format('"%s" mesh only Saved',[SaveDialog1.FileName]));
+      finally
+        FreeAndNil(l);
+      end;
+    end;
+  end;
 end;
 
 procedure TForm3.TimerFPSTimer(Sender: TObject);
@@ -504,7 +596,7 @@ begin
     flist.Add(asset)
 end;
 
-function TShapeAssetManager.AssetFromMouseDrawing( data: array of vec2;
+function TShapeAssetManager.AssetFromMouseDrawing( data: Vec2sArray;
                                                    var newAsset : TGSAssetShapeMesh;
                                                    const TriangulationMethod : TTiangulationMethod) : boolean;
 var v : vec2;
@@ -522,6 +614,8 @@ begin
   end;
 
   lvar := newAsset.MeshData;
+  newAsset.BordersCopyFrom(data);
+
   result := TGSTriangulationPortal.PolygoneTriangulation(data,lvar,TriangulationMethod)>0;
 end;
 

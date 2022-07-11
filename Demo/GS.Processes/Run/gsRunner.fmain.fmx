@@ -1,0 +1,163 @@
+object Form42: TForm42
+  Left = 0
+  Top = 0
+  Caption = 'Form42'
+  ClientHeight = 646
+  ClientWidth = 946
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  DesignerMasterStyle = 0
+  object TabControl1: TTabControl
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    Position.X = 8.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 929.000000000000000000
+    Size.Height = 633.000000000000000000
+    Size.PlatformDefault = False
+    TabIndex = 0
+    TabOrder = 0
+    TabPosition = PlatformDefault
+    Sizes = (
+      929s
+      607s
+      929s
+      607s
+      929s
+      607s
+      929s
+      607s)
+    object TabItem1: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = True
+      Size.Width = 58.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Python'
+      ExplicitSize.cx = 58.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+      object Panel1: TPanel
+        Align = Top
+        Size.Width = 929.000000000000000000
+        Size.Height = 73.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        object Button1: TButton
+          Position.X = 8.000000000000000000
+          Position.Y = 8.000000000000000000
+          Size.Width = 97.000000000000000000
+          Size.Height = 57.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 0
+          Text = 'load...'
+        end
+        object Button2: TButton
+          Position.X = 112.000000000000000000
+          Position.Y = 8.000000000000000000
+          Size.Width = 89.000000000000000000
+          Size.Height = 57.000000000000000000
+          Size.PlatformDefault = False
+          TabOrder = 1
+          Text = 'Run'
+          OnClick = Button2Click
+        end
+      end
+      object Memo1: TMemo
+        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+        DataDetectorTypes = []
+        Lines.Strings = (
+          'import sys, datetime'
+          ''
+          'print("Python version") '
+          'print (sys.version) '
+          'print("Version info.") '
+          'print (sys.version_info)'
+          'print("This line will be printed.")'
+          'now = datetime.datetime.now()'
+          'print ("Current date and time : ")'
+          'print (now.strftime("%Y-%m-%d %H:%M:%S"))')
+        Align = Left
+        Position.Y = 73.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 534.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 2
+        Viewport.Width = 389.000000000000000000
+        Viewport.Height = 530.000000000000000000
+      end
+      object Splitter1: TSplitter
+        Align = Left
+        Cursor = crHSplit
+        MinSize = 20.000000000000000000
+        Position.X = 393.000000000000000000
+        Position.Y = 73.000000000000000000
+        Size.Width = 16.000000000000000000
+        Size.Height = 534.000000000000000000
+        Size.PlatformDefault = False
+      end
+      object Memo2: TMemo
+        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+        DataDetectorTypes = []
+        ReadOnly = True
+        Align = Client
+        Size.Width = 520.000000000000000000
+        Size.Height = 534.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 1
+        Viewport.Width = 516.000000000000000000
+        Viewport.Height = 530.000000000000000000
+      end
+    end
+    object TabItem2: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = False
+      Size.Width = 83.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'PascalScript'
+      ExplicitSize.cx = 69.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+    end
+    object TabItem3: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = False
+      Size.Width = 39.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Lua'
+      ExplicitSize.cx = 39.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+    end
+    object TabItem4: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = False
+      Size.Width = 93.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'CommandList'
+      ExplicitSize.cx = 93.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+    end
+  end
+  object OpenDialog1: TOpenDialog
+    Title = 'choose a py'
+    Left = 24
+    Top = 136
+  end
+end

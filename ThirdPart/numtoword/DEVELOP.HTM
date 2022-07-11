@@ -1,0 +1,164 @@
+<HTML><HEAD>
+<TITLE>NumWords - Developer's Source Code Map.</TITLE>
+<LINK REV="made" HREF="mailto:andy@anorak.org.uk">
+</HEAD><BODY BGCOLOR="#000000" TEXT="#00FF00" LINK="#FFFFFF" ALINK="#FFFF00" VLINK="#00FFFF">
+
+<CENTER><H1>NumWords - Developer's Source Code Map.</H1>
+<P>By <A HREF="http://www.apollod.omnia.co.uk/aa/">Andy Preston</A>,
+<A HREF="http://www.apollod.omnia.co.uk/">Apollo Developments</A></P>
+
+<HR><H2>Demo.dpr</H2></CENTER>
+
+<P>the demo program, a good place to start.</P>
+
+<HR><H2 ALIGN="CENTER">Demo1.pas</H2>
+
+<P>the main unit of the demo program.</P>
+
+<P>By default NumWord's will use the local language and country information
+obtained from Windows.</P>
+
+<P>In:
+<PRE>Procedure TForm1.FormShow (Sender : TObject);</PRE>
+You can un-comment this line:
+<PRE>InWords.SelectLocale (CTRY_AUSTRIA, LANG_GERMAN, useEuro);</PRE>
+and experiment with other countries / languages, if you leave this line
+commented out, numwords will work in the user's default locale.</P>
+
+<HR><H2 ALIGN="CENTER">Numwords.pas</H2>
+
+<P>This is the code that set's up the local language / currency information</P>
+
+<P>This is where<PRE>
+Procedure TNumWords.SelectLocale (CountryCode, LanguageCode : Integer; EuroMode : Boolean);
+</PRE>can be found. If you want to add new languages you'll need to add another<PRE>
+LANG_XXXXX : LanguageDriver:=TNumWordsXXXXX.Create (CountryCode, EuroMode);
+</PRE>line to this procedure</P>
+
+<P>If you want to add a language driver you'll also have to add your
+language driver's unit name to the <STRONG>Implementation</STRONG> section's
+<STRONG>Uses</STRONG> clause, as with <STRONG>NumW_Eng</STRONG>, <STRONG>NumW_Deu</STRONG>,
+<STRONG>NumW_Esp</STRONG>, <STRONG>NumW_Ita</STRONG> in the current unit.</P>
+
+<HR><H2 ALIGN="CENTER">Numw.pas</H2>
+
+<P>The base class for the language drivers.</P>
+
+<P>To add support for a new country, you will need to look at:
+<PRE>Constructor TNumWordsLangDriver.Create (CountryCode : Integer; EuroMode : Boolean);</PRE>
+and add some new code to the <STRONG>switch</STRONG> statement like:
+<PRE>
+  CTRY_UNITED_KINGDOM : Begin
+    CurrencyGender := genNeuter; // No gender in English
+    BigSing := 'Pound';
+    BigPlural := 'Pounds';
+    SmallSing := 'Penny';
+    SmallPlural := 'Pence';
+  End;
+</PRE>
+These variables are part of the <STRONG>TNumWordsLangDriver</STRONG>
+class and are used to return a currency value in words.</P>
+
+<HR>
+
+<P>
+<PRE>
+Function TNumWordsLangDriver.EMoneyInWords (TheAmount : Extended) : String;
+</PRE>
+Isn't very well written, I'd be much happier using Marco Bianchini's
+code in his original bVerbose component, what do you think Marco?</P>
+
+<HR>
+<H2 ALIGN="CENTER">NumW_Deu.pas
+<BR>NumW_Eng.pas
+<BR>NumW_Esp.pas
+<BR>NumW_Ita.pas
+<BR>NumW_Fra.pas
+<BR>NumW_Trk.pas</H2>
+
+<P>These are the actual language driver classes</P>
+
+<P><STRONG>TNumWordsEnglish</STRONG>, <STRONG>TNumWordsDeutch</STRONG>,
+<STRONG>TNumWordsEspanol</STRONG>, <STRONG>TNumWordsItaliano</STRONG>,
+<STRONG>TNumWordsFrancais</STRONG>, &amp; <STRONG>TNumWordsTurkish</STRONG>
+are dervied from
+<STRONG>TNumWordsLangDriver</STRONG> (in <STRONG>Numw.pas</STRONG>). They are the
+language-specific parts on NumWords</P>
+
+<P>These classes override the virtual functions:
+<PRE>
+Function NumberInWords (TheNumber : Integer) : String;
+Function IMoneyInWords (Major, Minor : Integer) : String;
+</PRE>
+These functions do the actual conversion work.</P>
+
+<HR>
+
+<P>In the original source code for the non-English language drivers
+that has been <EM>borrowed</EM> from other programmers, there is no
+code for :
+<PRE>
+Function IMoneyInWords (Major, Minor : Integer) : String;
+</PRE>
+this still needs to be added to <STRONG>NumW_Esp.pas</STRONG>
+for full Espan&otilde;l support. 
+<BR>This routine is also untested for <STRONG>NumW_Ita.pas</STRONG>
+&amp; <STRONG>NumW_Fra.pas</STRONG> so Italiano &amp;
+Fran&ccedil;ais support is <EM>Beta</EM>.
+
+<HR>
+
+<P>Andreas Schmidt has a good idea in:
+<PRE>
+Function TNumWordsDeutch.NumberInWords (TheNumber : Integer) : String;
+</PRE>
+The first line of his version of this function is:
+<PRE>
+If TheNumber&lt;0 Then Result:='minus '+NumberInWords (-TheNumber)
+</PRE>
+The same 'easy way to get negative numbers' works in English too.
+Can it be added to Espan&otilde;l, Fran&ccedil;ais &amp; Italiano?</P>
+
+<HR><H2 ALIGN="CENTER">QRNumW.pas</H2>
+<P>All of the design time code for the Q.R. Component. To install
+the component in your VCL, install this file</P>
+
+<HR><H2 ALIGN="CENTER">QRCusDBT.pas</H2>
+<P>The plan was to make the component inherit from a <EM>mythical</EM> one
+something like a halfway point between <STRONG>TQRCustomLabel</STRONG> and
+<STRONG>TQRDBText</STRONG>. But no such component exists, so we've had to
+copy most of <STRONG>TQRDBText</STRONG> from the Q.R. Sources.
+The result, <STRONG>TQRCustomDBText</STRONG>, is in this file.</P>
+
+<HR><H2 ALIGN="CENTER">QRDBCash.pas</H2>
+<P>This is the actual code of the Q.R. component</P>
+
+<HR><H2 ALIGN="CENTER">Authors.htm</H2>
+<P>Author information</P>
+
+<HR><H2 ALIGN="CENTER">Numwords.htm</H2>
+<P>User Documentation</P>
+
+<HR><H2 ALIGN="CENTER">LGPL.htm<BR>GPL.htm</H2>
+<P>User Licenses</P>
+
+<HR>
+
+<P>This file is free software; you can redistribute it and/or
+modify it under the terms of the GNU Library General Public
+License as published by the Free Software Foundation; either
+version 2 of the License, or (at your option) any later version.</P>
+
+<P>This file is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty
+of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Library General Public License for more details.</P>
+
+<P>You should have received a copy of the GNU Library General
+Public License along with this library; if not, write to the
+Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA  02111-1307, USA.</P>
+
+<HR>
+
+</BODY></HTML>

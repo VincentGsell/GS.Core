@@ -52,13 +52,13 @@ end;
 
 function JSONDateToString(aDate : TDateTime) : String;
 begin
-  Result := '"'+ZeroFillStr(YearOf(aDate),4)+'-'+
+  Result := ZeroFillStr(YearOf(aDate),4)+'-'+
             ZeroFillStr(MonthOf(aDate),2)+'-'+
             ZeroFillStr(DayOf(aDate),2)+'T'+
             ZeroFillStr(HourOf(aDate),2)+':'+
             ZeroFillStr(MinuteOf(aDate),2)+':'+
             ZeroFillStr(SecondOf(aDate),2)+'.'+
-            ZeroFillStr(SecondOf(aDate),3)+'Z"';
+            ZeroFillStr(SecondOf(aDate),3)+'Z';
 end;
 
 function JSONStringToDate(aDate : String) : TDateTime;

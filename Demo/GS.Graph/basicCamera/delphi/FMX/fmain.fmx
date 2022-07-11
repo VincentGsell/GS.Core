@@ -1,0 +1,91 @@
+object Form42: TForm42
+  Left = 0
+  Top = 0
+  Caption = 'Form42'
+  ClientHeight = 620
+  ClientWidth = 1007
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  OnResize = FormResize
+  DesignerMasterStyle = 0
+  object PopupMenu1: TPopupMenu
+    Left = 512
+    Top = 296
+    object MenuItem1: TMenuItem
+      Text = 'scale'
+    end
+  end
+  object Image1: TImage
+    MultiResBitmap = <
+      item
+      end>
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    PopupMenu = PopupMenu1
+    Position.X = 8.000000000000000000
+    Position.Y = 8.000000000000000000
+    Size.Width = 993.000000000000000000
+    Size.Height = 601.000000000000000000
+    Size.PlatformDefault = False
+    OnMouseDown = Image1MouseDown
+    object Selection2: TSelection
+      GripSize = 3.000000000000000000
+      HideSelection = False
+      Proportional = False
+      Position.X = 144.000000000000000000
+      Position.Y = 128.000000000000000000
+      Size.Width = 145.000000000000000000
+      Size.Height = 121.000000000000000000
+      Size.PlatformDefault = False
+      ShowHandles = True
+      OnTrack = Selection2Track
+    end
+    object ArcDial1: TArcDial
+      Position.X = 291.000000000000000000
+      Position.Y = 131.000000000000000000
+      TabOrder = 1
+      OnChange = ArcDial1Change
+    end
+    object Selection1: TSelection
+      GripSize = 3.000000000000000000
+      HideSelection = False
+      Proportional = False
+      Position.X = 600.000000000000000000
+      Position.Y = 256.000000000000000000
+      Size.Width = 377.000000000000000000
+      Size.Height = 329.000000000000000000
+      Size.PlatformDefault = False
+      ShowHandles = True
+      object Image2: TImage
+        MultiResBitmap = <
+          item
+          end>
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        HitTest = False
+        Position.X = 7.000000000000000000
+        Position.Y = 47.000000000000000000
+        Size.Width = 362.000000000000000000
+        Size.Height = 274.000000000000000000
+        Size.PlatformDefault = False
+      end
+      object Panel1: TPanel
+        Anchors = [akLeft, akTop, akRight]
+        HitTest = False
+        Position.X = 8.000000000000000000
+        Position.Y = 9.000000000000000000
+        Size.Width = 361.000000000000000000
+        Size.Height = 32.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 1
+        object Label1: TLabel
+          Position.X = 16.000000000000000000
+          Position.Y = 7.000000000000000000
+          Text = 'Camera'
+          TabOrder = 0
+        end
+      end
+    end
+  end
+end

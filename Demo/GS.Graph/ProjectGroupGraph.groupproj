@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{3EAC4E97-0507-4EB2-8AB7-960C1457CFAA}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="AdvCamera\advCam.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="basicCamera\delphi\FMX\BasicCamera.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="advCam">
+        <MSBuild Projects="AdvCamera\advCam.dproj"/>
+    </Target>
+    <Target Name="advCam:Clean">
+        <MSBuild Projects="AdvCamera\advCam.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="advCam:Make">
+        <MSBuild Projects="AdvCamera\advCam.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="BasicCamera">
+        <MSBuild Projects="basicCamera\delphi\FMX\BasicCamera.dproj"/>
+    </Target>
+    <Target Name="BasicCamera:Clean">
+        <MSBuild Projects="basicCamera\delphi\FMX\BasicCamera.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="BasicCamera:Make">
+        <MSBuild Projects="basicCamera\delphi\FMX\BasicCamera.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="advCam;BasicCamera"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="advCam:Clean;BasicCamera:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="advCam:Make;BasicCamera:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

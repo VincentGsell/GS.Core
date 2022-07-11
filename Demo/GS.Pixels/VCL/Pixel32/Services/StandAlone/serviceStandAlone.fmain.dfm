@@ -15,8 +15,8 @@ object Form5: TForm5
   PixelsPerInch = 96
   TextHeight = 13
   object Image1: TImage
-    Left = 232
-    Top = 232
+    Left = 192
+    Top = 208
     Width = 385
     Height = 305
   end

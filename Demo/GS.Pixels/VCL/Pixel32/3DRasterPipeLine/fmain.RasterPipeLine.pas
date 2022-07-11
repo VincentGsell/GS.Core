@@ -309,32 +309,7 @@ begin
 end;
 
 procedure TForm7.GUI_UpdateLog;
-var l : TStringList;
-    t : TTreeNode;
-    i : integer;
 begin
-  l :=  TStringList.Create;
-  try
-    l.Text := TMonitoring.Reports;
-    if TreeView1.Items.Count>0 then
-    begin
-      for i :=0 to l.Count-1 do
-      begin
-        TreeView1.Items[i].Text := l[i];
-      end;
-    end
-    else
-    begin
-      t := TreeView1.Items.AddChild(nil,l[0]);
-      t := TreeView1.Items.AddChild(t,l[1]);
-      for i :=2 to l.Count-1 do
-      begin
-        TreeView1.Items.AddChild(t,l[i]);
-      end;
-    end;
-  finally
-    FreeAndNil(l);
-  end;
 end;
 
 procedure TForm7.Image1MouseDown(Sender: TObject; Button: TMouseButton;

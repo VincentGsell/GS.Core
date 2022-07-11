@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{BC157D41-92B6-42F8-9EBB-D20186538F35}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="SchedulerDemosGUI\GSSChedulerDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\..\ThirdPart\maxCron\demo\CronDemo.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="GSSChedulerDemo">
+        <MSBuild Projects="SchedulerDemosGUI\GSSChedulerDemo.dproj"/>
+    </Target>
+    <Target Name="GSSChedulerDemo:Clean">
+        <MSBuild Projects="SchedulerDemosGUI\GSSChedulerDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="GSSChedulerDemo:Make">
+        <MSBuild Projects="SchedulerDemosGUI\GSSChedulerDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="CronDemo">
+        <MSBuild Projects="..\..\ThirdPart\maxCron\demo\CronDemo.dproj"/>
+    </Target>
+    <Target Name="CronDemo:Clean">
+        <MSBuild Projects="..\..\ThirdPart\maxCron\demo\CronDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="CronDemo:Make">
+        <MSBuild Projects="..\..\ThirdPart\maxCron\demo\CronDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="GSSChedulerDemo;CronDemo"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="GSSChedulerDemo:Clean;CronDemo:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="GSSChedulerDemo:Make;CronDemo:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

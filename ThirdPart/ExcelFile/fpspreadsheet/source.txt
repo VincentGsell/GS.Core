@@ -1,0 +1,2 @@
+https://github.com/tcs-ulli/fpspreadsheet
+For FPC exclusively

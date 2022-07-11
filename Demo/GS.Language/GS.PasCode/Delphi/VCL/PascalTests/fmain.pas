@@ -71,13 +71,13 @@ begin
     s.updateVar('b',5);
     s.updateVar('c',2);
     s.updateVar('d',200);
+    s.updateVar('e33',4);
 
     if s.Compile(cbFormula.Text) then
     begin
       Memo3.Lines.Add('compilation ok');
       Memo3.Lines.Add(s.FlushPostFixFormula);
       Memo3.Lines.Add('Running...');
-
       s.Run;
       Memo3.Lines.Add('*************************************');
       Memo3.Lines.Add('Result : '+s.getVarValueAsString('result'));
@@ -210,7 +210,7 @@ memo1.Lines.Text :=
 'b := 20; e:double += 10;'+#13#10+
 'c := 30; cos(a); zz:integer +=pow(pow(10,2));'+#13#10+
 'd :integer := a*b+c+pow(3,4,a);'+#13#10+
-'g :integer := (cos(a*b+c+pow(3,4,a))/10);'+#13#10+
+'g : double := (cos(a*b+c+pow(3,4,a))/10);'+#13#10+
 'println(d);'+#13#10+
 'end.'+#13#10;
 end;

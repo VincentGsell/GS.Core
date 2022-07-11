@@ -1,0 +1,411 @@
+<HTML><HEAD>
+<TITLE>NumWords Is OSI Certified</TITLE>
+<LINK REV="made" HREF="mailto:andy@anorak.org.uk">
+<META NAME="DESCRIPTION" CONTENT="A free Borland Delphi component to translate numbers into words. English, Francais, Deutsch, Espanol, Italiano, Turkish">
+<META NAME="KEYWORDS" CONTENT="APOLLO DEVELOPMENTS FREE SOFTWARE OPEN SOURCE DELPHI COMPONENT NUMBERS WORDS MONEY CASH CURRENCY">
+</HEAD><BODY BGCOLOR="#000000" TEXT="#00FF00" LINK="#FFFFFF" ALINK="#FFFF00" VLINK="#00FFFF">
+
+<CENTER>
+
+<H1>NumWords Version 4.6</H1>
+
+<P>Express a number in words in English, Deutsch, Fran&ccedil;ais,
+Espa&ntilde;ol, Italiano, &amp; Turkish.
+<BR>For programs that print cheques etc.</P>
+
+<P><STRONG>Italiano and Fran&ccedil;ais money routines are untested<BR>
+Espa&ntilde;ol has no money support at the moment</STRONG></P>
+
+<P>
+<A HREF="http://www.gnu.org/copyleft/copyleft.html">Copyleft</A>
+Andy Preston,
+<A HREF="http://www.apollod.omnia.co.uk/">Apollo Developments</A>,
+1999 - 2001.</P>
+
+<H2>Licensing</H2>
+
+<P>This is <A HREF="http://www.gnu.org/philosophy/free-sw.html">Free Software</A>,
+released under the LGPL (Copy Enclosed).
+<BR><A HREF="http://www.opensource.org/certification-mark.html">OSI Certified</A>
+Open Source Software.</P>
+
+<H2>Platforms</H2>
+
+<P>Delphi 2 - 5; Quick Reports 2, and 3 (optional)</P>
+
+<H2>Installation</H2></CENTER>
+
+<OL><LI>If you are upgrading from a version earlier than 3.1, DELETE
+<STRONG>qr_cusdbt.pas</STRONG> from your library directory.<BR><BR></LI>
+
+<LI>If you are upgrading from a version earlier than 4.0, DELETE
+<STRONG>dollar.res</STRONG>, and <STRONG>pound.res</STRONG>
+from your library directory.<BR><BR></LI>
+
+<LI>Copy <STRONG>numwords.pas</STRONG>, <STRONG>numw.pas</STRONG>,
+<STRONG>numw_deu.pas</STRONG>, <STRONG>num_eng.pas</STRONG>, 
+<STRONG>num_esp.pas</STRONG>, <STRONG>num_fra.pas</STRONG>,
+<STRONG>numw_ita.pas</STRONG>, &amp; <STRONG>num_trk.pas</STRONG>,
+to your library directory.<BR><BR></LI>
+
+<LI>If you don't want Quick Reports functionality you can just delete
+<STRONG>QRNumW.pas</STRONG>, 
+<STRONG>QRCusDBT.pas</STRONG> and <STRONG>QRDBCash.pas</STRONG></LI>
+
+</OL>
+
+<P>For Quick Reports Functionality:</P>
+
+<OL START=5>
+
+<LI>Also copy <STRONG>QRNumW.pas</STRONG>, <STRONG>QRCusDBT.pas</STRONG>
+and <STRONG>QRDBCash.pas</STRONG> to your library directory.<BR><BR></LI>
+
+<LI>Install components from <STRONG>QRNumW.pas</STRONG>
+in the normal way</LI>
+
+</OL>
+
+<H2 ALIGN="CENTER">Use (Without Quick Reports)</H2>
+
+<P>See <STRONG>Demo.dpr</STRONG>, <STRONG>Demo1.dfm</STRONG>,
+&amp; <STRONG>Demo1.pas</STRONG> (included in this archive) for
+more information.</P>
+
+<OL>
+
+<LI>Add <STRONG>NumWords</STRONG> to the <STRONG>Uses</STRONG>
+clause of the <STRONG>Implementation</STRONG> section of your
+application unit.<BR><BR></LI>
+
+<LI>You can use the various members of the object
+<STRONG>InWords : TNumWords</STRONG> as illustrated below</LI>
+
+</OL>
+
+<H3>Function HasGender (Gender : TGender) : Boolean</H3>
+
+<P>This fuction allows you to find out if a given language
+uses a gender</P>
+
+<P><STRONG>TGender = (genMale, genFemale, genNeuter)</STRONG>
+is defined in <STRONG>NumW.pas</STRONG></P>
+
+<P>e.g. English has no gender; Deutsch has Masculine, Feminine, &amp;
+Neuter; Fran&ccedil;ais has Masculine &amp; Feminine.</P>
+
+<P>Example</P>
+
+<PRE>
+Uses
+  NumWords, NumW;
+
+Procedure CheckGenderList;
+Begin
+  GenderList.Items.Clear;
+  If InWords.HasGender (genMale) Then GenderList.Items.Add ('Male');
+  If InWords.HasGender (genFemale) Then GenderList.Items.Add ('Female');
+  If InWords.HasGender (genNeuter) Then GenderList.Items.Add ('Neuter');
+End;
+</PRE>
+ 
+<H3>Procedure SelectLocale (CountryCode, LanguageCode : Integer)</H3>
+
+<P>Your local language and currency information is automatically
+obtained from Windows when your program starts, you can use this
+procedure to override the defaults and use a foreign language,
+or currency</P>
+
+<P>Example</P>
+
+<PRE>
+Uses
+  Windows, NumWords;
+
+Procedure TForm1.FormShow (Sender : TObject);
+Begin
+  InWords.SelectLocale (CTRY_GERMANY, LANG_GERMAN);
+End;
+</PRE>
+
+<H3>Function Number (TheNumber : Integer; Gender : TGender) : String</H3>
+
+<P><STRONG>TGender = (genMale, genFemale, genNeuter)</STRONG>
+is defined in <STRONG>NumW.pas</STRONG></P>
+
+<P>This function returns a <STRONG>String</STRONG> containing
+the value passed in <STRONG>TheNumber</STRONG> in words</P>
+
+<P>If you want to select the gender of the string returned
+pass a value in <STRONG>Gender</STRONG> if you are not
+worried about gender, use genNeuter</P>
+
+<P>If the language in use does not support gender this parameter
+is ignored</P>
+
+<P>Example</P>
+
+<PRE>
+Uses
+  NumWords, NumW;
+
+Procedure Convert (ANum : Integer);
+Var
+  AString : String;
+Begin
+  AString := InWords.Number (ANum, genFemale);
+  .
+  .
+  .
+  AString := InWords.Number (StrToInt (NumBox.Text), genNeuter);
+  .
+  .
+  .
+End;
+</PRE>
+
+<H3>Function IMoney (Major, Minor : Integer; EuroMode : Boolean) : String</H3>
+
+<P>Convert a sum of money into words: <EM>Dollars</EM> are passed in
+<STRONG>Major</STRONG>, <EM>Cents</EM> are passed in
+<STRONG>Minor</STRONG>.</P>
+
+<P>The <STRONG>EuroMode</STRONG> parameter is for European countries
+who are currently operating both their national currencies and the
+new Pan-EEC 'Euro' / 'Cent' currency. If this flag is
+<STRONG>False</STRONG> (<STRONG>noEuro</STRONG>) then the value will
+be printed using the local currency. If this flag is
+<STRONG>True</STRONG> (<STRONG>useEuro</STRONG>) then the value will
+be printed using the 'Euro' and 'Cent'.</P>
+
+<P>For non-European languages this parameter is ignored</P>
+
+<P>Example</P>
+
+<PRE>
+Uses
+  NumWords;
+  
+Procedure TRepForm.QRLabel1Print (Sender : TObject; Var Value : String);
+Begin
+  Value:=InWords.IMoney (Trunc(DataModule1.Table2.FieldByName ('Pounds').AsFloat),
+                         Trunc(DataModule1.Table2.FieldByName ('Pence').AsFloat),
+                         useEuro
+                        );
+End;
+   
+Procedure TRepForm.QRLabel2Print (Sender : TObject; Var Value : String);
+Begin
+  Value:=InWords.IMoney (Trunc(DataModule1.Table2.FieldByName ('Pounds').AsFloat),
+                         Trunc(DataModule1.Table2.FieldByName ('Pence').AsFloat),
+                         noEuro
+                        );
+End;
+</PRE>
+   
+<H3>Function EMoney (TheAmount : Extended; EuroMode : Boolean) : String</H3>
+
+<P>The same as the previous function except that the value is passed
+as an <STRONG>Extended</STRONG> value, with <EM>Dollars</EM> in the
+integer part, and <EM>Cents</EM> in the remainder.</P>
+
+<P>Example</P>
+
+<PRE>
+Uses
+  NumWords;
+  
+Procedure TRepForm.QRLabel1Print (Sender : TObject; Var Value : String);
+Begin
+  Value:=InWords.EMoney (DataModule1.Table2.FieldByName ('Pounds').AsFloat, useEuro);
+End;
+   
+Procedure TRepForm.QRLabel2Print (Sender : TObject; Var Value : String);
+Begin
+  Value:=InWords.EMoney (DataModule1.Table2.FieldByName ('Pounds').AsFloat, noEuro);
+End;
+</PRE>
+   
+<H2 ALIGN="CENTER">Use (With Quick Reports)</H2>
+
+<P>See <STRONG>QRDemo.dpr</STRONG>, <STRONG>QRDemo1.dfm</STRONG>,
+<STRONG>QRDemo1.pas</STRONG>, <STRONG>QRDemo2.dfm</STRONG>, And
+<STRONG>QRDemo2.pas</STRONG> (included in this archive) for more
+information.</P>
+
+<OL>
+
+<LI>After installation, you will have a new component on the
+<STRONG>Samples</STRONG> tab: <STRONG>TQRDBMoneyWords</STRONG><BR><BR></LI>
+
+<LI>Use <STRONG>TQRDBMoneyWords</STRONG> exactly the same as
+<STRONG>TQRDBText</STRONG> (any numeric fields will be displayed
+as money, and in words.)</LI>
+
+</OL>
+
+<H3 ALIGN="CENTER">Example form definition</H3>
+
+<PRE>
+   object QRDBMoneyWords : TQRDBMoneyWords
+     DataSet = DataModule1.Table3
+     DataField = 'Amount'
+     Gender = genNeuter
+     EuroMode = True
+     Alignment = taLeftJustify
+     AutoSize = True
+     AutoStretch = False
+     WordWrap = True
+   end
+</PRE>
+
+<H3 ALIGN="CENTER">Additional Properties</H3>
+
+<P><STRONG>Gender</STRONG> is of type <STRONG>TGender</STRONG>
+(See <STRONG>Function Number (TheNumber : Integer; Gender
+: TGender) : String</STRONG> above). If the field you are trying
+to print is an integer, this property controls the gender that
+it will be printed in.</P>
+
+<P><STRONG>EuroMode</STRONG> a <STRONG>Boolean</STRONG> flag.
+If it is <STRONG>True</STRONG> and the selected language is in
+use in the EEC, the value will be printed in Euros and Cents.
+If it is <STRONG>False</STRONG> or the selected language is not
+in use in the EEC, the value will be printed in the normal
+currency.</P>
+
+<P>See <STRONG>Function IMoney (Major, Minor : Integer;
+EuroMode : Boolean) : String</STRONG> above for more details.</P>
+
+<H2 ALIGN="CENTER">Missing Functionality</H2>
+
+<P>The following parts of NumWords are currently 'missing'.</P>
+
+<P>Most of these issues can be resolved with a quick e-mail
+conversation. If you need this functionality, you will also
+be able to give me the information I need to implement it.</P>
+
+<UL><LI>No currency support for Espa&ntilde;ol</LI>
+
+<LI>Translation routines do not yet support gender</LI>
+
+<LI>No Euro support of Italia</LI>
+
+<LI>No local currency support for various countries</LI>
+
+</UL>
+
+<H2 ALIGN="CENTER">History</H2>
+
+<UL><LI>1.0 English version. Not released</LI>
+
+<LI>2.0 Added support for printing database money fields as well as
+numbers</LI>
+
+<LI>2.1<UL>
+<LI>Fixed bug, 2 digit numbers displayed as (e.g.
+<STRONG>and ninety three</STRONG> not <STRONG>ninety three</STRONG>)</LI>
+<LI>Fixed floating point errors in <STRONG>EMoneyInWords</STRONG></LI>
+</UL></LI>
+
+<LI>3.0<UL>
+<LI>Added support for printing money in words for Quick Reports 2</LI>
+<LI>Floating point fix in 2.1 still didn't work properly, so I've
+fixed it again</LI>
+</UL></LI>
+
+<LI>3.1<UL>
+<LI>In Delphi 4, resource strings no longer clash with:
+<STRONG>%s is not a valid integer value</STRONG> and
+<STRONG>%s is not a valid floating point value</STRONG></LI>
+<LI>Changed Filename of <STRONG>QR_CusDBT.pas</STRONG>
+to <STRONG>QRCusDBT.pas</STRONG></LI>
+</UL></LI>
+
+<LI>3.2<UL>
+<LI>Improved Quick Reports demo program.</LI>
+<LI>Added <STRONG>DB</STRONG> to the <STRONG>Uses</STRONG>
+clause of <STRONG>QRDBCash.pas</STRONG>'s
+<STRONG>Implementation</STRONG> section, because with Delphi 4,
+field declarations are in <STRONG>DB</STRONG> and no longer in
+<STRONG>DBTables</STRONG>.</LI>
+</UL></LI>
+
+<LI>4.0<UL>
+<LI>Added support for Deutsch, Espa&ntilde;ol, &amp; Italiano.
+<LI>Added currency support for USA, New Zealand, Australia,
+Eire, U.K., &Ouml;sterreich, Deutschland, Italia, and Helvetica.</LI>
+<LI>The English version didn't have enough 'and's appearing - fixed it.</LI>
+<LI>Simplified the English version, based on ideas from the Deutsch version -
+No longer uses <STRONG>case</STRONG> statements, now uses arrays.</LI>
+</UL></LI>
+
+<LI>4.1 Fixed compile error bug <STRONG>Variable 'EuroMode'
+not defined</STRONG></LI>
+
+<LI>4.2<UL>
+<LI>Added Fran&ccedil;ais.</LI>
+<LI>Added basic support for gender.</LI>
+<LI>Improved Euro currency support.</LI>
+<LI>TNumWords is now a <STRONG>class</STRONG>.</LI>
+</UL></LI>
+
+<LI>4.3<UL>
+<LI>Corrected stupid spelling mistakes in English unit.</LI>
+<LI>Added support for Turkish.</LI>
+<LI>Added (untested) currency support for Fran&ccedil;ais.</LI>
+<LI>Added <STRONG>Euro</STRONG> Buttons to demo program.</LI>
+<LI>Added <STRONG>EuroMode</STRONG> and <STRONG>Gender</STRONG>
+Properties to <STRONG>QRDBMoneyWords</STRONG></LI>
+<LI>Re-wrote a lot of the documentation.</LI>
+</UL></LI>
+
+<LI>4.4<UL>
+<LI>Corrected bug in locale detection</LI>
+</UL></LI>
+
+<LI>4.5<UL>
+<LI>Property editor, &amp; design mode code are now in a seperate unit, and
+are not included in the final program.</LI>
+</UL></LI>
+
+<LI>4.6<UL>
+<LI>Corrected spelling mistake in the English driver, 30 is misspelled
+as thrirty instead of thirty.</LI>
+</UL></LI>
+
+</UL>
+
+<H2 ALIGN="CENTER">Testing</H2>
+
+<P>If you've tested it with Delphi 3, 4, or 5; or C++ Builder,
+e-mail me (<A HREF="mailto:andy@anorak.org.uk">Andy Preston</A>)
+and let me know. Then I can update this.</P>
+
+<P>If you've got any fab-and-groovy modifications or just want
+to let me know you love NumWords, I'd also be glad to hear from
+you.</P>
+
+<UL><LI>Version 4.5 Tested by Apollo Developments on
+Delphi 2.0, Quick Reports 2 &amp; Windows '95<BR><BR></LI>
+
+<LI>Version 4.5 tested by Hubert Bannwarth on Delphi 5 &amp; Windows 2000 French
+<BR><BR></LI>
+
+<LI>Version 4.0 tested by Andreas Schmidt on Delphi 4.0</LI></UL>
+
+<CENTER><HR WIDTH="75%"></CENTER>
+
+<P><SMALL>OSI Certified is a certification mark of the Open Source Initiative.
+Borland Delphi, and C++ Builder are trade marks of Inprise Corp.
+Quick Reports is a trade mark of QU-Soft ASD.
+Windows is a trade mark of Microsoft Corp.
+</SMALL></P>
+
+<CENTER><HR WIDTH="75%"></CENTER>
+
+<CENTER><P>This page has been checked by
+<A HREF="http://www.weblint.org">Weblint</A>,
+Version 1.020</P>
+
+</CENTER></BODY></HTML>

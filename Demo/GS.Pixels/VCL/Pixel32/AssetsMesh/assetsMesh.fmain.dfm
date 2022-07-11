@@ -3,8 +3,8 @@ object Form3: TForm3
   Top = 0
   Anchors = [akTop, akRight]
   Caption = 'Form3'
-  ClientHeight = 629
-  ClientWidth = 957
+  ClientHeight = 708
+  ClientWidth = 1139
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -16,19 +16,21 @@ object Form3: TForm3
   OnDestroy = FormDestroy
   OnResize = FormResize
   DesignSize = (
-    957
-    629)
+    1139
+    708)
   PixelsPerInch = 96
   TextHeight = 13
   object Image1: TImage
     Left = 112
     Top = 95
-    Width = 837
-    Height = 514
+    Width = 1019
+    Height = 593
     Anchors = [akLeft, akTop, akRight, akBottom]
     OnMouseDown = Image1MouseDown
     OnMouseMove = Image1MouseMove
     OnMouseUp = Image1MouseUp
+    ExplicitWidth = 837
+    ExplicitHeight = 514
   end
   object Label1: TLabel
     Left = 8
@@ -78,7 +80,7 @@ object Form3: TForm3
   end
   object Label7: TLabel
     Left = 112
-    Top = 611
+    Top = 690
     Width = 31
     Height = 13
     Anchors = [akLeft, akBottom]
@@ -89,6 +91,7 @@ object Form3: TForm3
     Font.Name = 'Tahoma'
     Font.Style = []
     ParentFont = False
+    ExplicitTop = 611
   end
   object btnConvert: TButton
     Left = 3
@@ -106,6 +109,7 @@ object Form3: TForm3
     Width = 103
     Height = 178
     ItemHeight = 13
+    PopupMenu = PopupMenu1
     TabOrder = 1
     OnClick = ListBox1Click
   end
@@ -130,10 +134,11 @@ object Form3: TForm3
     OnClick = ListBox1Click
   end
   object chkDrawMode: TCheckBox
-    Left = 659
+    Left = 841
     Top = 8
     Width = 290
     Height = 17
+    Anchors = [akTop, akRight]
     Caption = 'Draw mode (Uncheck to move shapes)'
     Checked = True
     Font.Charset = DEFAULT_CHARSET
@@ -172,6 +177,52 @@ object Form3: TForm3
     TabOrder = 7
     OnClick = Button3Click
   end
+  object GroupBox1: TGroupBox
+    Left = 841
+    Top = 31
+    Width = 290
+    Height = 58
+    Anchors = [akTop, akRight]
+    Caption = ' Render '
+    TabOrder = 8
+    object CheckBox1: TCheckBox
+      Left = 16
+      Top = 14
+      Width = 169
+      Height = 17
+      Caption = 'Draw triangles'
+      Checked = True
+      State = cbChecked
+      TabOrder = 0
+    end
+    object cbLineMode: TCheckBox
+      Left = 17
+      Top = 37
+      Width = 169
+      Height = 17
+      Caption = 'line mode'
+      Checked = True
+      State = cbChecked
+      TabOrder = 1
+    end
+    object btnNewPoly: TButton
+      Left = 88
+      Top = 33
+      Width = 75
+      Height = 25
+      Caption = 'btnNewPoly'
+      TabOrder = 2
+      OnClick = btnNewPolyClick
+    end
+    object cbDrawBorder: TCheckBox
+      Left = 112
+      Top = 14
+      Width = 97
+      Height = 17
+      Caption = 'Draw border'
+      TabOrder = 3
+    end
+  end
   object TimerFPS: TTimer
     OnTimer = TimerFPSTimer
     Left = 448
@@ -182,7 +233,23 @@ object Form3: TForm3
     Top = 320
   end
   object OpenDialog1: TOpenDialog
-    Left = 480
-    Top = 328
+    Left = 504
+    Top = 360
+  end
+  object PopupMenu1: TPopupMenu
+    Left = 160
+    Top = 160
+    object pmLoadMesh: TMenuItem
+      Caption = 'Load mesh file'
+      OnClick = pmLoadMeshClick
+    end
+  end
+  object PopupMenu2: TPopupMenu
+    Left = 248
+    Top = 184
+    object pmSaveMeshFile: TMenuItem
+      Caption = 'Save mesh file...'
+      OnClick = pmSaveMeshClick
+    end
   end
 end
