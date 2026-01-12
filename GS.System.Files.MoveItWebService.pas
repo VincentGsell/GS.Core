@@ -75,15 +75,15 @@ var lj : TGSJson;
 begin
   lj := TGSJson.Create;
   try
-    FClient.BaseURL := 'https://ft.wbf.admin.ch/api/v1/';
+    FClient.BaseURL := urlMoveIt;
 
     FClient.Accept := 'application/json';
     FClient.Params.AddItem('Content-Type','application/x-www-form-urlencoded',TRESTRequestParameterkind.pkHTTPHEADER, [TRESTRequestParameterOption.poDoNotEncode]);
     FClient.Params.AddItem('Accept','application/json',TRESTRequestParameterkind.pkHTTPHEADER, [TRESTRequestParameterOption.poDoNotEncode]);
 
     FClient.Params.AddItem('grant_type', 'password', TRESTRequestParameterKind.pkGETorPOST);
-    FClient.Params.AddItem('username', 'maf-agroplus', TRESTRequestParameterKind.pkGETorPOST);
-    FClient.Params.AddItem('password', 'hdfgol%%34DKDsSAgr', TRESTRequestParameterKind.pkGETorPOST);
+    FClient.Params.AddItem('username', username, TRESTRequestParameterKind.pkGETorPOST);
+    FClient.Params.AddItem('password', passsword, TRESTRequestParameterKind.pkGETorPOST);
 
     FRequest.Resource := 'token';
 
