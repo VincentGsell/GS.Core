@@ -9,6 +9,11 @@
 
 # history
 
+- 20220711
+	- updates for fixes 
+	- introduce gs.Languages, which is mainly R&D on parser and compilation. 
+	- GS.Geomtry, GS.Pixel(32), GS.System and GS.Common domain have been massively update fellowing client need.
+	
 - 20200626 
 	- Introduce GS.Soft3d.Pipeline : More advanced 3d raster, try to have clean architecture, fellowing pipeline one. 3dRasterDemo included.
 	- Several rename, add GS.System.* demos, 
@@ -21,7 +26,6 @@
 	- Introduce Language domain.
 - 20200301 
 	- Introduce Pixels domain, with Pixel32 as implemenation (32Bits raster pixel libs).
-
 
 - GS.Pixel
   Raster graphics system. Design to be simple, and build upon simple "software shader" technics.
